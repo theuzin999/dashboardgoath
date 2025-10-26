@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoathBet Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="dashboard-container" id="dashboard-container">
+        <div class="sidebar">
+            <button class="sidebar-toggle" onclick="toggleSidebar()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <div class="logo">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.21 6.63h6.95l-5.63 4.09 2.21 6.63-5.63-4.09-5.63 4.09 2.21-6.63-5.63-4.09h6.95z"/></svg>
+                <span>Dashboard</span>
+            </div>
+            <div class="menu-item active">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 12px;"><path d="M3 3v18h18"/><path d="M18.7 8.7L12 15.4 9.3 12.7 5.7 16.3"/></svg>
+                <span>Dashboard</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="header">
+                <h2>Dashboard</h2>
+                <input type="date" id="date-filter" class="date-filter-input" onchange="renderDashboard()">
+                <div class="user-profile">
+                    <img src="https://i.postimg.cc/q7nqXJTq/logo-GOATH.png" alt="Logo GOATH" class="user-logo">
+                    goathbet
+                </div>
+            </div>
+
+            <div class="stats-cards">
+                <div class="card" id="prob-10x-card" onclick="openSlidebar('prob-10x-slidebar')">
+                    <div class="card-label">Probabilidade 10x</div>
+                    <div class="card-value" id="prob-10x" data-value="20">20%</div>
+                    <span class="info-icon">i</span>
+                </div>
+                <div class="card" id="prob-50x-card" onclick="openSlidebar('prob-50x-slidebar')">
+                    <div class="card-label">Probabilidade 50x</div>
+                    <div class="card-value" id="prob-50x" data-value="20">20%</div>
+                    <span class="info-icon">i</span>
+                </div>
+                
+                <div class="card" id="time-pattern-card" onclick="openSlidebar('time-pattern-slidebar')">
+                    <div class="card-label">Padrão de Tempo Rosa</div>
+                    <div class="card-value" id="time-pattern-status">Aguardando</div> 
+                    <span class="info-icon">i</span>
+                </div>
+            </div>
+            
+            <div class="strong-entry-container">
+                <div class="entry-card trigger-card-button" id="trigger-card-pink" onclick="openSlidebar('pink-triggers-slidebar')">
+                    Gatilhos de Rosa
+                    <span class="info-icon">i</span>
+                </div>
+                
+                <div class="entry-card entry-conditions">
+                    <h4>Condições para Entrada Forte:</h4>
+                    <ul class="condition-list" id="condition-list">
+                        <li class="condition-item" id="cond-prob">Probabilidade Alta (≥75% / ≥70%)</li>
+                        <li class="condition-item" id="cond-pattern">Padrão Forte Ativo (≥3 reps)</li>
+                        <li class="condition-item" id="cond-time50x">Tempo sem 50x (≥ Média)</li>
+                        <li class="condition-item" id="cond-positive-pred">Predominância de Positivas (≥2.00x)</li>
+                    </ul>
+                </div>
+                
+                <div class="entry-card trigger-card-button" id="trigger-card-5x" onclick="openSlidebar('prob-5x-slidebar')">
+                    Chance de 5x
+                    <span class="info-icon">i</span>
+                </div>
+            </div>
+
+            <div class="filters-section">
+                <div class="color-filter">
+                    <div class="filter-label">Filtrar Cores:</div>
+                    <div class="filter-checkbox-group">
+                        <input type="checkbox" id="filter-blue" class="filter-checkbox" checked onchange="renderDashboard()">
+                        <label for="filter-blue" class="filter-button">Azul</label>
+
+                        <input type="checkbox" id="filter-purple" class="filter-checkbox" checked onchange="renderDashboard()">
+                        <label for="filter-purple" class="filter-button">Roxo</label>
+
+                        <input type="checkbox" id="filter-pink" class="filter-checkbox" checked onchange="renderDashboard()">
+                        <label for="filter-pink" class="filter-button">Rosa</label>
+                    </div>
+                </div>
+
+                <div class="columns-filter">
+                    <div class="columns-label">Quantidade de Colunas:</div>
+                    <select id="columns-select" class="columns-select" onchange="updateGridColumns()">
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                        <option value="12">12</option>
+                        <option value="13">13</option>
+                        <option value="14">14</option>
+                        <option value="15">15</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="averages-section">
+                <div class="card">
+                    <div class="card-label">Média azul</div>
+                    <div class="card-value blue">1.10x</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Média Roxa</div>
+                    <div class="card-value purple">2.00x</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Média Rosa</div>
+                    <div class="card-value pink">10.00x</div>
+                </div>
+            </div>
+
+            <h3>Gráfico Atual em tempo real</h3>
+            <div class="multiplier-grid" id="multiplier-grid">
+                <div style="grid-column: 1 / -1; text-align: center; padding: 50px; color: var(--cor-texto-suave);">Aguardando dados do bot...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="prob-10x-slidebar" class="slidebar">
+        <button class="slidebar-close" onclick="closeSlidebar('prob-10x-slidebar')">×</button>
+        <div class="slidebar-title">Probabilidade 10x</div>
+        <div class="slidebar-content">
+            <p>A probabilidade 10x calcula a chance de uma vela rosa (≥10x) baseada em padrões de tempo, repetições de intervalos e multiplicadores gatilho.</p>
+            
+            <h4>Repetições de Intervalos entre Rosas (Tempo):</h4>
+            <ul id="interval-list-10x" class="interval-list"></ul>
+        </div>
+    </div>
+
+    <div id="prob-50x-slidebar" class="slidebar">
+        <button class="slidebar-close" onclick="closeSlidebar('prob-50x-slidebar')">×</button>
+        <div class="slidebar-title">Probabilidade 50x</div>
+        <div class="slidebar-content">
+            <p>A probabilidade 50x calcula a chance de uma vela ≥50x baseada na contagem de velas rosas inferiores a certos limites, reiniciando após uma ≥50x.</p>
+            <h4>Informações:</h4>
+            <div class="info-card" id="pink-below-50x"></div>
+            <div class="info-card" id="pink-below-35x"></div>
+            <div class="info-card" id="time-since-last-50x"></div>
+            <div class="info-card" id="average-time-between-50x"></div>
+        </div>
+    </div>
+    
+    <div id="pink-triggers-slidebar" class="slidebar">
+        <button class="slidebar-close" onclick="closeSlidebar('pink-triggers-slidebar')">×</button>
+        <div class="slidebar-title">Gatilhos de Rosa</div>
+        <div class="slidebar-content">
+            <ul id="pink-triggers-list">
+                <li class="list-header">Últimos multiplicadores que puxaram velas rosas nas últimas 2 horas:</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="prob-5x-slidebar" class="slidebar">
+        <button class="slidebar-close" onclick="closeSlidebar('prob-5x-slidebar')">×</button>
+        <div class="slidebar-title">Chance de 5x</div>
+        <div class="slidebar-content">
+            <p>Informações sobre velas de 5.00x ou mais, chance de 5x apos 3 e 5 minutos alem do intervalo entre o penultimo e ultimo 5x.</p>
+            <h4>Informações:</h4>
+            <div class="info-card" id="time-since-last-5x"></div>
+            <div class="info-card" id="average-time-between-5x"></div>
+        </div>
+    </div>
+
+    <div id="time-pattern-slidebar" class="slidebar">
+        <button class="slidebar-close" onclick="closeSlidebar('time-pattern-slidebar')">×</button>
+        <div class="slidebar-title">Padrão de Tempo Rosa</div>
+        <div class="slidebar-content">
+            <p>Calcula o próximo horário provável para uma vela rosa com base em intervalos fixos (3, 5, 7, e 10 minutos) após ηltima vela rosa.</p>
+            <h4>Padrão Atual:</h4>
+            <div class="info-card" id="time-pattern-details">
+                Nenhum padrão ativo.
+            </div>
+        </div>
+    </div>
+    <script type="module" src="script.js"></script>
+</body>
+</html>
