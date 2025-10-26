@@ -1,0 +1,1805 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoathBet Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* Variáveis de Cores (Atualizadas com gradientes e tons mais sofisticados) */
+        :root {
+            --cor-fundo-principal: #0a0a0f; /* Fundo preto mais profundo para contraste */
+            --cor-fundo-sidebar: #0f0f1a;
+            --cor-texto-claro: #e0e0e5;
+            --cor-texto-suave: #a0a0b0;
+            --cor-destaque-roxo: #7a2aff;
+            --cor-destaque-rosa: #ff2a8d;
+            --cor-destaque-azul: #00d4ff;
+            --cor-card-fundo: #1a1a2e;
+            --cor-verde: #4caf50; 
+            --cor-vermelho: #f44336; 
+            --cor-shadow: rgba(0, 0, 0, 0.5);
+            --cor-border: #2a2a3f;
+            --cor-gradient-roxo: linear-gradient(135deg, #7a2aff, #4a0dad);
+            --cor-gradient-rosa: linear-gradient(135deg, #ff2a8d, #d81b60);
+            --cor-gradient-azul: linear-gradient(135deg, #00d4ff, #0288d1);
+            --cor-alerta-vermelho: #ff5722; 
+            --cor-alerta-proximo: #ffc107;
+        }
+
+        /* Estilos Globais (Fontes modernas e transições suaves) */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Montserrat', sans-serif;
+            transition: all 0.3s ease;
+        }
+
+        body {
+            background-color: var(--cor-fundo-principal);
+            color: var(--cor-texto-claro);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Layout Principal - CSS Grid (Responsivo e otimizado) */
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            width: 100%;
+            transition: grid-template-columns 0.3s ease;
+        }
+
+        .dashboard-container.sidebar-hidden {
+            grid-template-columns: 50px 1fr; /* Ajustado para 50px como no antigolayout para melhor recolhimento */
+        }
+
+        /* Sidebar (Minimalista com gradientes sutis no hover) */
+        .sidebar {
+            background-color: var(--cor-fundo-sidebar);
+            padding: 20px 0;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--cor-border);
+            position: relative;
+            transition: width 0.3s ease;
+            overflow: hidden;
+        }
+
+        .dashboard-container.sidebar-hidden .sidebar {
+            width: 50px;
+            padding: 20px 0 20px 0;
+        }
+        
+        .sidebar-toggle {
+            position: absolute;
+            top: 50%;
+            right: -10px; 
+            transform: translateY(-50%);
+            background-color: var(--cor-destaque-roxo);
+            border: none;
+            color: white;
+            padding: 5px;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 100;
+            line-height: 1;
+            transition: transform 0.3s ease, right 0.3s ease, background-color 0.2s;
+        }
+
+        .sidebar-toggle:hover {
+            background-color: #9b6fd6;
+        }
+
+        .dashboard-container.sidebar-hidden .sidebar-toggle {
+            transform: translateY(-50%) rotate(180deg);
+            right: -10px;
+        }
+
+        .dashboard-container.sidebar-hidden .logo span,
+        .dashboard-container.sidebar-hidden .menu-item span {
+            display: none;
+        }
+        .dashboard-container.sidebar-hidden .logo,
+        .dashboard-container.sidebar-hidden .menu-item {
+            justify-content: center;
+            padding: 15px 0;
+        }
+
+        .logo {
+            padding: 0 20px 30px;
+            font-size: 1.6em;
+            font-weight: 700;
+            color: var(--cor-destaque-roxo);
+            display: flex;
+            align-items: center;
+        }
+
+        .logo svg {
+            margin-right: 12px;
+            min-width: 28px;
+        }
+
+        .menu-item {
+            padding: 15px 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .menu-item.active {
+            background: var(--cor-gradient-roxo);
+            color: var(--cor-texto-claro);
+        }
+
+        .menu-item:hover {
+            background: var(--cor-gradient-rosa);
+            color: white;
+        }
+
+        /* Conteúdo Principal (Scroll suave e padding otimizado) */
+        .main-content {
+            padding: 30px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--cor-destaque-roxo) var(--cor-fundo-principal);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .date-filter-input {
+            background-color: var(--cor-card-fundo);
+            color: var(--cor-texto-claro);
+            border: 1px solid var(--cor-border);
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .date-filter-input:hover,
+        .date-filter-input:focus {
+            border-color: var(--cor-destaque-roxo);
+            box-shadow: 0 0 10px rgba(122, 42, 255, 0.3);
+        }
+
+        .user-profile {
+            background: var(--cor-gradient-roxo);
+            padding: 12px 25px;
+            border-radius: 12px;
+            font-weight: 700;
+            box-shadow: 0 4px 12px var(--cor-shadow);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-logo {
+            width: 35px;
+            height: auto;
+        }
+
+        /* Cards de Estatísticas (Com gradientes e hover impactante) */
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: var(--cor-card-fundo);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 6px 15px var(--cor-shadow);
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+            position: relative; /* Para posicionar o info-icon */
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 10px 25px rgba(122, 42, 255, 0.4);
+        }
+
+        .card-label {
+            color: var(--cor-texto-suave);
+            font-size: 1.2em;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-value {
+            font-size: 2.2em;
+            font-weight: 700;
+        }
+
+        .card-value.color-green { color: var(--cor-verde); } 
+        .card-value.color-red { color: var(--cor-vermelho); }
+        .card-value.blue { color: var(--cor-destaque-azul); }
+        .card-value.purple { color: var(--cor-destaque-roxo); }
+        .card-value.pink { color: var(--cor-destaque-rosa); }
+
+        /* Card de Padrão de Tempo Rosa (Aumentado ligeiramente) */
+        #time-pattern-card {
+            min-height: 160px; /* Aumentado um pouco mais */
+            padding: 35px; /* Aumenta o padding para parecer maior */
+        }
+
+        #time-pattern-status.status-alert { color: var(--cor-destaque-rosa); } 
+        #time-pattern-status.status-near { color: var(--cor-alerta-proximo); }
+        #time-pattern-status.status-ok { color: var(--cor-verde); }
+
+        .info-icon {
+            cursor: pointer;
+            background-color: var(--cor-border);
+            color: var(--cor-texto-claro);
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1em;
+            font-weight: 700;
+            transition: background 0.3s;
+            position: absolute;
+            top: 15px;
+            right: 15px;
+        }
+
+        .info-icon:hover {
+            background: var(--cor-gradient-roxo);
+        }
+
+        /* Strong Entry Container (Reorganizado para melhor fluxo) */
+        .strong-entry-container {
+            display: flex;
+            gap: 25px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+            align-items: stretch;
+        }
+
+        .entry-card {
+            background: var(--cor-card-fundo);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 6px 15px var(--cor-shadow);
+            flex: 1;
+            position: relative; /* Para info-icon */
+        }
+
+        .trigger-card-button {
+            min-width: 250px;
+            text-align: center;
+            font-size: 1.6em;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.3s;
+            position: relative; /* Para info-icon */
+            background: var(--cor-texto-suave); /* Cinza por padrão */
+            color: white;
+        }
+
+        #trigger-card-pink.active-trigger {
+            background: var(--cor-gradient-rosa);
+            animation: pulse-pink 1.5s infinite;
+        }
+
+        #trigger-card-5x.active-trigger {
+            background: var(--cor-gradient-roxo);
+            animation: pulse-purple 1.5s infinite;
+        }
+
+        @keyframes pulse-pink {
+            0% { box-shadow: 0 0 0 0 rgba(255, 42, 141, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(255, 42, 141, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 42, 141, 0); }
+        }
+
+        @keyframes pulse-purple {
+            0% { box-shadow: 0 0 0 0 rgba(122, 42, 255, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(122, 42, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(122, 42, 255, 0); }
+        }
+
+        .entry-conditions h4 {
+            color: var(--cor-texto-suave);
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+
+        .condition-list {
+            list-style: none;
+            padding: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .condition-item {
+            font-size: 1.1em;
+            color: var(--cor-texto-suave);
+            transition: color 0.3s;
+        }
+
+        .condition-item::before {
+            content: '×';
+            margin-right: 10px;
+            color: var(--cor-vermelho);
+        }
+
+        .condition-item.ok::before {
+            content: '✓';
+            color: var(--cor-verde);
+        }
+
+        /* Filtros (Mais elegantes com gradientes, sem checkboxes visíveis) */
+        .filters-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .color-filter, .columns-filter {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .filter-label, .columns-label {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: var(--cor-texto-suave);
+        }
+
+        .filter-checkbox-group {
+            display: flex;
+            gap: 15px;
+        }
+
+        .filter-checkbox {
+            display: none; /* Esconde o checkbox */
+        }
+
+        .filter-button {
+            padding: 12px 25px;
+            border-radius: 30px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            font-weight: 700;
+            transition: all 0.3s;
+        }
+
+        #filter-blue:checked + .filter-button { background: var(--cor-gradient-azul); color: white; }
+        #filter-blue:not(:checked) + .filter-button { background: transparent; border-color: var(--cor-destaque-azul); color: var(--cor-destaque-azul); }
+
+        #filter-purple:checked + .filter-button { background: var(--cor-gradient-roxo); color: white; }
+        #filter-purple:not(:checked) + .filter-button { background: transparent; border-color: var(--cor-destaque-roxo); color: var(--cor-destaque-roxo); }
+
+        #filter-pink:checked + .filter-button { background: var(--cor-gradient-rosa); color: white; }
+        #filter-pink:not(:checked) + .filter-button { background: transparent; border-color: var(--cor-destaque-rosa); color: var(--cor-destaque-rosa); }
+
+        .columns-select {
+            background-color: var(--cor-card-fundo);
+            color: var(--cor-texto-claro);
+            border: 1px solid var(--cor-border);
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        .columns-select:hover {
+            border-color: var(--cor-destaque-roxo);
+        }
+
+        /* Seção de Médias (Movida para baixo da quantidade de colunas) */
+        .averages-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        /* Gráfico de Histórico (Posicionado após estratégias) */
+        .multiplier-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 20px;
+        }
+
+        .multiplier-cell {
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.3s;
+            box-shadow: 0 4px 10px var(--cor-shadow);
+        }
+
+        .multiplier-cell:hover {
+            transform: scale(1.05);
+        }
+
+        .multiplier-cell.hidden {
+            display: none;
+        }
+
+        .color-blue { background: var(--cor-gradient-azul); color: #fff; }
+        .color-purple { background: var(--cor-gradient-roxo); color: #fff; }
+        .color-pink { background: var(--cor-gradient-rosa); color: #fff; }
+
+        .multiplier-value {
+            font-weight: 900;
+            color: #fff;
+            font-size: 1.2em; /* Reduzido para ser um pouco maior que o horário (0.9em) */
+        }
+
+        .multiplier-time {
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Slidebars (Com gradientes para imersão, ajustado para fechar corretamente) */
+        .slidebar {
+            position: fixed;
+            top: 0;
+            right: -450px;
+            width: 450px;
+            height: 100vh;
+            background: linear-gradient(to bottom, var(--cor-fundo-sidebar), var(--cor-fundo-principal));
+            padding: 40px;
+            box-shadow: -10px 0 20px var(--cor-shadow);
+            transition: right 0.4s ease;
+            z-index: 1000;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--cor-destaque-roxo) var(--cor-fundo-sidebar);
+        }
+
+        .slidebar.active {
+            right: 0;
+        }
+
+        .slidebar-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: var(--cor-texto-claro);
+            font-size: 2em;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .slidebar-close:hover {
+            color: var(--cor-destaque-roxo);
+        }
+
+        .slidebar-title {
+            font-size: 1.8em;
+            margin-bottom: 25px;
+            font-weight: 700;
+        }
+
+        .slidebar-content {
+            font-size: 1em;
+            line-height: 1.6;
+        }
+
+        .slidebar-content h4 {
+            margin-top: 20px;
+            margin-bottom: 10px;
+            color: var(--cor-texto-suave);
+        }
+
+        .interval-list,
+        #pink-triggers-list { 
+            list-style: none;
+            padding: 0;
+        }
+
+        .interval-list li,
+        #pink-triggers-list li { 
+            background-color: var(--cor-card-fundo);
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            font-size: 0.95em;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #pink-triggers-list li span {
+            color: var(--cor-texto-suave);
+        }
+
+        #pink-triggers-list .list-header {
+            background: none;
+            font-size: 1em;
+            color: var(--cor-texto-suave);
+            padding: 5px 0 10px 0;
+        }
+
+        .info-card {
+            background-color: var(--cor-card-fundo);
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            font-size: 0.95em;
+        }
+
+        .info-card.active-strategy {
+            background-color: var(--cor-destaque-roxo);
+            color: var(--cor-fundo-principal);
+        }
+
+        .info-card.active-pink-strategy {
+            background-color: var(--cor-destaque-rosa);
+            color: var(--cor-fundo-principal);
+            font-weight: bold;
+        }
+
+        /* Media Queries para Responsividade */
+        @media (max-width: 1024px) {
+            .dashboard-container {
+                grid-template-columns: 200px 1fr;
+            }
+
+            .strong-entry-container {
+                flex-direction: column;
+            }
+
+            .slidebar {
+                width: 100%;
+                right: -100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .stats-cards, .averages-section {
+                grid-template-columns: 1fr;
+            }
+
+            .multiplier-grid {
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            }
+
+            /* Removido o absolute positioning do sidebar para mobile, mantendo o comportamento do antigolayout (grid 50px 1fr quando hidden) */
+            /* Isso corrige o corte na tela, permitindo que o main-content ocupe o espaço corretamente */
+            .dashboard-container.sidebar-hidden {
+                grid-template-columns: 50px 1fr; /* Mantido como no antigolayout para evitar corte */
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container" id="dashboard-container">
+        <div class="sidebar">
+            <button class="sidebar-toggle" onclick="toggleSidebar()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <div class="logo">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.21 6.63h6.95l-5.63 4.09 2.21 6.63-5.63-4.09-5.63 4.09 2.21-6.63-5.63-4.09h6.95z"/></svg>
+                <span>Dashboard</span>
+            </div>
+            <div class="menu-item active">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 12px;"><path d="M3 3v18h18"/><path d="M18.7 8.7L12 15.4 9.3 12.7 5.7 16.3"/></svg>
+                <span>Dashboard</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="header">
+                <h2>Dashboard</h2>
+                <input type="date" id="date-filter" class="date-filter-input" onchange="renderDashboard()">
+                <div class="user-profile">
+                    <img src="https://i.postimg.cc/q7nqXJTq/logo-GOATH.png" alt="Logo GOATH" class="user-logo">
+                    goathbet
+                </div>
+            </div>
+
+            <div class="stats-cards">
+                <div class="card" id="prob-10x-card" onclick="openSlidebar('prob-10x-slidebar')">
+                    <div class="card-label">Probabilidade 10x</div>
+                    <div class="card-value" id="prob-10x" data-value="20">20%</div>
+                    <span class="info-icon">i</span>
+                </div>
+                <div class="card" id="prob-50x-card" onclick="openSlidebar('prob-50x-slidebar')">
+                    <div class="card-label">Probabilidade 50x</div>
+                    <div class="card-value" id="prob-50x" data-value="20">20%</div>
+                    <span class="info-icon">i</span>
+                </div>
+                
+                <div class="card" id="time-pattern-card" onclick="openSlidebar('time-pattern-slidebar')">
+                    <div class="card-label">Padrão de Tempo Rosa</div>
+                    <div class="card-value" id="time-pattern-status">Aguardando</div> 
+                    <span class="info-icon">i</span>
+                </div>
+            </div>
+            
+            <div class="strong-entry-container">
+                <div class="entry-card trigger-card-button" id="trigger-card-pink" onclick="openSlidebar('pink-triggers-slidebar')">
+                    Gatilhos de Rosa
+                    <span class="info-icon">i</span>
+                </div>
+                
+                <div class="entry-card entry-conditions">
+                    <h4>Condições para Entrada Forte:</h4>
+                    <ul class="condition-list" id="condition-list">
+                        <li class="condition-item" id="cond-prob">Probabilidade Alta (≥75% / ≥70%)</li>
+                        <li class="condition-item" id="cond-pattern">Padrão Forte Ativo (≥3 reps)</li>
+                        <li class="condition-item" id="cond-time50x">Tempo sem 50x (≥ Média)</li>
+                        <li class="condition-item" id="cond-positive-pred">Predominância de Positivas (≥2.00x)</li>
+                    </ul>
+                </div>
+                
+                <div class="entry-card trigger-card-button" id="trigger-card-5x" onclick="openSlidebar('prob-5x-slidebar')">
+                    Chance de 5x
+                    <span class="info-icon">i</span>
+                </div>
+            </div>
+
+            <div class="filters-section">
+                <div class="color-filter">
+                    <div class="filter-label">Filtrar Cores:</div>
+                    <div class="filter-checkbox-group">
+                        <input type="checkbox" id="filter-blue" class="filter-checkbox" checked onchange="renderDashboard()">
+                        <label for="filter-blue" class="filter-button">Azul</label>
+
+                        <input type="checkbox" id="filter-purple" class="filter-checkbox" checked onchange="renderDashboard()">
+                        <label for="filter-purple" class="filter-button">Roxo</label>
+
+                        <input type="checkbox" id="filter-pink" class="filter-checkbox" checked onchange="renderDashboard()">
+                        <label for="filter-pink" class="filter-button">Rosa</label>
+                    </div>
+                </div>
+
+                <div class="columns-filter">
+                    <div class="columns-label">Quantidade de Colunas:</div>
+                    <select id="columns-select" class="columns-select" onchange="updateGridColumns()">
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                        <option value="12">12</option>
+                        <option value="13">13</option>
+                        <option value="14">14</option>
+                        <option value="15">15</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="averages-section">
+                <div class="card">
+                    <div class="card-label">Média azul</div>
+                    <div class="card-value blue">1.10x</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Média Roxa</div>
+                    <div class="card-value purple">2.00x</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Média Rosa</div>
+                    <div class="card-value pink">10.00x</div>
+                </div>
+            </div>
+
+            <h3>Gráfico Atual em tempo real</h3>
+            <div class="multiplier-grid" id="multiplier-grid">
+                <div style="grid-column: 1 / -1; text-align: center; padding: 50px; color: var(--cor-texto-suave);">Aguardando dados do bot...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="prob-10x-slidebar" class="slidebar">
+        <button class="slidebar-close" onclick="closeSlidebar('prob-10x-slidebar')">×</button>
+        <div class="slidebar-title">Probabilidade 10x</div>
+        <div class="slidebar-content">
+            <p>A probabilidade 10x calcula a chance de uma vela rosa (≥10x) baseada em padrões de tempo, repetições de intervalos e multiplicadores gatilho.</p>
+            
+            <h4>Repetições de Intervalos entre Rosas (Tempo):</h4>
+            <ul id="interval-list-10x" class="interval-list"></ul>
+        </div>
+    </div>
+
+    <div id="prob-50x-slidebar" class="slidebar">
+        <button class="slidebar-close" onclick="closeSlidebar('prob-50x-slidebar')">×</button>
+        <div class="slidebar-title">Probabilidade 50x</div>
+        <div class="slidebar-content">
+            <p>A probabilidade 50x calcula a chance de uma vela ≥50x baseada na contagem de velas rosas inferiores a certos limites, reiniciando após uma ≥50x.</p>
+            <h4>Informações:</h4>
+            <div class="info-card" id="pink-below-50x"></div>
+            <div class="info-card" id="pink-below-35x"></div>
+            <div class="info-card" id="time-since-last-50x"></div>
+            <div class="info-card" id="average-time-between-50x"></div>
+        </div>
+    </div>
+    
+    <div id="pink-triggers-slidebar" class="slidebar">
+        <button class="slidebar-close" onclick="closeSlidebar('pink-triggers-slidebar')">×</button>
+        <div class="slidebar-title">Gatilhos de Rosa</div>
+        <div class="slidebar-content">
+            <ul id="pink-triggers-list">
+                <li class="list-header">Últimos multiplicadores que puxaram velas rosas nas últimas 2 horas:</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="prob-5x-slidebar" class="slidebar">
+        <button class="slidebar-close" onclick="closeSlidebar('prob-5x-slidebar')">×</button>
+        <div class="slidebar-title">Chance de 5x</div>
+        <div class="slidebar-content">
+            <p>Informações sobre velas de 5.00x ou mais, chance de 5x apos 3 e 5 minutos alem do intervalo entre o penultimo e ultimo 5x.</p>
+            <h4>Informações:</h4>
+            <div class="info-card" id="time-since-last-5x"></div>
+            <div class="info-card" id="average-time-between-5x"></div>
+        </div>
+    </div>
+
+    <div id="time-pattern-slidebar" class="slidebar">
+        <button class="slidebar-close" onclick="closeSlidebar('time-pattern-slidebar')">×</button>
+        <div class="slidebar-title">Padrão de Tempo Rosa</div>
+        <div class="slidebar-content">
+            <p>Calcula o próximo horário provável para uma vela rosa com base em intervalos fixos (3, 5, 7, e 10 minutos) após ηltima vela rosa.</p>
+            <h4>Padrão Atual:</h4>
+            <div class="info-card" id="time-pattern-details">
+                Nenhum padrão ativo.
+            </div>
+        </div>
+    </div>
+
+
+    <script type="module">
+        // ====================================================================
+        // 1. IMPORTS E CONFIGURAÇÃO FIREBASE
+        // ====================================================================
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+
+        // Config Firebase (Apenas Leitura)
+        const firebaseConfig = {
+          apiKey: "AIzaSyB-35zQDrQbz8ohT_o_u_d_q_p_F_k_a_y_Y_d_A_U_D_r_L_w_6_g", // Chave fictícia por segurança
+          authDomain: "history-dashboard-a70ee.firebaseapp.com",
+          databaseURL: "https://history-dashboard-a70ee-default-rtdb.firebaseio.com",
+          projectId: "history-dashboard-a70ee",
+          storageBucket: "history-dashboard-a70ee.firebasestorage.app",
+          messagingSenderId: "969153856969",
+          appId: "1:969153856969:web:6b50fae1db463b8352d418",
+          measurementId: "G-9MVGBX2KLX"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        
+        // Variáveis Globais (Dados e UI)
+        let historyData = []; 
+        const multiplierGrid = document.getElementById('multiplier-grid');
+        const dateFilter = document.getElementById('date-filter');
+        let intervalFrequencies = {}; 
+        let pinkBelow35x = 0; 
+        let pinkBelow50x = 0; 
+        let timeSinceLast50x = 0; // Para 50x
+        let averageTimeBetween50x = 0; // Para 50x
+        
+        // Variáveis para 5x
+        let timeSinceLast_5x = 0;
+        let averageTimeBetween_5x = 0;
+        let globalActive5xStrategy = null; 
+        
+        // Variáveis para Padrões e Backtest
+        const PINK_SCOPE = 14; 
+        let patternStats = { multiplierTriggers: {} }; 
+        let isStrongPatternActive = false; 
+        let recentPinkTriggers = []; 
+        let currentActiveTriggerKey = null; 
+
+        // NOVAS VARIÁVEIS PARA PADRÃO DE TEMPO ROSA
+        // MODIFICADO: 'targetMinute' para armazenar o H:M previsto, 'patternMinutes' para o slidebar
+        let timePatternAlert = { isActive: false, status: 'Aguardando', targetMinute: null, patternMinutes: null };
+        const ROSA_TIME_PATTERNS = [3, 5, 7, 10]; // Os minutos definidos
+        
+        // ====================================================================
+        // 2. FUNÇÕES AUXILIARES
+        // ====================================================================
+
+        function getVelaColor(nValue) {
+            if (nValue >= 10.00) {
+                return 'pink'; 
+            } else if (nValue >= 2.00) {
+                return 'purple'; 
+            } else {
+                return 'blue'; 
+            }
+        }
+
+        function timeToMinutes(timeStr) {
+            if (!timeStr) return 0;
+            const parts = timeStr.split(':').map(Number);
+            if (parts.length === 3) {
+                const [h, m, s] = parts;
+                return h * 60 + m + s / 60; // Mantém a precisão dos segundos
+            }
+            return 0;
+        }
+
+        // NOVA FUNÇÃO AUXILIAR para converter minutos decimais em string H:M
+        function minutesToTimeString(minutes) {
+            if (isNaN(minutes) || minutes === null) return "00:00";
+            
+            const totalMinutes = Math.floor(minutes);
+            const h = Math.floor(totalMinutes / 60) % 24;
+            const m = totalMinutes % 60;
+            
+            const hStr = String(h).padStart(2, '0');
+            const mStr = String(m).padStart(2, '0');
+            
+            return `${hStr}:${mStr}`;
+        }
+
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        // ====================================================================
+        // 3. LÓGICA DE CÁLCULO DE MÉDIAS (Piso Mínimo)
+        // ====================================================================
+
+        function calculateColorAverages(history) {
+            const limitedHistory = history.slice(0, 5000); 
+
+            const lastBlue = limitedHistory.find(item => item.color === 'blue');
+            const lastPurple = limitedHistory.find(item => item.color === 'purple');
+            const lastPink = limitedHistory.find(item => item.color === 'pink');
+
+            const blueValue = lastBlue ? Math.max(lastBlue.multiplier / 1.15, 1.10) : 1.10;
+            const purpleValue = lastPurple ? Math.max(lastPurple.multiplier / 1.15, 2.00) : 2.00;
+            const pinkValue = lastPink ? Math.max(lastPink.multiplier / 1.7, 10.00) : 10.00;
+
+            document.querySelector('.card-value.blue').textContent = `${blueValue.toFixed(2)}x`;
+            document.querySelector('.card-value.purple').textContent = `${purpleValue.toFixed(2)}x`;
+            document.querySelector('.card-value.pink').textContent = `${pinkValue.toFixed(2)}x`;
+        }
+        
+        // ====================================================================
+        // 4. LÓGICA DE PROBABILIDADE 10x (Gatilhos de Tempo/Padrão Aprimorados)
+        // ====================================================================
+        
+        // FUNÇÃO MODIFICADA PARA LÓGICA PREDITIVA
+        function getTimePatternProbability(history) {
+            const limitedHistory = history.slice(0, 5000);
+            let baseProb = 35; // Probabilidade mínima
+            
+            // Reseta o alerta global
+            timePatternAlert = { isActive: false, status: 'Aguardando', targetMinute: null, patternMinutes: null };
+
+            if (limitedHistory.length === 0) {
+                return 40; 
+            }
+
+            const nowMinutes = limitedHistory[0].minutes; 
+            const RECENT_WINDOW_MINUTES = 30; // Para o padrão de repetição de intervalo
+            
+            // --- CÁLCULO DO PADRÃO BASE (Repetições de Intervalos) ---
+            const recentPinkVelas = limitedHistory
+                .filter(item => item.color === 'pink')
+                .filter(item => {
+                    const timeDiff = Math.abs(nowMinutes - item.minutes);
+                    return timeDiff <= RECENT_WINDOW_MINUTES; 
+                });
+            
+            const lastPink = recentPinkVelas[0]; // A rosa mais recente para o padrão de repetição
+
+            if (lastPink) {
+                intervalFrequencies = {};
+                const detectedIntervals = new Set();
+                let timeMatchWindowActive = false;
+                let maxFrequency = 0;
+                
+                for (let i = 0; i < recentPinkVelas.length; i++) {
+                    for (let j = i + 1; j < recentPinkVelas.length; j++) {
+                        const timeDiff = Math.abs(recentPinkVelas[i].minutes - recentPinkVelas[j].minutes);
+                        const roundedDiff = Math.round(timeDiff); 
+                        
+                        if (roundedDiff > 0) { 
+                            intervalFrequencies[roundedDiff] = (intervalFrequencies[roundedDiff] || 0) + 1;
+                            detectedIntervals.add(roundedDiff);
+                        }
+                    }
+                }
+
+                const timeSinceLastPink = Math.round(Math.abs(nowMinutes - lastPink.minutes));
+                
+                if (detectedIntervals.size > 0) {
+                    maxFrequency = Object.values(intervalFrequencies).reduce((max, current) => Math.max(max, current), 0);
+                    
+                    for (const interval of detectedIntervals) {
+                        if (Math.abs(timeSinceLastPink - interval) <= 1) { // Janela de 1 minuto antes/depois
+                            timeMatchWindowActive = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Aplica probabilidade do padrão de repetição
+                if (timeMatchWindowActive) {
+                    baseProb = Math.max(baseProb, 85); 
+                } else {
+                    if (maxFrequency >= 5) { 
+                        baseProb = Math.max(baseProb, 80); 
+                    } else if (maxFrequency >= 3) { 
+                        baseProb = Math.max(baseProb, 75); 
+                    } else if (maxFrequency >= 2) { 
+                        baseProb = Math.max(baseProb, 55); 
+                    } 
+                }
+
+                // Atualiza isStrongPatternActive baseado em maxFrequency
+                isStrongPatternActive = maxFrequency >= 3;
+            }
+            
+            // --- LÓGICA DO NOVO PADRÃO DE TEMPO PREDITIVO (3, 5, 7, 10 minutos) ---
+            
+            // Encontra a última rosa (sem limite de 30 min) para o novo padrão
+            const absoluteLastPink = limitedHistory.find(item => item.color === 'pink');
+            
+            if (absoluteLastPink) {
+                const lastPinkMinutes = absoluteLastPink.minutes;
+                const timeSinceLastPinkInMinutes = nowMinutes - lastPinkMinutes;
+                
+                let newTimePatternActive = false; // Para boost de probabilidade
+                let nextPotentialPatternFound = false; // Para lógica do card
+                let cardStatus = 'Aguardando';
+                let cardTargetTimeStr = null;
+                let cardPatternMinutes = null; // Para o slidebar
+                
+                const ALERT_WINDOW_SECONDS = 30; // 30 segundos antes
+                const ACTIVE_WINDOW_SECONDS = 60; // 60 segundos depois (janela de 1.5 min total)
+
+                for (const targetTime of ROSA_TIME_PATTERNS) {
+                    const targetHitMinutes = lastPinkMinutes + targetTime; // Ex: 16:19:33 + 3min = 16:22:33
+                    
+                    // 1. Lógica de Boost de Probabilidade (Janela de +/- 1 min)
+                    if (timeSinceLastPinkInMinutes >= targetTime - 1 && timeSinceLastPinkInMinutes <= targetTime + 1) {
+                        newTimePatternActive = true;
+                    }
+
+                    // 2. Lógica de Display do Card (Preditivo)
+                    if (!nextPotentialPatternFound) {
+                        const timeToHit_seconds = (targetHitMinutes - nowMinutes) * 60; // Segundos até o alvo exato
+                        
+                        // Se o alvo já passou (mais de 60s atrás)
+                        if (timeToHit_seconds < -ACTIVE_WINDOW_SECONDS) {
+                            continue; // Vai para o próximo padrão (ex: 5 min)
+                        }
+                        
+                        // Se está na janela de "ATIVO" (de 30s antes até 60s depois)
+                        if (timeToHit_seconds <= ALERT_WINDOW_SECONDS) { 
+                            cardStatus = 'ENTRADA ATIVA';
+                            cardTargetTimeStr = minutesToTimeString(targetHitMinutes);
+                            cardPatternMinutes = targetTime; // Salva o padrão (ex: 3)
+                            nextPotentialPatternFound = true;
+                        }
+                        // Se é o próximo, mas ainda não está na janela de alerta
+                        else if (timeToHit_seconds > ALERT_WINDOW_SECONDS) {
+                            cardStatus = 'Próximo';
+                            cardTargetTimeStr = minutesToTimeString(targetHitMinutes);
+                            cardPatternMinutes = targetTime; // Salva o padrão (ex: 5)
+                            nextPotentialPatternFound = true;
+                        }
+                    }
+                }
+                
+                // Atualiza o objeto de alerta global para o card
+                timePatternAlert.status = cardStatus;
+                timePatternAlert.targetMinute = cardTargetTimeStr;
+                timePatternAlert.patternMinutes = cardPatternMinutes; // Salva o padrão
+                timePatternAlert.isActive = (cardStatus === 'ENTRADA ATIVA');
+                
+                // Aplica boost de prob se o padrão preditivo estiver ativo
+                if (newTimePatternActive || timePatternAlert.isActive) {
+                    baseProb = Math.max(baseProb, 85);
+                }
+
+            } else {
+                 // Nenhuma rosa encontrada, reseta o card
+                updateTimePatternCard(timePatternAlert);
+            }
+
+            // --- Lógica de Predominância (mantida) ---
+            const lastPinkIndex = limitedHistory.findIndex(item => item.color === 'pink');
+            const lastPinkDistance = lastPinkIndex !== -1 ? lastPinkIndex : limitedHistory.length; 
+            
+            if (lastPinkDistance >= 15 && lastPinkDistance <= 20) {
+                if (baseProb < 70) { // Só aumenta se o padrão de repetição não for forte
+                     baseProb = Math.max(baseProb, 70); 
+                }
+            }
+
+            if (baseProb < 60) { 
+                const LAST_CANDLES_FOR_PREDOMINANCE = 8;
+                const last8 = limitedHistory.slice(0, LAST_CANDLES_FOR_PREDOMINANCE);
+                const nonBlueCount = last8.filter(item => item.color !== 'blue').length; 
+                
+                if (last8.length === LAST_CANDLES_FOR_PREDOMINANCE && nonBlueCount >= 7) {
+                     baseProb = Math.max(baseProb, 60); 
+                }
+            }
+            
+            // Garante que o status do card é atualizado no final
+            updateTimePatternCard(timePatternAlert);
+
+            return Math.max(baseProb, 35); 
+        }
+
+        // Função de análise de padrões mantida
+        function findPatterns(history) {
+            const multiplierTriggers = {}; 
+            
+            let pinkCount = 0;
+            let analysisEndIndex = history.length; 
+            
+            for (let i = 0; i < history.length; i++) {
+                if (history[i].color === 'pink') {
+                    pinkCount++;
+                    if (pinkCount === PINK_SCOPE) {
+                        analysisEndIndex = i + 1; 
+                        break;
+                    }
+                }
+            }
+            
+            const analysisHistory = history.slice(0, analysisEndIndex);
+
+            for (let i = 0; i < analysisHistory.length - 1; i++) {
+                const resultCandle = analysisHistory[i]; 
+                const triggerCandle = analysisHistory[i+1]; 
+                
+                const key = triggerCandle.multiplier.toFixed(2);
+                
+                if (!multiplierTriggers[key]) {
+                    multiplierTriggers[key] = { reps: 0, hits: 0, hitRate: 0 };
+                }
+                
+                multiplierTriggers[key].reps++;
+                
+                if (resultCandle.color === 'pink') {
+                    multiplierTriggers[key].hits++;
+                }
+            }
+            
+            for (const key in multiplierTriggers) {
+                const p = multiplierTriggers[key];
+                if (p.reps > 0) {
+                    p.hitRate = (p.hits / p.reps) * 100;
+                }
+            }
+            
+            return { multiplierTriggers };
+        }
+        
+        function findRecentPinkTriggers(history) {
+            recentPinkTriggers = []; 
+            if (history.length < 2) return;
+
+            const TWO_HOURS_IN_MINUTES = 120;
+            const nowMinutes = history[0].minutes;
+            
+            for (let i = 0; i < history.length - 1; i++) {
+                const resultCandle = history[i];
+                const triggerCandle = history[i+1];
+                
+                const timeDiff = Math.abs(nowMinutes - resultCandle.minutes);
+                if (timeDiff > TWO_HOURS_IN_MINUTES) {
+                    break; 
+                }
+                
+                if (resultCandle.color === 'pink') {
+                    recentPinkTriggers.push({
+                        multiplier: triggerCandle.multiplier,
+                        time: triggerCandle.time
+                    });
+                }
+            }
+        }
+
+        function calculateProb10x(history, patternStats) {
+            // 1. Calcula a probabilidade base (Tempo, Intervalo, Long Streak, Padrão Preditivo)
+            // Esta função agora também atualiza o 'timePatternAlert' e 'isStrongPatternActive'
+            let baseProb = getTimePatternProbability(history);
+            
+            // 2. Verifica se um padrão forte (gatilho de multiplicador) está ativo AGORA
+            let patternBoost = 0;
+            
+            if (history.length < 1) {
+                return baseProb; 
+            }
+
+            const latestCandle = history[0]; 
+            const triggerKey = latestCandle.multiplier.toFixed(2);
+            
+            const p = patternStats.multiplierTriggers[triggerKey];
+            
+            // Se esse gatilho existe e é "Forte" (>=3 reps)
+            if (p && p.reps >= 3) {
+                 patternBoost = 25; 
+            }
+            
+            let finalProb = baseProb + patternBoost;
+            
+            return finalProb;
+        }
+        
+        // ====================================================================
+        // 5. LÓGICA DE PROBABILIDADE 50x E ESTATÍSTICAS 5x
+        // ====================================================================
+
+        function calculateCustomProb(count, minVelas, maxVelas) {
+            if (count < minVelas) {
+                return 0; 
+            }
+            if (count >= maxVelas) {
+                return 90; 
+            }
+            let prob = 0;
+            if (count >= 3 && count < 6) {
+                prob = 38 + (count - 3) * (77 - 38) / (6 - 3); 
+            } else if (count >= 6 && count < 9) {
+                prob = 77 + (count - 6) * (90 - 77) / (9 - 6); 
+            } else {
+                return 20; 
+            }
+            return Math.round(prob);
+        }
+
+        function calculate5xStats(history) {
+            const limitedHistory = history.slice(0, 5000);
+            
+            if (limitedHistory.length === 0) { 
+                timeSinceLast_5x = 0;
+                averageTimeBetween_5x = 0;
+                globalActive5xStrategy = null; // Reseta a estratégia
+                return;
+            }
+            
+            const all5xVelas = limitedHistory.filter(item => item.multiplier >= 5.00);
+            const currentTime = limitedHistory[0].minutes;
+
+            if (all5xVelas.length > 0) {
+                const last5x = all5xVelas[0]; 
+                timeSinceLast_5x = currentTime - last5x.minutes;
+            } else {
+                timeSinceLast_5x = currentTime;
+            }
+
+            if (all5xVelas.length >= 2) {
+                const penultimo5x = all5xVelas[1]; 
+                const ultimo5x = all5xVelas[0];    
+                averageTimeBetween_5x = ultimo5x.minutes - penultimo5x.minutes;
+            } else {
+                averageTimeBetween_5x = 0; 
+            }
+        }
+
+        function calculateProb50x(history) {
+            const limitedHistory = history.slice(0, 5000); 
+            
+            if (limitedHistory.length === 0) { 
+                timeSinceLast50x = 0;
+                averageTimeBetween50x = 0;
+                pinkBelow35x = 0;
+                pinkBelow50x = 0;
+                return 20;
+            }
+            
+            const all50xVelas = limitedHistory.filter(item => item.multiplier >= 50.00);
+            
+            if (all50xVelas.length > 0) {
+                const last50x = all50xVelas[0]; 
+                const currentTime = limitedHistory[0].minutes;
+                timeSinceLast50x = currentTime - last50x.minutes; 
+            } else {
+                timeSinceLast50x = limitedHistory[0].minutes;
+            }
+
+            if (all50xVelas.length >= 2) {
+                const penultimo50x = all50xVelas[1]; 
+                const ultimo50x = all50xVelas[0];    
+                averageTimeBetween50x = ultimo50x.minutes - penultimo50x.minutes;
+            } else {
+                averageTimeBetween50x = 0; 
+            }
+
+            const indexLast50x = all50xVelas.length > 0 ? limitedHistory.findIndex(item => item.multiplier >= 50.00) : -1;
+            const relevantHistory = indexLast50x !== -1 ? limitedHistory.slice(0, indexLast50x) : limitedHistory;
+            
+            const pinkVelas = relevantHistory.filter(item => item.color === 'pink');
+
+            pinkBelow35x = pinkVelas.filter(item => item.multiplier >= 10.00 && item.multiplier <= 35.00).length;
+            pinkBelow50x = pinkVelas.filter(item => item.multiplier >= 10.00 && item.multiplier < 50.00).length;
+            
+            let finalProb = 20; 
+
+            const prob35x = calculateCustomProb(pinkBelow35x, 3, 10);
+            const prob50x = calculateCustomProb(pinkBelow50x, 3, 10);
+
+            finalProb = Math.max(finalProb, prob35x, prob50x);
+            
+            if (pinkVelas.length < 3) {
+                 finalProb = 20; 
+            }
+
+            return finalProb;
+        }
+        
+        // ====================================================================
+        // 6. FUNÇÕES GERAIS DE DASHBOARD E RENDERIZAÇÃO
+        // ====================================================================
+        
+        // MODIFICADO: Função para atualizar o status do Card Preditivo
+        function updateTimePatternCard(alert) {
+            const card = document.getElementById('time-pattern-status');
+            if (!card) return; // Proteção
+            
+            card.classList.remove('status-alert', 'status-near', 'status-ok');
+            
+            if (alert.status === 'ENTRADA ATIVA') {
+                // Ex: "Chance de Rosa: 16:22" (COR ROSA)
+                card.textContent = `Chance de Rosa: ${alert.targetMinute}`;
+                card.classList.add('status-alert'); // status-alert agora é rosa
+            } else if (alert.status === 'Próximo') {
+                // Ex: "Possível: 16:24" (COR AMARELA)
+                card.textContent = `Possível: ${alert.targetMinute}`;
+                card.classList.add('status-near');
+            } else {
+                card.textContent = 'Aguardando';
+                card.classList.add('status-ok'); // (COR VERDE)
+            }
+        }
+
+        function updateProbability(id, percentage) {
+            const element = document.getElementById(id);
+            const safePercentage = Math.max(0, percentage); 
+
+            element.textContent = `${safePercentage}%`;
+            element.setAttribute('data-value', safePercentage);
+            
+            element.classList.remove('color-red', 'color-green');
+            if (safePercentage < 40) { 
+                element.classList.add('color-red');
+            } else { 
+                element.classList.add('color-green');
+            }
+        }
+
+        window.toggleSidebar = function() {
+            const container = document.getElementById('dashboard-container');
+            container.classList.toggle('sidebar-hidden');
+        }
+
+        function filterVelas(data) {
+            const showBlue = document.getElementById('filter-blue').checked;
+            const showPurple = document.getElementById('filter-purple').checked;
+            const showPink = document.getElementById('filter-pink').checked;
+
+            return data.filter(item => {
+                if (item.color === 'blue' && showBlue) return true;
+                if (item.color === 'purple' && showPurple) return true;
+                if (item.color === 'pink' && showPink) return true;
+                return false;
+            });
+        }
+
+        function renderGrid(data) {
+            multiplierGrid.innerHTML = '';
+            
+            if (data.length === 0) {
+                 multiplierGrid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 50px; color: var(--cor-texto-suave);">Não há dados para esta data ou filtro.</div>';
+                 return;
+            }
+            
+            data.forEach(item => { 
+                const color = item.color;
+                
+                const cell = document.createElement('div');
+                cell.className = `multiplier-cell color-${color} vela-${color}`;
+                cell.setAttribute('data-color', color); 
+
+                cell.innerHTML = `
+                    <div class="multiplier-value">${item.multiplier.toFixed(2)}x</div>
+                    <div class="multiplier-time">${item.time}</div>
+                `;
+                multiplierGrid.appendChild(cell);
+            });
+        }
+
+        // MODIFICADO: openSlidebar agora inclui 'time-pattern-slidebar'
+        window.openSlidebar = function(id) {
+            const slidebar = document.getElementById(id);
+            slidebar.classList.add('active');
+            
+            if (id === 'prob-10x-slidebar') {
+                render10xSlidebar();
+            } else if (id === 'prob-50x-slidebar') {
+                renderPinkCounts();
+            } else if (id === 'pink-triggers-slidebar') { 
+                renderPinkTriggersList();
+            } else if (id === 'prob-5x-slidebar') { 
+                render5xSlidebar(); 
+            } else if (id === 'time-pattern-slidebar') {
+                renderTimePatternSlidebar(); // NOVO
+            }
+        }
+
+        window.closeSlidebar = function(id) {
+            document.querySelectorAll('.slidebar.active').forEach(sb => {
+                sb.classList.remove('active');
+            });
+        }
+        
+        // NOVO: Renderiza o slidebar do Padrão de Tempo Rosa
+        function renderTimePatternSlidebar() {
+            const details = document.getElementById('time-pattern-details');
+            const alert = timePatternAlert; // Usa o estado global
+
+            details.classList.remove('active-pink-strategy');
+
+            if (alert.status === 'ENTRADA ATIVA') {
+                details.textContent = `Padrão de ${alert.patternMinutes} minutos. Alvo: ${alert.targetMinute} (ATIVO)`;
+                details.classList.add('active-pink-strategy'); // Usa a cor rosa
+            } else if (alert.status === 'Próximo') {
+                details.textContent = `Padrão de ${alert.patternMinutes} minutos. Próximo Alvo: ${alert.targetMinute}`;
+            } else {
+                details.textContent = 'Nenhum padrão de tempo fixo está próximo.';
+            }
+        }
+
+
+        function render10xSlidebar() {
+            const list = document.getElementById('interval-list-10x');
+            list.innerHTML = '';
+            Object.entries(intervalFrequencies).sort((a, b) => a[0] - b[0]).forEach(([interval, count]) => {
+                const li = document.createElement('li');
+                li.textContent = `${interval}min (${count}x)`;
+                list.appendChild(li);
+            });
+            if (Object.keys(intervalFrequencies).length === 0) {
+                list.innerHTML = '<li>Nenhum intervalo (repetição) detectado.</li>';
+            }
+        }
+
+        function renderPinkCounts() {
+            document.getElementById('pink-below-50x').textContent = `Velas rosas inferiores a 50x (10.00x a 49.99x): ${pinkBelow50x}`;
+            document.getElementById('pink-below-35x').textContent = `Velas rosas inferiores a 35x (10.00x a 34.99x): ${pinkBelow35x}`;
+            document.getElementById('time-since-last-50x').textContent = `Tempo sem 50x: ${Math.round(timeSinceLast50x)} minutos`; 
+            
+            if (averageTimeBetween50x > 0) {
+                document.getElementById('average-time-between-50x').textContent = `Tempo entre penúltimo e último 50x: ${Math.round(averageTimeBetween50x)} minutos`; 
+            } else {
+                document.getElementById('average-time-between-50x').textContent = `Tempo entre penúltimo e último 50x: Não disponível`;
+            }
+        }
+        
+        function render5xSlidebar() {
+            const timeP = document.getElementById('time-since-last-5x');
+            const avgP = document.getElementById('average-time-between-5x');
+            const roundedTime = Math.round(timeSinceLast_5x);
+
+            timeP.classList.remove('active-strategy', 'no-pattern');
+
+            let strategyText = '';
+            if (globalActive5xStrategy === '3-min') {
+                strategyText = ' (Padrão de 3 minutos)';
+                timeP.classList.add('active-strategy');
+            } else if (globalActive5xStrategy === '5-min') {
+                strategyText = ' (Padrão de 5 minutos)';
+                timeP.classList.add('active-strategy');
+            } else if (globalActive5xStrategy === 'average') {
+                strategyText = ' (Intervalo entre penúltimo e último)';
+                timeP.classList.add('active-strategy');
+            } else {
+                timeP.classList.add('no-pattern');
+            }
+
+            timeP.textContent = `Tempo sem 5x (≥5.00x): ${roundedTime} minutos${strategyText}`;
+
+            if (averageTimeBetween_5x > 0) {
+                avgP.textContent = `Intervalo entre penúltimo e último 5x: ${Math.round(averageTimeBetween_5x)} minutos`;
+            } else {
+                avgP.textContent = `Intervalo entre penúltimo e último 5x: Não disponível`;
+            }
+        }
+
+        
+        function updateTriggerCardUI(triggerKey) {
+            const card = document.getElementById('trigger-card-pink'); 
+            
+            if (!triggerKey) {
+                card.classList.remove('active-trigger');
+                currentActiveTriggerKey = null;
+                return;
+            }
+            
+            const isRecentTrigger = recentPinkTriggers.some(trigger => trigger.multiplier.toFixed(2) === triggerKey);
+            
+            if (isRecentTrigger) {
+                card.classList.add('active-trigger');
+                currentActiveTriggerKey = triggerKey;
+            } else {
+                card.classList.remove('active-trigger');
+                currentActiveTriggerKey = null;
+            }
+        }
+        
+        function update5xTriggerCardUI(isActive, strategy) {
+            const card = document.getElementById('trigger-card-5x');
+            card.classList.toggle('active-trigger', isActive);
+            if (strategy === 'average') {
+                card.style.backgroundColor = 'var(--cor-destaque-roxo)'; 
+            } else {
+                card.style.backgroundColor = ''; 
+            }
+        }
+
+        
+        function renderPinkTriggersList() {
+            const list = document.getElementById('pink-triggers-list');
+            list.querySelectorAll('li:not(.list-header)').forEach(li => li.remove());
+
+            if (recentPinkTriggers.length === 0) {
+                const li = document.createElement('li');
+                li.textContent = 'Nenhum gatilho nas últimas 2 horas.';
+                list.appendChild(li);
+            } else {
+                recentPinkTriggers.forEach(trigger => {
+                    const li = document.createElement('li');
+                    const triggerKey = trigger.multiplier.toFixed(2);
+                    li.innerHTML = `<strong>${triggerKey}x</strong> <span>(às ${trigger.time})</span>`;
+                    
+                    if (currentActiveTriggerKey && triggerKey === currentActiveTriggerKey) {
+                        li.style.backgroundColor = 'var(--cor-destaque-rosa)';
+                        li.style.color = 'var(--cor-fundo-principal)';
+                        li.querySelector('span').style.color = 'var(--cor-fundo-principal)';
+                    } else {
+                        li.style.backgroundColor = '';
+                        li.style.color = 'var(--cor-texto-claro)';
+                        li.querySelector('span').style.color = 'var(--cor-texto-suave)';
+                    }
+
+                    list.appendChild(li);
+                });
+            }
+        }
+        
+        function checkStrongEntry(prob10x, prob50x, latestMultiplierKey, positivePred) {
+            
+            const conditions = {
+                prob: (prob10x >= 75 || prob50x >= 70),
+                pattern: isStrongPatternActive, 
+                time50x: (averageTimeBetween50x > 0 && timeSinceLast50x >= averageTimeBetween50x),
+                positivePred: positivePred
+            };
+            
+            updateStrongEntryUI(conditions);
+        }
+        
+        function updateStrongEntryUI(conditions) {
+            document.getElementById('cond-prob').classList.toggle('ok', conditions.prob);
+            document.getElementById('cond-pattern').classList.toggle('ok', conditions.pattern);
+            document.getElementById('cond-time50x').classList.toggle('ok', conditions.time50x);
+            document.getElementById('cond-positive-pred').classList.toggle('ok', conditions.positivePred);
+        }
+        
+        window.updateGridColumns = function() {
+            const columns = document.getElementById('columns-select').value;
+            multiplierGrid.style.gridTemplateColumns = `repeat(${columns}, minmax(120px, 1fr))`;
+            renderDashboard(); // Re-renderiza para aplicar
+        }
+
+        /**
+         * FUNÇÃO PRINCIPAL: Aplica todos os filtros e roda todas as lógicas
+         */
+        window.renderDashboard = function() {
+            const selectedDate = dateFilter.value;
+            
+            const dataByDate = historyData.filter(item => item.date === selectedDate);
+            
+            if (dataByDate.length === 0) {
+                calculateColorAverages([]);
+                updateProbability('prob-10x', 0);
+                updateProbability('prob-50x', 0);
+                calculateProb50x([]); 
+                calculate5xStats([]); 
+                checkStrongEntry(0, 0, null, false); 
+                updateTriggerCardUI(null); 
+                update5xTriggerCardUI(false, null); 
+                globalActive5xStrategy = null; 
+                
+                // Reseta o novo card
+                timePatternAlert = { isActive: false, status: 'Aguardando', targetMinute: null, patternMinutes: null };
+                updateTimePatternCard(timePatternAlert);
+                
+                renderGrid([]);
+                intervalFrequencies = {};
+                patternStats = { multiplierTriggers: {} };
+                recentPinkTriggers = []; 
+                return;
+            }
+
+            // 1. CÁLCULO DAS MÉDIAS
+            calculateColorAverages(dataByDate);
+            
+            // 2. Análise de Padrões e Backtest
+            patternStats = findPatterns(dataByDate);
+            findRecentPinkTriggers(dataByDate); 
+
+            // 3. CÁLCULO DAS PROBABILIDADES E STATS
+            // prob10x agora também atualiza o 'timePatternAlert' global
+            let prob10x = calculateProb10x(dataByDate, patternStats); 
+            let prob50x = calculateProb50x(dataByDate); 
+            calculate5xStats(dataByDate); 
+            
+            // 4. LÓGICAS DE REDUÇÃO
+            let maxReduction = 0; 
+            
+            // --- 4.1. Lógica de Predominância de CRASH (< 1.00x) ---
+            const PREDOMINANCE_SAMPLE_SIZE_CRASH = 12;
+            const PREDOMINANCE_THRESHOLD_CRASH = 7; 
+            const CRASH_REDUCTION_AMOUNT = 13; 
+            const last12 = dataByDate.slice(0, PREDOMINANCE_SAMPLE_SIZE_CRASH);
+
+            if (last12.length === PREDOMINANCE_SAMPLE_SIZE_CRASH) { 
+                 const crashCount = last12.filter(item => item.multiplier < 1.00).length; 
+                 if (crashCount >= PREDOMINANCE_THRESHOLD_CRASH) { 
+                     maxReduction = Math.max(maxReduction, CRASH_REDUCTION_AMOUNT); 
+                 }
+            }
+            
+            // --- 4.2. Lógica de Sequência de AZUL (< 2.00x) (MODIFICADO) ---
+            let blueSequenceCount = 0;
+            for (const item of dataByDate) {
+                if (item.color === 'blue') { 
+                    blueSequenceCount++;
+                } else {
+                    break; 
+                }
+            }
+            
+            let sequenceReduction = 0;
+            if (blueSequenceCount >= 7) { 
+                sequenceReduction = 20; 
+            } else if (blueSequenceCount === 6) { 
+                sequenceReduction = 17; 
+            } else if (blueSequenceCount === 5) { 
+                sequenceReduction = 12; 
+            } else if (blueSequenceCount >= 4) { 
+                sequenceReduction = 7; 
+            }
+            
+            // --- 4.3. Lógica de Predominância AZUL/BAIXA nas Últimas 14 Velas ---
+            const PREDOMINANCE_SAMPLE_SIZE_14 = 14;
+            const PREDOMINANCE_THRESHOLD_14 = 8; 
+            const PREDOMINANCE_REDUCTION = 12; 
+            const last14 = dataByDate.slice(0, PREDOMINANCE_SAMPLE_SIZE_14);
+            let predominanceReduction = 0;
+
+            if (last14.length === PREDOMINANCE_SAMPLE_SIZE_14) { 
+                 const lowCount = last14.filter(item => item.color === 'blue').length; 
+                 
+                 if (lowCount >= PREDOMINANCE_THRESHOLD_14) { 
+                     predominanceReduction = PREDOMINANCE_REDUCTION; 
+                 }
+            }
+            
+            // --- 4.4. Lógica de Predominância de Positivas (para o checklist) ---
+            let positivePred = false;
+            const PREDOMINANCE_SAMPLE_SIZE_POSITIVE = 10;
+            const last10 = dataByDate.slice(0, PREDOMINANCE_SAMPLE_SIZE_POSITIVE);
+
+            if (last10.length === PREDOMINANCE_SAMPLE_SIZE_POSITIVE) {
+                const positiveCount = last10.filter(item => item.multiplier >= 2.00).length;
+                if (positiveCount >= 6) { 
+                    positivePred = true;
+                }
+            }
+            
+            // 5. APLICAÇÃO FINAL DA REDUÇÃO MÁXIMA
+            maxReduction = Math.max(maxReduction, sequenceReduction, predominanceReduction);
+
+            prob10x = Math.max(0, prob10x - maxReduction);
+            prob50x = Math.max(0, prob50x - maxReduction);
+            
+            prob10x = Math.min(90, prob10x);
+            prob50x = Math.min(90, prob50x);
+            
+            // 6. ATUALIZAÇÃO DA INTERFACE
+            updateProbability('prob-10x', prob10x);
+            updateProbability('prob-50x', prob50x);
+            
+            // ATUALIZAÇÃO DO NOVO CARD DE TEMPO (já é chamado dentro de calculateProb10x)
+            
+            const latestMultiplierKey = dataByDate[0].multiplier.toFixed(2);
+            
+            // 7. Checa e atualiza o Sinal Forte (Checklist)
+            checkStrongEntry(prob10x, prob50x, latestMultiplierKey, positivePred); 
+            
+            // 8. Atualiza a UI do Card de Gatilhos (Estado Ativo)
+            updateTriggerCardUI(latestMultiplierKey); 
+            
+            // 9. MODIFICADO: Lógica de Ativação do Card 5x
+            let active5xStrategy = null;
+            const roundedTimeSince_5x = Math.round(timeSinceLast_5x);
+            const roundedAverage_5x = Math.round(averageTimeBetween_5x);
+            
+            if (roundedTimeSince_5x === 3) {
+                active5xStrategy = '3-min';
+            } else if (roundedTimeSince_5x === 5) {
+                active5xStrategy = '5-min';
+            } else if (roundedAverage_5x > 0 && roundedTimeSince_5x === roundedAverage_5x) {
+                active5xStrategy = 'average';
+            }
+            
+            globalActive5xStrategy = active5xStrategy; 
+            let is5xTriggerActive = (active5xStrategy !== null);
+            update5xTriggerCardUI(is5xTriggerActive, active5xStrategy);
+            
+            // 10. FILTRAGEM E RENDERIZAÇÃO
+            const finalData = filterVelas(dataByDate);
+            renderGrid(finalData);
+        }
+
+        // ====================================================================
+        // 7. LISTENER FIREBASE (Ponto de entrada de dados)
+        // ====================================================================
+
+        onValue(ref(db, "history/"), (snapshot) => {
+          const data = snapshot.val();
+          if (!data) {
+            historyData = [];
+            renderDashboard(); 
+            return;
+          }
+          
+          let rawHistory = Object.values(data);
+          
+          const finalHistory = rawHistory
+            .filter(item => item.multiplier && item.time && item.date)
+            .map(item => {
+                const multiplier = parseFloat(item.multiplier.replace('x', ''));
+                return {
+                    multiplier: multiplier,
+                    time: item.time,
+                    date: item.date, 
+                    color: getVelaColor(multiplier),
+                    minutes: timeToMinutes(item.time) // Mantém a precisão total
+                };
+            })
+            .reverse(); 
+
+          historyData = finalHistory.slice(0, 100000); 
+          
+          renderDashboard();
+
+        });
+        
+        // ====================================================================
+        // 8. Inicialização
+        // ====================================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date();
+            const todayDateString = formatDate(today);
+            
+            dateFilter.setAttribute('max', todayDateString);
+            dateFilter.value = todayDateString; 
+            
+            // Inicializa quantidade de colunas
+            const isMobile = window.innerWidth <= 768;
+            document.getElementById('columns-select').value = isMobile ? 3 : 7;
+            updateGridColumns();
+            
+            renderDashboard();
+
+            // Ajuste inicial de colunas baseado em tela
+            window.addEventListener('resize', () => {
+                const isMobile = window.innerWidth <= 768;
+                document.getElementById('columns-select').value = isMobile ? 3 : 7;
+                updateGridColumns();
+            });
+        });
+(function() {
+    // ====================================================================
+    // CÓDIGO DE BLOQUEIO DO DEVTOOLS
+    // ====================================================================
+    const threshold = 160; // Limiar de pixels para detectar a abertura
+    let devtoolsOpen = false;
+
+    const checkDevTools = () => {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        // Verifica se a largura ou altura da janela é muito pequena, indicando DevTools aberto
+        if (width < threshold || height < threshold) {
+            if (!devtoolsOpen) {
+                devtoolsOpen = true;
+                // Ação a ser tomada: redireciona o usuário
+                window.location.replace("https://www.google.com"); 
+            }
+        } else {
+            devtoolsOpen = false;
+        }
+    };
+
+    // 1. Detecção por Redimensionamento (a técnica mais eficaz)
+    window.addEventListener('resize', checkDevTools);
+    checkDevTools(); // Chama no carregamento inicial
+
+    // 2. Bloqueio de Atalhos de Teclado
+    document.addEventListener('keydown', function (e) {
+        // F12
+        if (e.key === 'F12' || e.keyCode === 123) {
+            e.preventDefault();
+        }
+        // Ctrl+Shift+I (Windows/Linux) ou Cmd+Option+I (Mac) para abrir o DevTools
+        if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i')) {
+            e.preventDefault();
+        }
+        // Ctrl+Shift+J (Windows/Linux) ou Cmd+Option+J (Mac) para abrir o Console
+        if (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j')) {
+            e.preventDefault();
+        }
+    });
+
+    // 3. Bloqueio do Menu de Contexto (Clique Direito)
+    document.addEventListener('contextmenu', function (e) {
+        e.preventDefault();
+    });
+
+    // ====================================================================
+    // FIM DO CÓDIGO DE BLOQUEIO DO DEVTOOLS
+    // ====================================================================
+})();
+
+    </script>
+</body>
+</html>
