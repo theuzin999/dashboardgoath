@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoathBet Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap" rel="stylesheet">
+
+<script>
+    (function checkLoginStatus() {
+        const isLoggedIn = localStorage.getItem('isLoggedIn');
+        if (isLoggedIn !== 'true') {
+            window.location.replace('/'); 
+        }
+    })();
+  </script>
+    
+    <link rel="stylesheet" href="style.css">
+    
+    <style>
+        .logout-button {
+            background-color: #dc3545; /* Vermelho */
+            color: white;
+            border: none;
+            padding: 5px 10px; /* Reduzido para ser pequeno */
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.8rem; /* Fonte pequena */
+            transition: background-color 0.2s;
+            margin-top: 5px; /* Espaço abaixo do Dashboard */
+        }
+        .logout-button:hover {
+            background-color: #c82333; /* Vermelho mais escuro no hover */
+        }
+        
+        /* NOVO: Estilos para posicionamento do botão */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start; /* Alinha o conteúdo ao topo */
+        }
+        
+        .header-left-content {
+            display: flex;
+            flex-direction: column; /* Coloca os itens em coluna */
+            align-items: flex-start;
+        }
+
+        .user-actions {
+            display: flex; 
+            align-items: center;
+        }
+
+        .user-profile {
+             margin-right: 0; /* Remove margem extra */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container" id="dashboard-container">
+        <div class="sidebar">
+            <button class="sidebar-toggle" onclick="toggleSidebar()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <div class="logo">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+                <span>GoathBet</span>
+            </div>
+            <div class="menu">
+                <button class="menu-item active">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    Dashboard
+                </button>
+                <div class="menu-divider"></div>
+            </div>
+            <div class="info-card-container">
+                <div class="info-card">
+                    <h4>Piso Mínimo Azul</h4>
+                    <span class="card-value blue">1.05x</span>
+                </div>
+                <div class="info-card">
+                    <h4>Piso Mínimo Roxo</h4>
+                    <span class="card-value purple">2.00x</span>
+                </div>
+                <div class="info-card">
+                    <h4>Piso Mínimo Rosa</h4>
+                    <span class="card-value pink">10.00x</span>
+                </div>
+                <div class="info-card" onclick="openSlidebar('prob-10x-slidebar')">
+                    <h4>Prob. de 10x</h4>
+                    <span class="card-value color-green" id="prob-10x" data-value="90">90%</span>
+                </div>
+                <div class="info-card" onclick="openSlidebar('prob-50x-slidebar')">
+                    <h4>Prob. de 50x</h4>
+                    <span class="card-value color-green" id="prob-50x" data-value="20">20%</span>
+                </div>
+                <div class="info-card" onclick="openSlidebar('prob-5x-slidebar')">
+                    <h4>Padrão de 5x</h4>
+                    <span class="card-value color-green" id="trigger-card-5x">Checar</span>
+                </div>
+                <div class="info-card" onclick="openSlidebar('time-pattern-slidebar')">
+                    <h4>Padrão de Tempo</h4>
+                    <span class="card-value status-ok" id="time-pattern-status">Aguardando</span>
+                </div>
+            </div>
+
+            <div class="checklist">
+                <h4>Sinal Forte (Checklist):</h4>
+                <ul>
+                    <li id="cond-prob">Probabilidade Alta (≥70%)</li>
+                    <li id="cond-pattern">Padrão Repetitivo Ativo</li>
+                    <li id="cond-positive-pred">Predominância de Positivas (≥2.00x)</li>
+                    <li id="cond-time50x">Tempo Sem 50x > Média</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="main-content">
+            
+            <div class="header">
+                <div class="header-left-content">
+                    <h2>Dashboard</h2>
+                    <button id="logout-button" class="logout-button" onclick="window.logout()">Sair</button>
+                </div>
+                
+                <input type="date" id="date-filter" class="date-filter-input" onchange="renderDashboard()">
+                
+                <div class="user-actions">
+                    <div class="user-profile">
+                        <img src="https://i.postimg.cc/q7nqXJTq/logo-GOATH.png" alt="Logo GOATH" class="user-logo">
+                        goathbet
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="filters">
+                    <label>
+                        <input type="checkbox" id="filter-blue" checked onchange="renderDashboard()"> Azul
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filter-purple" checked onchange="renderDashboard()"> Roxo
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filter-pink" checked onchange="renderDashboard()"> Rosa
+                    </label>
+                </div>
+                <div class="columns-selector">
+                    <label for="columns-select">Colunas:</label>
+                    <select id="columns-select" onchange="updateGridColumns()">
+                        <option value="3">3</option>
+                        <option value="5">5</option>
+                        <option value="7" selected>7</option>
+                        <option value="10">10</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="multiplier-grid" id="multiplier-grid">
+                </div>
+            
+            <div class="bottom-bar">
+                <button class="menu-item" onclick="openSlidebar('pink-triggers-slidebar')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17H2a10 10 0 0 0 20 0zM12 9V2M12 2v7z"/></svg>
+                    Gatilhos Rosas Recentes
+                </button>
+                <div class="contact-info">
+                    <p>Desenvolvido por GOATH</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="prob-10x-slidebar" class="slidebar">
+        <button class="slidebar-close" onclick="closeSlidebar('prob-10x-slidebar')">×</button>
+        <div class="slidebar-title">Probabilidade de 10x</div>
+        <div class="slidebar-content">
+            <p>Os intervalos (em minutos) mais frequentes entre as velas rosas:</p>
+            <ul id="interval-list-10x">
+                </ul>
+        </div>
+    </div>
+
+    <div id="prob-50x-slidebar" class="slidebar">
+        <button class="slidebar-close" onclick="closeSlidebar('prob-50x-slidebar')">×</button>
+        <div class="slidebar-title">Probabilidade de 50x</div>
+        <div class="slidebar-content">
+            <p>Contagem de velas rosas desde o último 50x:</p>
+            <h4>Estatísticas:</h4>
+            <div class="info-card" id="pink-below-50x"></div>
+            <div class="info-card" id="pink-below-35x"></div>
+            <div class="info-card" id="time-since-last-50x"></div>
+            <div class="info-card" id="average-time-between-50x"></div>
+        </div>
+    </div>
+    
+    <div id="pink-triggers-slidebar" class="slidebar">
+        <button class="slidebar-close" onclick="closeSlidebar('pink-triggers-slidebar')">×</button>
+        <div class="slidebar-title">Gatilhos Rosas</div>
+        <div class="slidebar-content">
+            <ul id="pink-triggers-list">
+                <li class="list-header">Últimos multiplicadores que puxaram velas rosas nas últimas 2 horas:</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="prob-5x-slidebar" class="slidebar">
+        <button class="slidebar-close" onclick="closeSlidebar('prob-5x-slidebar')">×</button>
+        <div class="slidebar-title">Padrão de 5x</div>
+        <div class="slidebar-content">
+            <p>Informações sobre velas de 5.00x ou mais, chance de 5x apos 3 e 5 minutos alem do intervalo entre o penultimo e ultimo 5x.</p>
+            <h4>Informações:</h4>
+            <div class="info-card" id="time-since-last-5x"></div>
+            <div class="info-card" id="average-time-between-5x"></div>
+        </div>
+    </div>
+
+    <div id="time-pattern-slidebar" class="slidebar">
+        <button class="slidebar-close" onclick="closeSlidebar('time-pattern-slidebar')">×</button>
+        <div class="slidebar-title">Padrão de Tempo Rosa</div>
+        <div class="slidebar-content">
+            <p>Calcula o próximo horário provável para uma vela rosa com base em intervalos fixos (3, 5, 7, e 10 minutos) após a última vela rosa.</p>
+            <h4 id="time-pattern-details">Nenhum padrão de tempo fixo está próximo.</h4>
+        </div>
+    </div>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>
