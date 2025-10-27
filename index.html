@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Page</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-image: url('https://i.postimg.cc/brmFJ8k8/Picsart-25-10-27-10-33-46-630.jpg'); 
+            background-size: cover;
+            background-position: center;
+            overflow: hidden;
+            color: #ffffff;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 1;
+            pointer-events: none;
+            background: rgba(0, 0, 0, 0.7); 
+        }
+
+        .shape {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0.5;
+            background-color: rgba(255, 0, 0, 0.8); 
+            box-shadow: 0 0 50px rgba(255, 0, 0, 0.5);
+            animation: move ease-in-out infinite alternate;
+            filter: blur(5px);
+        }
+
+        @keyframes move {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(20vw, 20vh); }
+        }
+        
+        @keyframes move-reverse {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-15vw, -15vh); }
+        }
+
+        .login-container {
+            background: rgba(0, 0, 0, 0.95);
+            padding: 50px;
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.4); 
+            text-align: center;
+            position: relative;
+            z-index: 2;
+            width: 350px;
+            max-width: 90%;
+            border: 1px solid rgba(255, 0, 0, 0.5);
+        }
+
+        .login-container h2 {
+            margin-top: 0;
+            margin-bottom: 30px;
+            color: #f0f0f0;
+            font-size: 2.2em;
+            letter-spacing: 1px;
+        }
+
+        .input-field {
+            margin: 20px 0;
+            width: calc(100% - 20px);
+            padding: 15px;
+            border: none;
+            border-bottom: 2px solid #ff0000; 
+            border-radius: 4px 4px 0 0;
+            background: #2a2a2a;
+            color: #ffffff;
+            font-size: 1.1em;
+            outline: none;
+            transition: border-bottom 0.3s ease;
+        }
+
+        .input-field:focus {
+            border-bottom: 2px solid #ff4d4d; 
+        }
+
+        .login-button {
+            margin-top: 30px;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 5px;
+            background: #ff0000; 
+            color: #ffffff;
+            cursor: pointer;
+            font-size: 1.2em;
+            font-weight: bold;
+            transition: background 0.3s ease, transform 0.2s ease;
+            width: 100%;
+            box-shadow: 0 5px 15px rgba(255, 0, 0, 0.4); 
+        }
+
+        .login-button:hover {
+            background: #cc0000; 
+            transform: translateY(-2px);
+        }
+
+        .logo {
+            margin-top: 0; 
+            margin-bottom: 30px; 
+            width: 200px;
+            height: auto;
+            opacity: 0.9;
+            transition: opacity 0.3s ease;
+        }
+
+        .logo:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="background">
+        <script>
+            const numShapes = 15;
+            const backgroundContainer = document.querySelector('.background');
+
+            for (let i = 0; i < numShapes; i++) {
+                let div = document.createElement('div');
+                div.classList.add('shape');
+                
+                const size = Math.random() * 80 + 20;
+                div.style.width = size + 'px';
+                div.style.height = size + 'px';
+                div.style.left = Math.random() * 100 + 'vw';
+                div.style.top = Math.random() * 100 + 'vh';
+                
+                div.style.animationDuration = Math.random() * 15 + 10 + 's';
+                div.style.animationDelay = Math.random() * 10 + 's';
+                
+                div.style.animationName = Math.random() < 0.5 ? 'move' : 'move-reverse';
+                
+                backgroundContainer.appendChild(div);
+            }
+        </script>
+    </div>
+
+    <div class="login-container">
+        <h2>LOGIN</h2>
+        
+        <img src="https://i.postimg.cc/yYzNXKqx/Picsart-25-10-27-10-15-31-195.png" alt="Srpitaia Oficial" class="logo">
+
+        <input type="text" placeholder="Enter your Key" class="input-field">
+        <button class="login-button">LOGIN</button>
+    </div>
+
+    <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+  import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAx3VyIUdL-IDEjY0tEpmU9irPTUGzdM1k",
+    authDomain: "keys-e66d2.firebaseapp.com",
+    projectId: "keys-e66d2",
+    storageBucket: "keys-e66d2.firebasestorage.app",
+    messagingSenderId: "433879466504",
+    appId: "1:433879466504:web:34fb6c3ca0d363fad687bd",
+    measurementId: "G-0ZF0LDYEJN"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  const input = document.querySelector('.input-field');
+  const btn = document.querySelector('.login-button');
+
+  btn.addEventListener('click', async (event) => {
+    event.preventDefault();
+
+    const entered = input.value.trim();
+    if (!entered) return alert('Digite a key');
+
+    try {
+      const keysCollectionRef = collection(db, 'keys'); 
+      const q = query(keysCollectionRef, where('valor', '==', entered));
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        window.location.href = 'dashboard.html';
+      } else {
+        alert('Key inválida.');
+      }
+    } catch (err) {
+      console.error("Erro no Firebase ou na conexão:", err);
+      alert('Erro ao verificar a key.');
+    }
+  });
+(function() {
+    const threshold = 160; 
+    let devtoolsOpen = false;
+
+    const checkDevTools = () => {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        if (width < threshold || height < threshold) {
+            if (!devtoolsOpen) {
+                devtoolsOpen = true;
+                window.location.replace("https://www.google.com"); 
+            }
+        } else {
+            devtoolsOpen = false;
+        }
+    };
+
+    window.addEventListener('resize', checkDevTools);
+    checkDevTools(); 
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'F12' || e.keyCode === 123) {
+            e.preventDefault();
+        }
+        if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i')) {
+            e.preventDefault();
+        }
+        if (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j')) {
+            e.preventDefault();
+        }
+    });
+
+    document.addEventListener('contextmenu', function (e) {
+        e.preventDefault();
+    });
+})();
+</script>
+
+
+</body>
+</html>
