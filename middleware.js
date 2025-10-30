@@ -1,24 +1,29 @@
-// middleware.js
 export default async function middleware(req) {
   const url = new URL(req.url);
   const path = url.pathname;
-
-  // páginas protegidas
   const protegidas = ["/dashboard.html", "/planilha.html", "/bot2x.html"];
+
+   (HTTrack, wget, curl, etc.)
+  const ua = (req.headers.get("user-agent") || "").toLowerCase();
+  if (ua.includes("httrack") || ua.includes("wget") || ua.includes("curl")) {
+    return new Response("Forbidden", { status: 403 });
+  }
+
+  
   if (!protegidas.includes(path)) return fetch(req);
 
-  // tenta ler cookie de sessão
+  
   const cookies = req.headers.get("cookie") || "";
   const match = cookies.match(/sessionId=([^;]+)/);
   const token = match ? match[1] : null;
 
-  // se não tiver token, redireciona pro index
   if (!token) {
+    
     return Response.redirect(new URL("/", req.url), 302);
   }
 
-  // valida o token com o Worker
   try {
+    
     const verify = await fetch("https://keysdash.espanhaserrita.workers.dev/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -26,14 +31,16 @@ export default async function middleware(req) {
     });
 
     const data = await verify.json().catch(() => ({}));
-    if (verify.ok && data.ok) {
-      // token válido → libera o acesso
-      return fetch(req);
-    }
-  } catch (err) {
-    console.error("Erro ao validar token:", err);
-  }
 
-  // token inválido ou erro → redireciona pro index
-  return Response.redirect(new URL("/", req.url), 302);
+    if (verify.ok && data.ok) {
+      // Token válido -> libera acesso
+      return fetch(req);
+    } else {
+      
+      return Response.redirect(new URL("/", req.url), 302);
+    }
+  } catch (e) {
+    console.error("Erro na verificação remota:", e);
+    return Response.redirect(new URL("/", req.url), 302);
+  }
 }
