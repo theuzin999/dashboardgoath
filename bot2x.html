@@ -4,15 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Aviator Smart Signals</title>
-  <link rel="stylesheet" href="botstyles.css" />
-  <script>
-    (function checkLoginStatus() {
-        const isLoggedIn = localStorage.getItem('isLoggedIn');
-        if (isLoggedIn !== 'true') {
-            window.location.replace('/'); 
-        }
-    })();
-  </script>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 <header>
@@ -26,7 +18,7 @@
       <h1>Aviator Smart Signals</h1>
     </div>
   </div>
-  <div class="status-badge" id="liveStatus">Conectando ao Firebase…</div>
+  <div class="status-badge" id="liveStatus">Conectando…</div>
 </header>
 
 <main>
@@ -108,6 +100,6 @@
 
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
-<script src="botscripts.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
