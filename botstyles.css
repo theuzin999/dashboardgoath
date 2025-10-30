@@ -12,6 +12,7 @@
   --glow1: rgba(145,89,255,.55);
   --glow2: rgba(236,72,153,.45);
   --await: rgba(245,158,11,.55);
+  /* Novo estilo para bloqueio de alto risco */
   --block-bg: rgba(72, 13, 20, 0.9); 
   --block-border: rgba(239, 44, 44, 0.5);
 }
@@ -38,6 +39,7 @@ h1{font-size:18px;margin:0;font-weight:800}
   font-size:12px;padding:6px 10px;border-radius:999px;
   background:rgba(37,99,235,.1);color:#cfe0ff;border:1px solid var(--stroke);
 }
+/* Estilo do novo botão de voltar */
 .back-btn {
   display: flex;
   align-items: center;
@@ -60,11 +62,13 @@ h1{font-size:18px;margin:0;font-weight:800}
   height: 20px;
   fill: currentColor;
 }
+/* Container para o botão de voltar e a marca */
 .header-left {
   display: flex;
   align-items: center;
   gap: 20px;
 }
+
 
 main{max-width:1180px;margin:18px auto;padding:0 14px 40px}
 .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
@@ -74,6 +78,7 @@ main{max-width:1180px;margin:18px auto;padding:0 14px 40px}
   border:1px solid var(--stroke);border-radius:var(--card-radius);
   padding:16px;box-shadow:var(--shadow);
 }
+/* Estilo para a nova seção de estatísticas */
 .stats-header {
   font-size: 16px;
   font-weight: 700;
@@ -99,6 +104,7 @@ main{max-width:1180px;margin:18px auto;padding:0 14px 40px}
   color:#b9c8ea;border:1px solid var(--stroke);cursor:pointer
 }
 .btn-more:hover{filter:brightness(1.1)}
+/* Novo botão de limpar estatísticas */
 .btn-clear-stats {
   display: block;
   width: 100%;
@@ -114,13 +120,14 @@ main{max-width:1180px;margin:18px auto;padding:0 14px 40px}
   transition: background-color 0.2s, opacity 0.2s;
 }
 .btn-clear-stats:hover {
-  background: #c93030;
+  background: #c93030; /* Tonalidade mais escura de vermelho */
   opacity: 0.9;
 }
 .btn-clear-stats:active {
   opacity: 0.7;
 }
 
+/* ====== Card Chance com efeito roxo animado ====== */
 .chance-card{
   position:relative;border-radius:18px;padding:16px;
   background:linear-gradient(135deg,rgba(37,99,235,.12),rgba(16,24,44,.9));
@@ -156,6 +163,7 @@ main{max-width:1180px;margin:18px auto;padding:0 14px 40px}
   50%{filter:blur(8px);opacity:.75}
 }
 
+/* Estilo para bloqueio de alto risco */
 .chance-blocked {
   background: var(--block-bg);
   border: 1px solid var(--block-border);
@@ -163,6 +171,7 @@ main{max-width:1180px;margin:18px auto;padding:0 14px 40px}
 }
 .chance-blocked .chance-title { color: var(--danger); }
 .chance-blocked .chance-sub { color: #fecaca; }
+
 
 .chance-title{font-weight:900;font-size:18px}
 .chance-sub{color:#d7e4ff;opacity:.9;font-size:13px}
@@ -182,6 +191,7 @@ main{max-width:1180px;margin:18px auto;padding:0 14px 40px}
 .chip.err{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);color:#ffd1d1}
 .chip.warn{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.32);color:#ffe0b3}
 
+/* ====== Histórico de multiplicadores colorido ====== */
 .history{display:grid;grid-template-columns:repeat(15,minmax(64px,1fr));gap:8px;max-height:240px;overflow:auto}
 .hbox{
   border:1px solid var(--stroke);

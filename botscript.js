@@ -1,3 +1,12 @@
+// ===================== CHECAGEM DE LOGIN ===========================
+(function checkLoginStatus() {
+  const isLoggedIn = localStorage.getItem('isLoggedIn');
+  if (isLoggedIn !== 'true') {
+    // Redireciona para o caminho raiz (que carrega o index.html)
+    window.location.replace('/');
+  }
+})();
+
 // ===================== CONFIG FIREBASE ===========================
 const firebaseConfig = {
   apiKey: "AIzaSyB-35zQDrQbz8ohZUdqpFkayYdAUDrLw6g",
@@ -28,7 +37,7 @@ const martingaleTag = $("#martingaleTag");
 const feed = $("#feed");
 const historyGrid = $("#history");
 const topslide = $("#topslide");
-const clearStatsBtn = $("#clearStatsBtn");
+const clearStatsBtn = $("#clearStatsBtn"); // Novo
 
 const winsSidebar = $("#winsSidebar"), streakSidebar = $("#streakSidebar");
 const normalWinsEl = $("#normalWins"), g1WinsEl = $("#g1Wins"), g2WinsEl = $("#g2Wins"), maxStreakEl = $("#maxStreak");
@@ -98,6 +107,7 @@ function syncStatsUI(){
 }
 syncStatsUI();
 
+// Função para limpar as estatísticas
 clearStatsBtn.onclick = () => {
     if(confirm("Tem certeza que deseja limpar todas as estatísticas salvas? Esta ação é irreversível.")){
         stats = {wins:0,losses:0,streak:0,maxStreak:0,normalWins:0,g1Wins:0,g2Wins:0};
@@ -113,15 +123,16 @@ function predominancePositive(list, N=10){
   const lastN = list.slice(-N);
   const pos=lastN.filter(c=>c.color==="purple"||c.color==="pink").length;
   const pct= lastN.length? pos/lastN.length:0;
-  return {pct, ok:pct>=0.6};
+  return {pct, ok:pct>=0.6}; // Mantido 60% como mínimo para 'ok' (operando)
 }
 function consecutiveBlueCount(list){
   let c=0; for(let i=list.length-1;i>=0;i--){ if(list[i].color==="blue") c++; else break; } return c;
 }
-const STRONG_PCT = 0.70;
+const STRONG_PCT = 0.70; // Cenário forte com 70% de predominância
 
+// Variável global para comunicar o motivo do bloqueio para o motor
 window.lastBlockReason = null;
-window.lastPauseMessage = null;
+window.lastPauseMessage = null; // Variavel global para controle de flood do feed
 
 // ===================== Estratégias =======================
 function detectStrategies(colors, predPct){ 
@@ -129,17 +140,21 @@ function detectStrategies(colors, predPct){
   const isPos = (c) => c==="purple" || c==="pink";
   const a=colors[L-3], b=colors[L-2], c=colors[L-1];
   
+  // ===================== BLOQUEIO DE ALTO RISCO (Anti-Repetição de Azuis) =======================
   if(L >= 8 && colors[L-1] === "blue" && colors[L-2] === "blue"){ 
+      
       let posRunLen = 0;
       for(let i=L-3; i>=0; i--){
           if(isPos(colors[i])) posRunLen++; else break;
       }
+
       if(posRunLen >= 2 && posRunLen <= 4){ 
           let prevBlueRunLen = 0;
           let startIdx = L - 3 - posRunLen;
           for(let i=startIdx; i>=0; i--){
               if(colors[i] === "blue") prevBlueRunLen++; else break;
           }
+          
           if(prevBlueRunLen >= 3 && prevBlueRunLen <= 4){
               window.lastBlockReason = `BLOQUEIO: ${prevBlueRunLen}B - ${posRunLen}P - 2B na ponta. Risco de repetição de quebra.`;
               return null;
@@ -148,17 +163,25 @@ function detectStrategies(colors, predPct){
   }
   window.lastBlockReason = null;
 
+  // -------------------------------------------------------------
+  // NOVAS REGRAS DE SURFING (Prioridade Alta)
+  // -------------------------------------------------------------
+  
+  // Regra 1.1: Surfing em Sequência Estendida (4+ Positivas) - OPORTUNIDADE FORTE
   if(L >= 4 && isPos(c) && isPos(b) && isPos(a)){
       let posRunLen = 0;
       for(let i=L-1; i>=0; i--){
           if(isPos(colors[i])) posRunLen++; else break;
       }
+      // Manda sinal continuamente (surf) enquanto a sequência positiva (4+) se mantém
       if(posRunLen >= 4){
            return {name:"surfing-4+", gate:`Sequência de ${posRunLen} velas Positivas. Surfe a onda! ⇒ P (2x)`};
       }
   }
 
+  // Regra 1.2: Sequência Roxas Simples (3 Positivas)
   if(L>=3 && isPos(a) && isPos(b) && isPos(c)){
+       // Se já foi pego pela regra 4+, ignora. Se for 3, entra aqui.
       let posRunLen = 0;
       for(let i=L-1; i>=0; i--){
           if(isPos(colors[i])) posRunLen++; else break;
@@ -168,16 +191,27 @@ function detectStrategies(colors, predPct){
       }
   }
 
+
+  // -------------------------------------------------------------
+  // REGRAS DE REVERSÃO E PADRÃO (Prioridade Normal)
+  // -------------------------------------------------------------
+  
+  // Regra 2: Predominância Forte (Sinais mais rápidos e frequentes com boas chances)
+  // Manda sinal se a predominância for forte (>=70%) e a última for azul, indicando o fim da correção.
   if(predPct >= STRONG_PCT && c === "blue"){
     return {name:"predominancia-forte", gate:`Predominância: ${(predPct*100).toFixed(0)}% > ${STRONG_PCT*100}% com Azul na ponta. ⇒ P (2x)`};
   }
 
+  // Regra 3: Fileiras com 1 ou 2 Azuis (Padrões de reversão/continuação após correções curtas)
+  // Padrão: Positiva - 1/2 Azuis - Positiva - Azul (Entrada)
   if(L>=5 && isPos(colors[L-5]) && isPos(colors[L-2]) && c==="blue"){
+     // P-B-B-P-B ou P-B-P-B (últimas 5 ou 4)
      if((colors[L-4]==="blue" && colors[L-3]==="blue") || colors[L-4]==="blue"){
       return {name:"pos-corr-simples", gate:"Pósitiva - Correção (1-2 Azuis) - Pósitiva - Azul ⇒ P (2x)"};
     }
   }
 
+  // Regra 4: Gemini 2x Reversão
   if(predPct >= 0.60 && L>=5 && colors[L-1]==="blue"){
     const last5 = colors.slice(L-5).join("-");
     if(last5 === "blue-purple-blue-blue-blue" || last5 === "blue-blue-purple-blue-blue"){
@@ -185,6 +219,7 @@ function detectStrategies(colors, predPct){
     }
   }
 
+  // Regra 5: Outras Regras existentes 
   if(a==="blue" && b==="purple" && c==="blue") return {name:"xadrez", gate:"B-P-B ⇒ P (2x)"};
   if(b==="pink" && c==="blue") return {name:"pós-rosa xadrez", gate:"Rosa→Azul ⇒ P (2x)"};
   if(L>=4 && colors[L-4]==="pink" && colors[L-3]==="blue" && colors[L-2]==="blue") return {name:"pós-rosa 2B→2P", gate:"Rosa→BB ⇒ RR"};
@@ -222,7 +257,7 @@ function modelSuggest(colors){
   }
   return null;
 }
-
+// Função não usada na lógica atual, mantida por segurança/compatibilidade
 function hasRunPurple3InWindow(arr, minTimeMs){
   const windowList = minTimeMs ? arr.filter(r=>r.ts && r.ts>=minTimeMs) : arr.slice(-120);
   let best=0,cur=0; for(const r of windowList){ if(r.color==="purple"){cur++;best=Math.max(best,cur);}else cur=0; }
@@ -246,11 +281,13 @@ function onNewCandle(arr){
   const thirtyAgo = lastTs ? (lastTs - 30*60*1000) : null;
   window.hasRecentPurpleRun3 = hasRunPurple3InWindow(arr, thirtyAgo);
 
-  const hardPaused = (blueRun>=4) || (!pred10.ok);
+  const hardPaused = (blueRun>=4) || (!pred10.ok); // Bloqueio total se 4+ Azuis ou Predom. Baixa (<60%)
   engineStatus.textContent = hardPaused ? "aguardando" : "operando";
 
-  const awaitingStability = (blueRun>=2);
+  const awaitingStability = (blueRun>=2); // Espera por estabilidade (2 ou 3 Azuis)
 
+  // -------------------------
+  // WIN/LOSS Logic (must run before checks for hardPaused)
   if(pending && typeof pending.enterAtIdx === "number"){
     const justClosed = arr[arr.length-1];
     if(justClosed.idx === pending.enterAtIdx){
@@ -265,6 +302,7 @@ function onNewCandle(arr){
         addFeed("ok", label); topSlide("WIN 2x", true); clearPending();
       } else {
         if(pending.stage===0){
+          // Rigor no Martingale: G1_WAIT se houver 2+ azuis consecutivas
           if(awaitingStability){ 
             pending.stage='G1_WAIT'; pending.enterAtIdx=null; martingaleTag.style.display="inline-block";
             setCardState({active:false, awaiting:true, title:"aguardando estabilidade G1", sub:"aguarde uma possibilidade"}); 
@@ -274,6 +312,7 @@ function onNewCandle(arr){
             setCardState({active:true, title:"Chance de 2x G1", sub:`entrar após (${justClosed.mult.toFixed(2)}x)`}); addFeed("warn","Ativando G1");
           }
         } else if(pending.stage===1){
+          // Rigor no Martingale: G2_WAIT sempre após falha do G1
           pending.stage='G2_WAIT'; pending.enterAtIdx=null; martingaleTag.style.display="inline-block";
           setCardState({active:false, awaiting:true, title:"aguardando estabilidade G2", sub:"aguarde uma possibilidade"});
           addFeed("warn","G2 aguardando estabilidade");
@@ -285,28 +324,42 @@ function onNewCandle(arr){
     }
   }
 
+  // Se houver Bloqueio Total, exibe o cartão amarelo/await e evita flood de feed.
   if(hardPaused){
+      // Força a exibição do cartão 'awaiting'
       setCardState({active:false, awaiting:true, title:"aguardando estabilidade", sub:"aguarde uma possibilidade"});
+      
       let pauseMsg = null;
-      if (blueRun >= 4) pauseMsg = "PAUSE de Alto Risco. Aguardando Reversão.";
-      else if (!pred10.ok) pauseMsg = "PAUSE de Alto Risco. Aguardando Predominância Positiva.";
+      if (blueRun >= 4) {
+          pauseMsg = "PAUSE de Alto Risco. Aguardando Reversão."; // <-- MENSAGEM AJUSTADA
+      } else if (!pred10.ok) {
+          pauseMsg = "PAUSE de Alto Risco. Aguardando Predominância Positiva."; // <-- MENSAGEM CORRIGIDA
+      }
+      
+      // Controle de Flood: Só adiciona se for uma mensagem nova
       if (pauseMsg && window.lastPauseMessage !== pauseMsg) {
           addFeed("warn", pauseMsg);
           window.lastPauseMessage = pauseMsg;
       }
-      return;
+      return; // BLOCKS EVERYTHING
   }
+  
+  // Limpa o contador de flood se sair do hardPaused
   window.lastPauseMessage = null; 
 
   const last = arr[arr.length-1];
   const lastMultTxt = last.mult.toFixed(2)+"x";
 
+  // Retomando G1 (STRICT: blueRun < 2)
+  // G1 só é retomado se não houver mais risco imediato (menos de 2 azuis consecutivas).
   if(pending && pending.stage==='G1_WAIT' && !awaitingStability){
     pending.stage=1; pending.enterAtIdx=last.idx+1; martingaleTag.style.display="inline-block";
     setCardState({active:true, title:"Chance de 2x G1", sub:`entrar após (${lastMultTxt})`}); addFeed("warn","Retomando G1");
     return;
   }
 
+  // Retomando G2 (STRICT: blueRun < 2 AND rule found)
+  // G2 só é retomado se não houver risco imediato E se uma regra for identificada.
   if(pending && pending.stage==='G2_WAIT'){
     const colors = arr.map(r=>r.color);
     const byRule = detectStrategies(colors, pred10.pct) || modelSuggest(colors); 
@@ -320,22 +373,34 @@ function onNewCandle(arr){
     }
   }
 
+  // Novo Sinal Normal (G0)
   if(!pending){
     const colors = arr.map(r=>r.color);
     let suggestion = detectStrategies(colors, pred10.pct) || modelSuggest(colors); 
     const blockReason = window.lastBlockReason;
-    const isStrongPred = pred10.pct >= STRONG_PCT;
+    
+    const isStrongPred = pred10.pct >= STRONG_PCT; // 70%
+    
+    // Condição para ENTRADA G0:
+    // 1. Se blueRun < 2 (Modo Seguro: 0 ou 1 azul)
+    // 2. OU se (blueRun é 2 ou 3) E (predominância é Forte >= 70%) (Modo Oportunidade)
     const isEntryAllowed = (blueRun < 2) || (blueRun >= 2 && blueRun <= 3 && isStrongPred);
 
     if(isEntryAllowed && suggestion){
+      // SINAL ENVIADO (G0)
       pending = { stage:0, enterAtIdx: last.idx+1, reason: suggestion.gate, strategy: suggestion.name };
+      
       setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${lastMultTxt})`});
       strategyTag.textContent = "Estratégia: " + suggestion.name + (isStrongPred?" · cenário forte":"");
       gateTag.textContent = "Gatilho: " + suggestion.gate;
+      
+      // MENSAGEM G0 AJUSTADA
       addFeed("warn", `SINAL 2x (${suggestion.name}) — entrar após (${lastMultTxt})`); 
       return;
     } else if (!isEntryAllowed && awaitingStability) {
+      // Se a entrada NÃO for permitida (blueRun 2 ou 3 com <70% pred), exibe o estado de espera.
       setCardState({active:false, awaiting:true, title:"aguardando estabilidade", sub:"aguarde uma possibilidade"});
+      // Adiciona feed message para 2 ou 3 azuis com predominância fraca/normal
       const pauseMsg = "aguardando estabilidade (sequência azul - Predominância normal)";
       if (blueRun >= 2 && window.lastPauseMessage !== pauseMsg) {
           addFeed("warn", pauseMsg);
@@ -343,10 +408,12 @@ function onNewCandle(arr){
       }
       return;
     } else if (blockReason) {
+      // Exibe o motivo do bloqueio (Anti-Repetição de Azuis)
       setCardState({active:false, awaiting:false, title:"SINAL BLOQUEADO", sub: blockReason});
       strategyTag.textContent = "ALTO RISCO";
       gateTag.textContent = "Motivo: Repetição de Padrão Azul";
     } else {
+      // Caso de identificando padrão (0 ou 1 azul, mas nenhuma regra disparou)
       setCardState({active:false, awaiting:false, title:"Chance de 2x", sub:"identificando padrão"});
       strategyTag.textContent = "Estratégia: —";
       gateTag.textContent = "Gatilho: —";
@@ -395,33 +462,35 @@ function toArrayFromHistory(raw){
   }
 })();
 
+// ===================== BLOQUEIO DO DEVTOOLS =======================
 (function() {
-    const threshold = 160;
-    let devtoolsOpen = false;
+  const threshold = 160; // Limiar de pixels para detectar a abertura
+  let devtoolsOpen = false;
 
-    const checkDevTools = () => {
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-        if (width < threshold || height < threshold) {
-            if (!devtoolsOpen) {
-                devtoolsOpen = true;
-                window.location.replace("https://www.google.com"); 
-            }
-        } else {
-            devtoolsOpen = false;
-        }
-    };
+  const checkDevTools = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      if (width < threshold || height < threshold) {
+          if (!devtoolsOpen) {
+              devtoolsOpen = true;
+              window.location.replace("https://www.google.com"); 
+          }
+      } else {
+          devtoolsOpen = false;
+      }
+  };
+  window.addEventListener('resize', checkDevTools);
+  checkDevTools(); // inicial
 
-    window.addEventListener('resize', checkDevTools);
-    checkDevTools();
+  // 2. Bloqueio de Atalhos de Teclado
+  document.addEventListener('keydown', function (e) {
+      if (e.key === 'F12' || e.keyCode === 123) e.preventDefault();
+      if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i')) e.preventDefault();
+      if (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j')) e.preventDefault();
+  });
 
-    document.addEventListener('keydown', function (e) {
-        if (e.key === 'F12' || e.keyCode === 123) e.preventDefault();
-        if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i')) e.preventDefault();
-        if (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j')) e.preventDefault();
-    });
-
-    document.addEventListener('contextmenu', function (e) {
-        e.preventDefault();
-    });
+  // 3. Bloqueio do Menu de Contexto (Clique Direito)
+  document.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
+  });
 })();
