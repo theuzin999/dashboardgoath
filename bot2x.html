@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Aviator Smart Signals</title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="botstyles.css" />
+
+  <!-- Firebase SDKs (Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+
+  <!-- App JS -->
+  <script defer src="botscript.js"></script>
+</head>
+<body>
+<header>
+  <div class="header-left">
+    <a href="dashboard.html" class="back-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.707 10.707a1 1 0 0 1-1.414 0L12 9.414l-3.293 3.293a1 1 0 0 1-1.414-1.414l4-4a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414z"/></svg>
+      Voltar
+    </a>
+    <div class="brand">
+      <img src="https://i.postimg.cc/yYzNXKqx/Picsart-25-10-27-10-15-31-195.png" alt="Logo" class="logo-img">
+      <h1>Aviator Smart Signals</h1>
+    </div>
+  </div>
+  <div class="status-badge" id="liveStatus">Conectando ao Firebase…</div>
+</header>
+
+<main>
+  <div class="grid">
+    <section class="card" style="grid-column: span 12;">
+      <div class="stats-header">ESTATÍSTICAS DESDE QUE VOCÊ ENTROU:</div>
+      <div class="row">
+        <div class="kpi" style="flex:1;">
+          <small>Status</small>
+          <div class="row">
+            <div id="engineStatus" class="pill">Inicializando…</div>
+            <div id="predStatus" class="pill">Predominância: —</div>
+            <div id="blueRun" class="pill">Azuis seguidas: 0</div>
+          </div>
+        </div>
+        <div class="kpi" style="width:160px;">
+          <small>Acertos consecutivos</small>
+          <div class="big" id="streak">0</div>
+          <button class="btn-more" id="streakMoreBtn">Ver mais</button>
+        </div>
+        <div class="kpi" style="width:160px;">
+          <small>Total de acertos</small>
+          <div class="big" id="wins">0</div>
+          <button class="btn-more" id="winsMoreBtn">Ver mais</button>
+        </div>
+        <div class="kpi" style="width:160px;"><small>Total de erros</small><div id="losses" class="big">0</div></div>
+      </div>
+      <button class="btn-clear-stats" id="clearStatsBtn">LIMPAR ESTATÍSTICAS</button>
+    </section>
+
+    <section class="card" style="grid-column: span 6;">
+      <div class="chance-card" id="chanceCard">
+        <div class="row" style="justify-content:space-between;">
+          <div>
+            <div class="chance-title" id="chanceTitle">Chance de 2x</div>
+            <div class="chance-sub" id="chanceSub">identificando padrão…</div>
+          </div>
+        </div>
+        <div class="sep"></div>
+        <div class="row">
+          <div class="pill" id="strategyTag">Estratégia: —</div>
+          <div class="pill" id="gateTag">Gatilho: —</div>
+          <div class="pill" id="martingaleTag" style="display:none;">G1/G2 ativo</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" style="grid-column: span 6;">
+      <div class="chance-title">Feed de sinais</div>
+      <div class="feed" id="feed"></div>
+    </section>
+
+    <section class="card" style="grid-column: span 12;">
+      <div class="chance-title">Últimas 15 velas</div>
+      <div id="history" class="history"></div>
+    </section>
+  </div>
+</main>
+
+<div class="topslide" id="topslide"></div>
+
+<div class="sidebar" id="winsSidebar">
+  <div class="sidebar-header">
+    <h3>Detalhes de Acertos</h3>
+    <button class="close-btn" id="closeWins">×</button>
+  </div>
+  <div class="stat-line"><span>Acertos normais</span><strong id="normalWins">0</strong></div>
+  <div class="stat-line"><span>Acertos G1</span><strong id="g1Wins">0</strong></div>
+  <div class="stat-line"><span>Acertos G2</span><strong id="g2Wins">0</strong></div>
+</div>
+
+<div class="sidebar" id="streakSidebar">
+  <div class="sidebar-header">
+    <h3>Maior Sequência</h3>
+    <button class="close-btn" id="closeStreak">×</button>
+  </div>
+  <div class="stat-line"><span>Maior sequência</span><strong id="maxStreak">0</strong></div>
+</div>
+</body>
+</html>

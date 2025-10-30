@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login Goath</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-image: url('https://i.postimg.cc/brmFJ8k8/Picsart-25-10-27-10-33-46-630.jpg');
+      background-size: cover;
+      background-position: center;
+      overflow: hidden;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      position: relative;
+    }
+
+    .background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 1;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .shape {
+      position: absolute;
+      border-radius: 50%;
+      opacity: 0.5;
+      background-color: rgba(255,0,0,0.8);
+      box-shadow: 0 0 50px rgba(255,0,0,0.5);
+      animation: move ease-in-out infinite alternate;
+      filter: blur(5px);
+    }
+    @keyframes move { 0%{transform:translate(0,0);} 100%{transform:translate(20vw,20vh);} }
+    @keyframes move-reverse { 0%{transform:translate(0,0);} 100%{transform:translate(-15vw,-15vh);} }
+
+    .login-container {
+      background: rgba(0,0,0,0.95);
+      padding: 50px;
+      border-radius: 12px;
+      box-shadow: 0 0 30px rgba(255,0,0,0.4);
+      text-align: center;
+      z-index: 2;
+      width: 350px;
+      border: 1px solid rgba(255,0,0,0.5);
+    }
+
+    .login-container h2 { color:#f0f0f0; margin:0 0 30px; }
+    .logo { width:200px; margin-bottom:25px; }
+
+    .input-field {
+      margin:15px 0;
+      width:calc(100% - 20px);
+      padding:12px;
+      border:none;
+      border-bottom:2px solid #ff0000;
+      background:#2a2a2a;
+      color:#fff;
+      font-size:1.1em;
+      outline:none;
+    }
+
+    .input-field:focus { border-bottom:2px solid #ff4d4d; }
+
+    .login-button {
+      width:100%;
+      margin-top:25px;
+      padding:12px;
+      border:none;
+      border-radius:5px;
+      background:#ff0000;
+      color:#fff;
+      font-size:1.2em;
+      font-weight:bold;
+      cursor:pointer;
+      transition:background 0.3s;
+    }
+
+    .login-button:hover { background:#cc0000; }
+
+    .msg { margin-top:15px; font-size:14px; display:none; }
+    .msg.error { color:#ff4d4d; }
+    .msg.success { color:#00ff99; }
+  </style>
+</head>
+<body>
+  <div class="background"></div>
+
+  <div class="login-container">
+    <h2>LOGIN</h2>
+    <img src="https://i.postimg.cc/yYzNXKqx/Picsart-25-10-27-10-15-31-195.png" alt="Logo" class="logo">
+    <input type="text" id="clientId" placeholder="ID do Cliente" class="input-field" autocomplete="username">
+    <input type="password" id="keyInput" placeholder="Digite sua Key" class="input-field" autocomplete="current-password">
+    <button class="login-button" id="loginBtn">ENTRAR</button>
+    <div id="msg" class="msg"></div>
+  </div>
+
+  <script>
+    const API_BASE = "https://keysdash.espanhaserrita.workers.dev/";
+
+    
+    (function antiDevTools() {
+      const redirectURL = "/";
+      document.addEventListener("keydown", e => {
+        if (e.key === "F12" || (e.ctrlKey && e.shiftKey && ["I","i","J","j","C","c"].includes(e.key))) {
+          e.preventDefault(); window.location.replace(redirectURL);
+        }
+      });
+      document.addEventListener("contextmenu", e => e.preventDefault());
+      const element = new Image();
+      Object.defineProperty(element, 'id', { get() { throw new Error("DevTools!"); }});
+      setInterval(() => console.log(element), 1000);
+    })();
+
+    
+    function showMsg(text, type) {
+      const msg = document.getElementById("msg");
+      msg.style.display = "block";
+      msg.className = "msg " + (type === "error" ? "error" : "success");
+      msg.textContent = text;
+    }
+
+    
+    document.getElementById("loginBtn").addEventListener("click", async (e) => {
+      e.preventDefault();
+      const clientId = document.getElementById("clientId").value.trim();
+      const key = document.getElementById("keyInput").value.trim();
+
+      if (!clientId || !key) {
+        showMsg("⚠️ Preencha todos os campos.", "error");
+        return;
+      }
+
+      try {
+        const res = await fetch(API_BASE + "login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clientId, key }),
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (!data.ok || !data.token) {
+          showMsg("❌ Key inválida.", "error");
+          return;
+        }
+
+        
+        sessionStorage.setItem("sessionId", data.token);
+        document.cookie = `sessionId=${data.token}; path=/; max-age=3600; SameSite=Lax; Secure`;
+
+        
+        await new Promise(r => setTimeout(r, 400));
+
+        
+        const verify = await fetch(API_BASE + "verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: data.token }),
+        });
+
+        const verifyData = await verify.json().catch(() => ({}));
+
+        if (verify.ok && verifyData.ok) {
+          showMsg("✅ Acesso liberado!", "success");
+          setTimeout(() => window.location.replace("/dashboard.html"), 800);
+        } else {
+          showMsg("❌ Falha na validação da sessão.", "error");
+        }
+      } catch (err) {
+        console.error(err);
+        showMsg("⚠️ Erro ao conectar ao servidor.", "error");
+      }
+    });
+
+    
+    const bg = document.querySelector('.background');
+    for (let i = 0; i < 15; i++) {
+      const div = document.createElement('div');
+      div.classList.add('shape');
+      const size = Math.random() * 80 + 20;
+      div.style.width = size + 'px';
+      div.style.height = size + 'px';
+      div.style.left = Math.random() * 100 + 'vw';
+      div.style.top = Math.random() * 100 + 'vh';
+      div.style.animationDuration = Math.random() * 15 + 10 + 's';
+      div.style.animationName = Math.random() < 0.5 ? 'move' : 'move-reverse';
+      bg.appendChild(div);
+    }
+  </script>
+</body>
+</html>
