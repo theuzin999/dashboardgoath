@@ -107,93 +107,96 @@
   </div>
 
   <script>
-  const API_BASE = "https://keysdash.espanhaserrita.workers.dev/";
+    const API_BASE = "https://keysdash.espanhaserrita.workers.dev/";
 
-  // === BLOQUEIO DE DEVTOOLS ===
-  (function antiDevTools() {
-    const redirectURL = "/";
-    document.addEventListener("keydown", e => {
-      if (e.key === "F12" || (e.ctrlKey && e.shiftKey && ["I","i","J","j","C","c"].includes(e.key))) {
-        e.preventDefault(); window.location.replace(redirectURL);
-      }
-    });
-    document.addEventListener("contextmenu", e => e.preventDefault());
-    const element = new Image();
-    Object.defineProperty(element,'id',{ get(){ throw new Error("DevTools!"); }});
-    setInterval(()=>console.log(element),1000);
-  })();
+    
+    (function antiDevTools() {
+      const redirectURL = "/";
+      document.addEventListener("keydown", e => {
+        if (e.key === "F12" || (e.ctrlKey && e.shiftKey && ["I","i","J","j","C","c"].includes(e.key))) {
+          e.preventDefault(); window.location.replace(redirectURL);
+        }
+      });
+      document.addEventListener("contextmenu", e => e.preventDefault());
+      const element = new Image();
+      Object.defineProperty(element, 'id', { get() { throw new Error("DevTools!"); }});
+      setInterval(() => console.log(element), 1000);
+    })();
 
-  // === FUNÇÃO DE MENSAGEM ===
-  function showMsg(text, type) {
-    const msg = document.getElementById("msg");
-    msg.style.display = "block";
-    msg.className = "msg " + (type === "error" ? "error" : "success");
-    msg.textContent = text;
-  }
-
-  // === LOGIN ===
-  document.getElementById("loginBtn").addEventListener("click", async (e) => {
-    e.preventDefault();
-    const clientId = document.getElementById("clientId").value.trim();
-    const key = document.getElementById("keyInput").value.trim();
-
-    if (!clientId || !key) {
-      showMsg("⚠️ Preencha todos os campos.", "error");
-      return;
+    
+    function showMsg(text, type) {
+      const msg = document.getElementById("msg");
+      msg.style.display = "block";
+      msg.className = "msg " + (type === "error" ? "error" : "success");
+      msg.textContent = text;
     }
 
-    try {
-      const res = await fetch(API_BASE + "login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, key }),
-      });
-      const data = await res.json().catch(() => ({}));
+    
+    document.getElementById("loginBtn").addEventListener("click", async (e) => {
+      e.preventDefault();
+      const clientId = document.getElementById("clientId").value.trim();
+      const key = document.getElementById("keyInput").value.trim();
 
-      if (!data.ok || !data.token) {
-        showMsg("❌ Key inválida.", "error");
+      if (!clientId || !key) {
+        showMsg("⚠️ Preencha todos os campos.", "error");
         return;
       }
 
-      // Salva token local e no cookie (para o middleware)
-      sessionStorage.setItem("sessionId", data.token);
-      document.cookie = `sessionId=${data.token}; path=/; max-age=3600; SameSite=Lax; Secure`;
+      try {
+        const res = await fetch(API_BASE + "login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clientId, key }),
+        });
+        const data = await res.json().catch(() => ({}));
 
-      // Verifica token remotamente
-      const verify = await fetch(API_BASE + "verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: data.token }),
-      });
-      const verifyData = await verify.json().catch(() => ({}));
+        if (!data.ok || !data.token) {
+          showMsg("❌ Key inválida.", "error");
+          return;
+        }
 
-      if (verify.ok && verifyData.ok) {
-        showMsg("✅ Acesso liberado!", "success");
-        setTimeout(() => window.location.replace("/dashboard.html"), 700);
-      } else {
-        showMsg("❌ Falha na validação da sessão.", "error");
+        
+        sessionStorage.setItem("sessionId", data.token);
+        document.cookie = `sessionId=${data.token}; path=/; max-age=3600; SameSite=Lax; Secure`;
+
+        
+        await new Promise(r => setTimeout(r, 400));
+
+        
+        const verify = await fetch(API_BASE + "verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: data.token }),
+        });
+
+        const verifyData = await verify.json().catch(() => ({}));
+
+        if (verify.ok && verifyData.ok) {
+          showMsg("✅ Acesso liberado!", "success");
+          setTimeout(() => window.location.replace("/dashboard.html"), 800);
+        } else {
+          showMsg("❌ Falha na validação da sessão.", "error");
+        }
+      } catch (err) {
+        console.error(err);
+        showMsg("⚠️ Erro ao conectar ao servidor.", "error");
       }
-    } catch (err) {
-      console.error(err);
-      showMsg("⚠️ Erro ao conectar ao servidor.", "error");
+    });
+
+    
+    const bg = document.querySelector('.background');
+    for (let i = 0; i < 15; i++) {
+      const div = document.createElement('div');
+      div.classList.add('shape');
+      const size = Math.random() * 80 + 20;
+      div.style.width = size + 'px';
+      div.style.height = size + 'px';
+      div.style.left = Math.random() * 100 + 'vw';
+      div.style.top = Math.random() * 100 + 'vh';
+      div.style.animationDuration = Math.random() * 15 + 10 + 's';
+      div.style.animationName = Math.random() < 0.5 ? 'move' : 'move-reverse';
+      bg.appendChild(div);
     }
-  });
-
-  // === ANIMAÇÃO DE FUNDO ===
-  const bg = document.querySelector('.background');
-  for (let i = 0; i < 15; i++) {
-    const div = document.createElement('div');
-    div.classList.add('shape');
-    const size = Math.random() * 80 + 20;
-    div.style.width = size + 'px';
-    div.style.height = size + 'px';
-    div.style.left = Math.random() * 100 + 'vw';
-    div.style.top = Math.random() * 100 + 'vh';
-    div.style.animationDuration = Math.random() * 15 + 10 + 's';
-    div.style.animationName = Math.random() < 0.5 ? 'move' : 'move-reverse';
-    bg.appendChild(div);
-  }
-</script>
-
+  </script>
 </body>
 </html>
