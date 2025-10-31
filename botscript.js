@@ -263,7 +263,7 @@ function onNewCandle(arr){
   if(arr.length<2) return;
   renderHistory(arr);
   
-  const pred10 = predominancePositive(arr, 10);
+  const pred10 = predominancePositive(arr, 5);
   const blueRun = consecutiveBlueCount(arr);
   predStatus.textContent = `Predominância: ${(pred10.pct*100).toFixed(0)}% positivas`;
   blueRunPill.textContent = `Azuis seguidas: ${blueRun}`;
