@@ -110,11 +110,11 @@ clearStatsBtn.onclick = () => {
 
 // ===================== Utils =======================
 function colorFrom(mult){ if(mult<2.0) return "blue"; if(mult<10.0) return "purple"; return "pink"; }
-function predominancePositive(list, N=6){
+function predominancePositive(list, N=5){
   const lastN = list.slice(-N);
   const pos=lastN.filter(c=>c.color==="purple"||c.color==="pink").length;
   const pct= lastN.length? pos/lastN.length:0;
-  return {pct, ok:pct>=0.6}; // Mantido 60% como mínimo para 'ok' (operando)
+  return {pct, ok:pct>=0.5}; // Mantido 60% como mínimo para 'ok' (operando)
 }
 function consecutiveBlueCount(list){
   let c=0; for(let i=list.length-1;i>=0;i--){ if(list[i].color==="blue") c++; else break; } return c;
@@ -263,7 +263,7 @@ function onNewCandle(arr){
   if(arr.length<2) return;
   renderHistory(arr);
   
-  const pred10 = predominancePositive(arr, 6);
+  const pred10 = predominancePositive(arr, 5);
   const blueRun = consecutiveBlueCount(arr);
   predStatus.textContent = `Predominância: ${(pred10.pct*100).toFixed(0)}% positivas`;
   blueRunPill.textContent = `Azuis seguidas: ${blueRun}`;
