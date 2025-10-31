@@ -275,7 +275,7 @@ function onNewCandle(arr){
   const hardPaused = (blueRun>=4) || (!pred10.ok); // Bloqueio total se 4+ Azuis ou Predom. Baixa (<60%)
   engineStatus.textContent = hardPaused ? "aguardando" : "operando";
 
-  const awaitingStability = (blueRun>=3); // Espera por estabilidade (2 ou 3 Azuis)
+  const awaitingStability = (blueRun>=2); // Espera por estabilidade (2 ou 3 Azuis)
 
   // -------------------------
   // WIN/LOSS Logic (must run before checks for hardPaused)
