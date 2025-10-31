@@ -110,7 +110,7 @@ clearStatsBtn.onclick = () => {
 
 // ===================== Utils =======================
 function colorFrom(mult){ if(mult<2.0) return "blue"; if(mult<10.0) return "purple"; return "pink"; }
-function predominancePositive(list, N=10){
+function predominancePositive(list, N=5){
   const lastN = list.slice(-N);
   const pos=lastN.filter(c=>c.color==="purple"||c.color==="pink").length;
   const pct= lastN.length? pos/lastN.length:0;
