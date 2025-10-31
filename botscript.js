@@ -114,7 +114,7 @@ function predominancePositive(list, N=5){
   const lastN = list.slice(-N);
   const pos=lastN.filter(c=>c.color==="purple"||c.color==="pink").length;
   const pct= lastN.length? pos/lastN.length:0;
-  return {pct, ok:pct>=0.5}; // Mantido 60% como mínimo para 'ok' (operando)
+  return {pct, ok:pct>=0.6}; // Mantido 60% como mínimo para 'ok' (operando)
 }
 function consecutiveBlueCount(list){
   let c=0; for(let i=list.length-1;i>=0;i--){ if(list[i].color==="blue") c++; else break; } return c;
