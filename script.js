@@ -1020,7 +1020,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 // =========================
-// ALERTA 100x — MÓDULO CORRIGIDO (COM SEGUNDOS E TEMPOS FORMATADOS)
+// ALERTA 100x — MÓDULO FINALMENTE CORRIGIDO E ROBUSTO
 // =========================
 (function () {
   const CARD_ID = 'alerta-100x-card';
@@ -1028,7 +1028,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const SB_LAST_ID = 'alert-100x-last';
   const SB_NEXT_IDS = ['alert-100x-next1', 'alert-100x-next2', 'alert-100x-next3', 'alert-100x-next4'];
   const SB_INTERVAL_ID = 'interval-100x-info';
-  const SB_TIME_SINCE_ID = 'tempo-100x-value'; // ID do span onde o tempo é exibido
+  // Note: O HTML usa 'tempo-100x-value' para o valor do tempo sem 100x
+  const SB_TIME_SINCE_ID = 'tempo-100x-value'; 
 
   // Converte HH:MM:SS para minutos (com segundos fracionados)
   const timeToMinutes = (timeStr) => {
@@ -1037,7 +1038,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return h * 60 + m + s / 60;
   };
 
-  // NOVO: Formata minutos totais (inteiros ou decimais) para 'Hh MMmin' (ex: 1h 20min)
+  // Formata minutos totais (inteiros ou decimais) para 'Hh MMmin' (ex: 1h 20min)
   const formatMinutesToHhMm = (totalMinutes) => {
     if (typeof totalMinutes !== 'number' || totalMinutes < 0) return '-- minutos';
     const mins = Math.round(totalMinutes);
@@ -1048,11 +1049,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (h > 0) {
       parts.push(`${h}h`);
     }
-    if (m > 0 || mins === 0) { // Garante que 0 minutos seja exibido como 0 min
+    if (m > 0 || mins === 0) {
       parts.push(`${m}min`);
     }
 
-    if (parts.length === 0) return '0 min'; // Caso edge
+    if (parts.length === 0) return '0 min';
     return parts.join(' ');
   };
 
@@ -1063,7 +1064,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const [lastH, lastM, lastS] = last100xTimeStr.split(':').map(Number);
       
       const now = new Date();
-      // Calcula o tempo em minutos do dia atual
+      
       const nowMin = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
       const lastMin = lastH * 60 + lastM + lastS / 60;
       
@@ -1077,8 +1078,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return diff;
   };
 
-
-  // Pega todas as velas ≥100x do histórico (assume que 'data' está ordenada do mais recente para o mais antigo)
+  // Pega todas as velas ≥100x do histórico
   function get100xVelas(data) {
     // Filtra velas >= 100x e mapeia o tempo para minutos
     const filtered = data
@@ -1088,6 +1088,9 @@ document.addEventListener('DOMContentLoaded', () => {
         minutes: timeToMinutes(it.time)
       }));
       
+    // CORREÇÃO FINAL: Garante que os dados estão ordenados por tempo (mais recente primeiro)
+    filtered.sort((a, b) => b.minutes - a.minutes); 
+
     // Retorna as 5 mais recentes (a última + 4 anteriores para o histórico)
     return filtered.slice(0, 5); 
   }
@@ -1096,12 +1099,10 @@ document.addEventListener('DOMContentLoaded', () => {
   function calculateIntervals(velas100x) {
     if (velas100x.length < 2) return { avg: null, last: null };
     const intervals = [];
-    // Calcula a diferença de minutos entre cada par de velas (intervalo)
     for (let i = 1; i < velas100x.length; i++) {
       intervals.push(velas100x[i - 1].minutes - velas100x[i].minutes);
     }
     const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-    // O primeiro item do array 'intervals' é o intervalo mais recente
     const last = intervals[0]; 
     return { avg: avg, last: last };
   }
@@ -1154,7 +1155,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const last = velas100x[0];
         lastBox.textContent = `Última rosa ≥100x: ${last.multiplier.toFixed(2)}x às ${last.time}`;
         
-        // Calcula e formata o tempo sem 100x
         const timeSince = calculateTimeSinceLast100x(last.time);
         timeSinceBox.textContent = formatMinutesToHhMm(timeSince);
     } else {
@@ -1164,11 +1164,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // 2. Histórico das últimas 4 velas
-    // O array 'velas100x' contém a última em [0] e as 4 anteriores em [1] a [4].
+    // Usa as posições [1], [2], [3], [4] (as 4 velas anteriores à última)
     SB_NEXT_IDS.forEach((id, idx) => {
       const el = document.getElementById(id);
       if (!el) return;
-      // Pega do 2º ao 5º item do array, que são as 4 velas anteriores à última.
       const vela = velas100x[idx + 1]; 
       if (vela) {
           el.textContent = `${vela.multiplier.toFixed(2)}x às ${vela.time}`;
@@ -1181,7 +1180,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (intervalBox) {
       const { last } = calculateIntervals(velas100x);
       if (last) {
-        // CORRIGIDO: Mostra apenas o Último Intervalo formatado
         intervalBox.textContent = `Último intervalo: ${formatMinutesToHhMm(last)}`; 
       } else {
         intervalBox.textContent = `Último intervalo: --`;
@@ -1217,36 +1215,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Pega dados da data selecionada (Mantido do código original)
+  // Pega dados da data selecionada
   function getDataBySelectedDate() {
     const selected = document.getElementById('date-filter')?.value;
-    // Assume que 'historyData' é uma variável global com todos os dados
     if (!selected || !Array.isArray(historyData)) return [];
     return historyData.filter(it => it.date === selected);
   }
 
-  // Atualiza a cada 10 segundos (Mantido do código original)
+  // Atualiza a cada 10 segundos
   setInterval(() => {
     const data = getDataBySelectedDate();
     updateAlert100x(data);
   }, 10000);
 
-  // Sobrescreve renderDashboard (Mantido do código original)
+  // Sobrescreve renderDashboard
   const originalRender = window.renderDashboard;
   window.renderDashboard = function (...args) {
     try {
-      // Chama a função original se ela existir
       if (originalRender) {
         originalRender.apply(this, args);
       }
     } finally {
-      // Garante que o alerta 100x seja atualizado após o dashboard principal
       const data = getDataBySelectedDate();
       updateAlert100x(data);
     }
   };
 
-  // Inicializa (Mantido do código original)
+  // Inicializa
   setTimeout(() => updateAlert100x(getDataBySelectedDate()), 1000);
 })();
 
@@ -1255,6 +1250,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ====================================================================
 
 })();
+
 
 
 
