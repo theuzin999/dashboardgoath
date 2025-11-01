@@ -1118,7 +1118,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (velas100x.length > 0) {
         const last = velas100x[0];
         lastBox.textContent = `Última rosa ≥100x: ${last.multiplier.toFixed(2)}x às ${last.time}`;
-        
         const timeSince = calculateTimeSinceLast100x(last.time);
         timeSinceBox.textContent = formatMinutesToHhMm(timeSince);
     } else {
@@ -1126,6 +1125,7 @@ document.addEventListener('DOMContentLoaded', () => {
         timeSinceBox.textContent = '-- minutos';
     }
 
+    // agora lista começa do index [1]
     SB_NEXT_IDS.forEach((id, idx) => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -1136,8 +1136,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (intervalBox) {
       const { last } = calculateIntervals(velas100x);
-      if (last) intervalBox.textContent = `Último intervalo: ${formatMinutesToHhMm(last)}`;
-      else intervalBox.textContent = `Último intervalo: --`;
+      intervalBox.textContent = last ? `Último intervalo: ${formatMinutesToHhMm(last)}` : `Último intervalo: --`;
     }
   }
 
@@ -1194,4 +1193,5 @@ document.addEventListener('DOMContentLoaded', () => {
     // ====================================================================
 
 })();
+
 
