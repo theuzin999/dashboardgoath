@@ -110,16 +110,16 @@ clearStatsBtn.onclick = () => {
 
 // ===================== Utils =======================
 function colorFrom(mult){ if(mult<2.0) return "blue"; if(mult<10.0) return "purple"; return "pink"; }
-function predominancePositive(list, N=7){
+function predominancePositive(list, N=6){
   const lastN = list.slice(-N);
   const pos=lastN.filter(c=>c.color==="purple"||c.color==="pink").length;
   const pct= lastN.length? pos/lastN.length:0;
-  return {pct, ok:pct>=0.7}; // Mantido 60% como mínimo para 'ok' (operando)
+  return {pct, ok:pct>=0.4}; // Mantido 60% como mínimo para 'ok' (operando)
 }
 function consecutiveBlueCount(list){
   let c=0; for(let i=list.length-1;i>=0;i--){ if(list[i].color==="blue") c++; else break; } return c;
 }
-const STRONG_PCT = 0.80; // Cenário forte com 70% de predominância
+const STRONG_PCT = 0.50; // Cenário forte com 70% de predominância
 
 // Variável global para comunicar o motivo do bloqueio para o motor
 window.lastBlockReason = null;
@@ -165,7 +165,7 @@ function detectStrategies(colors, predPct){
           if(isPos(colors[i])) posRunLen++; else break;
       }
       // Manda sinal continuamente (surf) enquanto a sequência positiva (4+) se mantém
-      if(posRunLen >= 4){
+      if(posRunLen >= 3){
            return {name:"surfing-4+", gate:`Sequência de ${posRunLen} velas Positivas. Surfe a onda! ⇒ P (2x)`};
       }
   }
@@ -195,7 +195,7 @@ function detectStrategies(colors, predPct){
 
   // Regra 3: Fileiras com 1 ou 2 Azuis (Padrões de reversão/continuação após correções curtas)
   // Padrão: Positiva - 1/2 Azuis - Positiva - Azul (Entrada)
-  if(L>=5 && isPos(colors[L-5]) && isPos(colors[L-2]) && c==="blue"){
+  if(L>=5 && isPos(colors[L-3]) && isPos(colors[L-2]) && c==="blue"){
      // P-B-B-P-B ou P-B-P-B (últimas 5 ou 4)
      if((colors[L-4]==="blue" && colors[L-3]==="blue") || colors[L-4]==="blue"){
       return {name:"pos-corr-simples", gate:"Pósitiva - Correção (1-2 Azuis) - Pósitiva - Azul ⇒ P (2x)"};
@@ -263,7 +263,7 @@ function onNewCandle(arr){
   if(arr.length<2) return;
   renderHistory(arr);
   
-  const pred10 = predominancePositive(arr, 7);
+  const pred10 = predominancePositive(arr, 6);
   const blueRun = consecutiveBlueCount(arr);
   predStatus.textContent = `Predominância: ${(pred10.pct*100).toFixed(0)}% positivas`;
   blueRunPill.textContent = `Azuis seguidas: ${blueRun}`;
