@@ -1037,7 +1037,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return h * 60 + m + s / 60;
   };
 
-  // NOVO: Formata minutos totais (inteiros ou decimais) para 'Hh MMmin' (ex: 1 hora 20 min)
+  // NOVO: Formata minutos totais (inteiros ou decimais) para 'Hh MMmin' (ex: 1h 20min)
   const formatMinutesToHhMm = (totalMinutes) => {
     if (typeof totalMinutes !== 'number' || totalMinutes < 0) return '-- minutos';
     const mins = Math.round(totalMinutes);
@@ -1056,14 +1056,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return parts.join(' ');
   };
 
-  // Formata minutos decimais para HH:MM (usado apenas no cálculo 30/30)
-  const toHMM = (mins) => {
-    const total = Math.round(mins);
-    const h = Math.floor(total / 60) % 24;
-    const m = total % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-  };
-  
   // Calcula o tempo decorrido entre a última 100x e o momento atual (em minutos)
   const calculateTimeSinceLast100x = (last100xTimeStr) => {
       if (!last100xTimeStr) return null;
@@ -1071,8 +1063,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const [lastH, lastM, lastS] = last100xTimeStr.split(':').map(Number);
       
       const now = new Date();
-      // O dataForDate está no fuso horário do servidor/bot (provavelmente GMT-3, igual ao seu)
-      // Usamos a hora local para a exibição em tempo real, assumindo que o cliente e o bot estão sincronizados.
+      // Calcula o tempo em minutos do dia atual
       const nowMin = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
       const lastMin = lastH * 60 + lastM + lastS / 60;
       
@@ -1087,17 +1078,17 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
 
-  // Pega todas as velas ≥100x do histórico
+  // Pega todas as velas ≥100x do histórico (assume que 'data' está ordenada do mais recente para o mais antigo)
   function get100xVelas(data) {
-    // Ordena por horário descendente e filtra as >= 100x
+    // Filtra velas >= 100x e mapeia o tempo para minutos
     const filtered = data
       .filter(it => it.multiplier >= 100)
       .map(it => ({
         ...it,
-        minutes: timeToMinutes(it.time) // recalcula aqui para precisão
+        minutes: timeToMinutes(it.time)
       }));
       
-    // Queremos as 5 mais recentes (a última + 4 anteriores)
+    // Retorna as 5 mais recentes (a última + 4 anteriores para o histórico)
     return filtered.slice(0, 5); 
   }
 
@@ -1105,17 +1096,17 @@ document.addEventListener('DOMContentLoaded', () => {
   function calculateIntervals(velas100x) {
     if (velas100x.length < 2) return { avg: null, last: null };
     const intervals = [];
-    // Calcula a diferença entre a vela i e a vela i+1 (o intervalo)
+    // Calcula a diferença de minutos entre cada par de velas (intervalo)
     for (let i = 1; i < velas100x.length; i++) {
       intervals.push(velas100x[i - 1].minutes - velas100x[i].minutes);
     }
     const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-    // O primeiro item é o intervalo mais recente
+    // O primeiro item do array 'intervals' é o intervalo mais recente
     const last = intervals[0]; 
     return { avg: avg, last: last };
   }
 
-  // NOVO: Implementa a Estratégia "Vela Rosa 100x • janela 30/30"
+  // Implementa a Estratégia "Vela Rosa 100x • janela 30/30"
   function calculateNext30MinWindow(velas100x) {
     if (velas100x.length === 0) return null;
     
@@ -1125,7 +1116,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let nextH = baseH;
     let nextM = 0;
     
-    // Calcula a próxima janela de 30/30 a partir do horário base
+    // 1. Calcula o próximo horário redondo (00 ou 30) a partir da hora base
     if (baseM < 30) {
       nextM = 30; 
     } else {
@@ -1133,15 +1124,14 @@ document.addEventListener('DOMContentLoaded', () => {
       nextH = (baseH + 1) % 24;
     }
     
-    // Cria objetos Date para comparação
+    // 2. Compara o horário base com a próxima janela calculada
     let nextTarget = new Date();
     nextTarget.setHours(nextH, nextM, 0, 0);
 
     let baseTime = new Date();
     baseTime.setHours(baseH, baseM, baseS, 0);
 
-    // Se o horário base for MAIOR ou IGUAL à próxima janela redonda calculada, 
-    // significa que a próxima janela válida é 30 minutos depois
+    // Se o horário base for MAIOR ou IGUAL à próxima janela redonda, avança 30 minutos
     if (baseTime >= nextTarget) {
         nextTarget.setMinutes(nextTarget.getMinutes() + 30);
     }
@@ -1164,6 +1154,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const last = velas100x[0];
         lastBox.textContent = `Última rosa ≥100x: ${last.multiplier.toFixed(2)}x às ${last.time}`;
         
+        // Calcula e formata o tempo sem 100x
         const timeSince = calculateTimeSinceLast100x(last.time);
         timeSinceBox.textContent = formatMinutesToHhMm(timeSince);
     } else {
@@ -1172,24 +1163,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // 2. Histórico das últimas 4 velas (pula a última, que está em velas100x[0])
+    // 2. Histórico das últimas 4 velas
+    // O array 'velas100x' contém a última em [0] e as 4 anteriores em [1] a [4].
     SB_NEXT_IDS.forEach((id, idx) => {
       const el = document.getElementById(id);
       if (!el) return;
-      // Pega do 2º ao 5º item (velas100x[1] a velas100x[4])
+      // Pega do 2º ao 5º item do array, que são as 4 velas anteriores à última.
       const vela = velas100x[idx + 1]; 
       if (vela) {
-        el.textContent = `${vela.multiplier.toFixed(2)}x às ${vela.time}`;
+          el.textContent = `${vela.multiplier.toFixed(2)}x às ${vela.time}`;
       } else {
         el.textContent = `--`;
       }
     });
 
-    // 3. Último Intervalo (Corrigido para mostrar Último Intervalo em Hh MMmin)
+    // 3. Último Intervalo (Formato Hh MMmin)
     if (intervalBox) {
       const { last } = calculateIntervals(velas100x);
       if (last) {
-        // CORREÇÃO AQUI: Mostra apenas o Último Intervalo formatado
+        // CORRIGIDO: Mostra apenas o Último Intervalo formatado
         intervalBox.textContent = `Último intervalo: ${formatMinutesToHhMm(last)}`; 
       } else {
         intervalBox.textContent = `Último intervalo: --`;
@@ -1243,8 +1235,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const originalRender = window.renderDashboard;
   window.renderDashboard = function (...args) {
     try {
-      originalRender.apply(this, args);
+      // Chama a função original se ela existir
+      if (originalRender) {
+        originalRender.apply(this, args);
+      }
     } finally {
+      // Garante que o alerta 100x seja atualizado após o dashboard principal
       const data = getDataBySelectedDate();
       updateAlert100x(data);
     }
@@ -1259,6 +1255,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ====================================================================
 
 })();
+
 
 
 
