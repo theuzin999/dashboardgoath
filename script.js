@@ -1078,7 +1078,7 @@ document.addEventListener('DOMContentLoaded', () => {
     filtered.sort((a, b) => b.seconds - a.seconds);
 
     // pegamos 7 no total (1 será duplicado no topo da lista)
-    return filtered.slice(0, 7).map(x => ({ ...x }));
+    return filtered.slice(0, 8).map(x => ({ ...x }));
   }
 
   function calculateIntervals(velas100x) {
@@ -1123,13 +1123,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Lista: 1º item duplica o último 100x (velas[0]),
     // depois velas[1]..velas[5]. Se faltar, preenche com "--".
     SB_NEXT_IDS.forEach((id, idx) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      const vela = velas100x[idx] || null; // idx 0 = último (duplicado)
-      el.textContent = vela
-        ? `${vela.multiplier.toFixed(2)}x às ${vela.time}`
-        : `--`;
-    });
+  const el = document.getElementById(id);
+  if (!el) return;
+  const vela = velas100x[idx] || null; // já pega [0] duplicado + os 6 abaixo
+  el.textContent = vela
+    ? `${vela.multiplier.toFixed(2)}x às ${vela.time}`
+    : `--`;
+});
 
     if (intervalBox) {
       const { last } = calculateIntervals(velas100x);
@@ -1192,6 +1192,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ====================================================================
 
 })();
+
 
 
 
