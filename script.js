@@ -1020,7 +1020,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 // =========================
-// ALERTA 100x — VERSÃO FINAL (30/30 + JANELA ±2min)
+// ALERTA 100x — MÓDULO CORRIGIDO (COM SEGUNDOS)
 // =========================
 (function () {
   const CARD_ID = 'alerta-100x-card';
@@ -1028,15 +1028,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const SLIDEBAR_ID = 'alert-100x-slidebar';
   const SB_LAST_ID = 'alert-100x-last';
   const SB_NEXT_IDS = ['alert-100x-next1', 'alert-100x-next2', 'alert-100x-next3', 'alert-100x-next4'];
+  const SB_INTERVAL_ID = 'interval-100x-info';
 
-  // Converte HH:MM:SS para minutos decimais
+  // Converte HH:MM:SS para minutos (com segundos fracionados)
   const timeToMinutes = (timeStr) => {
     if (!timeStr) return 0;
     const [h, m, s] = timeStr.split(':').map(Number);
-    return h * 60 + m + (s || 0) / 60;
+    return h * 60 + m + s / 60;
   };
 
-  // Formata minutos para HH:MM
+  // Formata minutos decimais para HH:MM
   const toHMM = (mins) => {
     const total = Math.round(mins);
     const h = Math.floor(total / 60) % 24;
@@ -1044,89 +1045,129 @@ document.addEventListener('DOMContentLoaded', () => {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   };
 
-  // Gera próximos 4 centros de 30/30 a partir de um baseMin
-  const nextHalfHourCenters = (baseMin, count = 4) => {
-    const first = 30 * Math.ceil(baseMin / 30);
-    return Array.from({ length: count }, (_, i) => (first + i * 30) % 1440);
-  };
-
-  // Última vela ≥100x
-  function getLast100x(data) {
-    return data.find(it => it.multiplier >= 100);
+  // Pega todas as velas ≥100x do histórico
+  function get100xVelas(data) {
+    return data
+      .filter(it => it.multiplier >= 100)
+      .map(it => ({
+        ...it,
+        minutes: timeToMinutes(it.time) // recalcula aqui para precisão
+      }))
+      .slice(0, 5); // últimas 5
   }
 
-  // Atualiza slidebar com os 4 próximos centros + janela ±2
-  function renderSlidebar(last100x, centers) {
+  // Calcula média e último intervalo entre 100x
+  function calculateIntervals(velas100x) {
+    if (velas100x.length < 2) return { avg: null, last: null };
+    const intervals = [];
+    for (let i = 1; i < velas100x.length; i++) {
+      intervals.push(velas100x[i - 1].minutes - velas100x[i].minutes);
+    }
+    const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+    const last = intervals[0];
+    return { avg: Math.round(avg), last: Math.round(last) };
+  }
+
+  // Atualiza slidebar com histórico real (com segundos!)
+  function renderSlidebar(velas100x) {
     const lastBox = document.getElementById(SB_LAST_ID);
     if (lastBox) {
-      if (last100x) {
-        lastBox.textbrokenContent = `Última rosa ≥100x: ${last100x.multiplier.toFixed(2)}x às ${last100x.time}`;
+      if (velas100x.length > 0) {
+        const last = velas100x[0];
+        lastBox.textContent = `Última rosa ≥100x: ${last.multiplier.toFixed(2)}x às ${last.time}`;
       } else {
         lastBox.textContent = `Última rosa ≥100x: Nenhuma`;
       }
     }
 
+    // Últimas 4 velas (com segundos!)
     SB_NEXT_IDS.forEach((id, idx) => {
       const el = document.getElementById(id);
-      if (!el || !centers[idx]) return;
-      const center = centers[idx];
-      const start = toHMM(center - 2);
-      const end = toHMM(center + 2);
-      el.textContent = `${toHMM(center)} — janela: ${start} a ${end}`;
+      if (!el) return;
+      const vela = velas100x[idx + 1]; // pula a última
+      if (vela) {
+        el.textContent = `${vela.multiplier.toFixed(2)}x às ${vela.time}`;
+      } else {
+        el.textContent = `--`;
+      }
     });
+
+    // Intervalos
+    const intervalBox = document.getElementById(SB_INTERVAL_ID);
+    if (intervalBox) {
+      const { avg, last } = calculateIntervals(velas100x);
+      if (avg && last) {
+        intervalBox.textContent = `Média: ${avg} minutos | Último intervalo: ${last} min`;
+      } else {
+        intervalBox.textContent = `Média: -- minutos | Último intervalo: -- min`;
+      }
+    }
+  }
+
+  // Calcula próximo horário estimado com base na média
+  function estimateNext100x(nowMin, velas100x) {
+    if (velas100x.length === 0) return null;
+    const last100x = velas100x[0];
+    const { avg } = calculateIntervals(velas100x);
+    if (!avg) return null;
+
+    const nextMin = last100x.minutes + avg;
+    const wrapped = ((nextMin % 1440) + 1440) % 1440;
+    return { target: wrapped, avg };
+  }
+
+  // Verifica se está próximo do alvo (±3 minutos)
+  function isNearTarget(nowMin, targetMin) {
+    const diff = Math.abs(nowMin - targetMin);
+    const wrappedDiff = Math.min(diff, 1440 - diff);
+    return wrappedDiff <= 3;
   }
 
   // Atualiza card e slidebar
   function updateAlert100x(dataForDate) {
     const card = document.getElementById(CARD_ID);
     const label = document.getElementById(CARD_TEXT_ID);
-    if (!card || !label || !Array.isArray(dataForDate) || dataForDate.length === 0) {
-      card.classList.remove('alerta-ativo');
+    if (!card || !label || !Array.isArray(dataForDate)) {
       label.textContent = 'possível 100x às --:--';
-      renderSlidebar(null, []);
+      card.classList.remove('alerta-ativo');
+      renderSlidebar([]);
       return;
     }
 
-    const nowMin = dataForDate[0].minutes;
-    const last100x = getLast100x(dataForDate);
+    const nowMin = dataForDate[0]?.minutes ?? 0;
+    const velas100x = get100xVelas(dataForDate);
+    const nextEstimate = estimateNext100x(nowMin, velas100x);
 
-    if (!last100x) {
+    // Atualiza slidebar (com segundos!)
+    renderSlidebar(velas100x);
+
+    // Atualiza card
+    if (nextEstimate && velas100x.length > 0) {
+      const { target, avg } = nextEstimate;
+      const near = isNearTarget(nowMin, target);
+
+      card.classList.toggle('alerta-ativo', near);
+      label.textContent = near
+        ? `100x IMINENTE às ${toHMM(target)}!`
+        : `possível 100x às ${toHMM(target)} (±${avg}min)`;
+    } else {
       card.classList.remove('alerta-ativo');
       label.textContent = 'possível 100x às --:--';
-      renderSlidebar(null, []);
-      return;
     }
-
-    const baseMin = last100x.minutes;
-    const centers = nextHalfHourCenters(baseMin, 4);
-
-    // Próximo centro que ainda não passou (ou está próximo)
-    const nextCenter = centers.find(c => {
-      const diff = nowMin - c;
-      return diff >= -2 && diff <= 2;
-    }) || centers[0];
-
-    const diffNow = nowMin - nextCenter;
-    const isActive = diffNow >= -2 && diffNow <= 2;
-
-    card.classList.toggle('alerta-ativo', isActive);
-    label.textContent = `possível 100x às ${toHMM(nextCenter)}`;
-
-    renderSlidebar(last100x, centers);
   }
 
-  // Dados da data selecionada
+  // Pega dados da data selecionada
   function getDataBySelectedDate() {
     const selected = document.getElementById('date-filter')?.value;
     if (!selected || !Array.isArray(historyData)) return [];
     return historyData.filter(it => it.date === selected);
   }
 
-  // Atualiza a cada 5 segundos
+  // Atualiza a cada 10 segundos
   setInterval(() => {
     const data = getDataBySelectedDate();
     updateAlert100x(data);
-  }, 5000);
+  }, 10000);
 
   // Sobrescreve renderDashboard
   const originalRender = window.renderDashboard;
@@ -1148,6 +1189,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ====================================================================
 
 })();
+
 
 
 
