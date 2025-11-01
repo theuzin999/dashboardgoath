@@ -1020,179 +1020,113 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 // =========================
-// ALERTA 100x — MÓDULO (lista duplica o último como 1º)
+// ALERTA 100x — MÓDULO FINAL (7 slots corretos)
 // =========================
 (function () {
   const CARD_ID = 'alerta-100x-card';
   const CARD_TEXT_ID = 'alerta-100x-texto';
-
   const SB_LAST_ID = 'alert-100x-last';
-  // agora a lista tem 6 blocos (o 1º repete o "último 100x")
   const SB_NEXT_IDS = [
     'alert-100x-next1','alert-100x-next2','alert-100x-next3',
-    'alert-100x-next4','alert-100x-next5','alert-100x-next6'
+    'alert-100x-next4','alert-100x-next5','alert-100x-next6','alert-100x-next7'
   ];
   const SB_INTERVAL_ID = 'interval-100x-info';
   const SB_TIME_SINCE_ID = 'tempo-100x-value';
 
-  const timeToMinutes = (timeStr) => {
-    if (!timeStr) return 0;
-    const [h, m, s] = timeStr.split(':').map(Number);
-    return h * 60 + m + s / 60;
+  const calculateTimeSinceLast100x = (t) =>{
+    if(!t)return null;
+    const[nH,nM,nS]=t.split(':').map(Number);
+    const now=new Date();
+    const nMin=now.getHours()*60+now.getMinutes()+now.getSeconds()/60;
+    const b=nH*60+nM+nS/60;
+    let d=nMin-b; if(d<0)d+=1440;
+    return d;
   };
 
-  const formatMinutesToHhMm = (totalMinutes) => {
-    if (typeof totalMinutes !== 'number' || totalMinutes < 0) return '-- minutos';
-    const mins = Math.round(totalMinutes);
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    let parts = [];
-    if (h > 0) parts.push(`${h}h`);
-    if (m > 0 || mins === 0) parts.push(`${m}min`);
-    return parts.join(' ');
+  const formatMinutesToHhMm=(mins)=>{
+    if(typeof mins!=='number'||mins<0)return'--';
+    mins=Math.round(mins);
+    const h=Math.floor(mins/60);
+    const m=mins%60;
+    if(h>0)return`${h}h ${m}min`;
+    return`${m}min`;
   };
 
-  const calculateTimeSinceLast100x = (last100xTimeStr) => {
-    if (!last100xTimeStr) return null;
-    const [lastH, lastM, lastS] = last100xTimeStr.split(':').map(Number);
-    const now = new Date();
-    const nowMin = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
-    const lastMin = lastH * 60 + lastM + lastS / 60;
-    let diff = nowMin - lastMin;
-    if (diff < 0) diff += 1440;
-    return diff;
-  };
-
-  function get100xVelas(data) {
-    const filtered = data
-      .filter(it => it.multiplier >= 100)
-      .map(it => ({
-        ...it,
-        seconds: (() => {
-          const [h, m, s] = it.time.split(':').map(Number);
-          return h*3600 + m*60 + s;
-        })()
-      }));
-
-    // mais recente primeiro
-    filtered.sort((a, b) => b.seconds - a.seconds);
-
-    // pegamos 7 no total (1 será duplicado no topo da lista)
-    return filtered.slice(0, 8).map(x => ({ ...x }));
+  function get100xVelas(data){
+    const r=data.filter(x=>x.multiplier>=100).map(it=>{
+      const[h,m,s]=it.time.split(':').map(Number);
+      return{...it,seconds:h*3600+m*60+s};
+    });
+    r.sort((a,b)=>b.seconds-a.seconds);
+    return r.slice(0,8).map(x=>({...x}));
   }
 
-  function calculateIntervals(velas100x) {
-    if (velas100x.length < 2) return { avg: null, last: null };
-    const intervals = [];
-    for (let i = 1; i < velas100x.length; i++) {
-      intervals.push((velas100x[i - 1].seconds - velas100x[i].seconds) / 60);
-    }
-    const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-    const last = intervals[0];
-    return { avg, last };
+  function calculateIntervals(arr){
+    if(arr.length<2)return{last:null};
+    const last=(arr[0].seconds-arr[1].seconds)/60;
+    return{last};
   }
 
-  // 30/30: avança sempre até a próxima janela futura
-  function calculateNext30MinWindow(velas100x) {
-    if (velas100x.length === 0) return null;
-    const [H, M, S] = velas100x[0].time.split(':').map(Number);
-    let next = new Date(); next.setHours(H, M, S, 0);
-    while (next <= new Date()) next.setMinutes(next.getMinutes() + 30);
-    return `${String(next.getHours()).padStart(2,'0')}:${String(next.getMinutes()).padStart(2,'0')}`;
+  function calculateNext30MinWindow(arr){
+    if(!arr.length)return null;
+    const[h,m,s]=arr[0].time.split(':').map(Number);
+    let ref=new Date();ref.setHours(h,m,s,0);
+    while(ref<=new Date())ref.setMinutes(ref.getMinutes()+30);
+    return`${String(ref.getHours()).padStart(2,'0')}:${String(ref.getMinutes()).padStart(2,'0')}`;
   }
 
-  function renderSlidebar(velas100x) {
-    const lastBox = document.getElementById(SB_LAST_ID);
-    const timeSinceBox = document.getElementById(SB_TIME_SINCE_ID);
-    const intervalBox = document.getElementById(SB_INTERVAL_ID);
+  function renderSlidebar(arr){
+    const lastBox=document.getElementById(SB_LAST_ID);
+    const timeBox=document.getElementById(SB_TIME_SINCE_ID);
+    const intervalBox=document.getElementById(SB_INTERVAL_ID);
 
-    // Card exclusivo "Última rosa ≥100x"
-    if (velas100x.length > 0) {
-      const last = velas100x[0];
-      if (lastBox) lastBox.textContent =
-        `Última rosa ≥100x: ${last.multiplier.toFixed(2)}x às ${last.time}`;
-      if (timeSinceBox) {
-        const t = calculateTimeSinceLast100x(last.time);
-        timeSinceBox.textContent = formatMinutesToHhMm(t);
-      }
-    } else {
-      if (lastBox) lastBox.textContent = 'Última rosa ≥100x: Nenhuma';
-      if (timeSinceBox) timeSinceBox.textContent = '-- minutos';
+    if(arr.length>0){
+      lastBox.textContent=`Última rosa ≥100x: ${arr[0].multiplier.toFixed(2)}x às ${arr[0].time}`;
+      timeBox.textContent=formatMinutesToHhMm(calculateTimeSinceLast100x(arr[0].time));
+    }else{
+      lastBox.textContent=`Última rosa ≥100x: Nenhuma`;
+      timeBox.textContent='--';
     }
 
-    // Lista: 1º item duplica o último 100x (velas[0]),
-    // depois velas[1]..velas[5]. Se faltar, preenche com "--".
-    SB_NEXT_IDS.forEach((id, idx) => {
-  const el = document.getElementById(id);
-  if (!el) return;
-  const vela = velas100x[idx] || null; // já pega [0] duplicado + os 6 abaixo
-  el.textContent = vela
-    ? `${vela.multiplier.toFixed(2)}x às ${vela.time}`
-    : `--`;
-});
+    SB_NEXT_IDS.forEach((id,i)=>{
+      const el=document.getElementById(id);
+      const vela=arr[i]??null;
+      el.textContent=vela?`${vela.multiplier.toFixed(2)}x às ${vela.time}`:`--`;
+    });
 
-    if (intervalBox) {
-      const { last } = calculateIntervals(velas100x);
-      intervalBox.textContent = last
-        ? `Último intervalo: ${formatMinutesToHhMm(last)}`
-        : `Último intervalo: --`;
-    }
+    const {last}=calculateIntervals(arr);
+    intervalBox.textContent=last?`Último intervalo: ${formatMinutesToHhMm(last)}`:`Último intervalo: --`;
   }
 
-  function updateAlert100x(dataForDate) {
-    const card = document.getElementById(CARD_ID);
-    const label = document.getElementById(CARD_TEXT_ID);
-    if (!card || !label || !Array.isArray(dataForDate)) {
-      if (label) label.textContent = 'possível 100x às --:--';
-      if (card) card.classList.remove('alerta-ativo');
+  function updateAlert100x(data){
+    const card=document.getElementById(CARD_ID);
+    const label=document.getElementById(CARD_TEXT_ID);
+    if(!card||!label||!Array.isArray(data)){
+      label.textContent='possível 100x às --:--';
       renderSlidebar([]);
       return;
     }
-
-    const velas100x = get100xVelas(dataForDate);
-    const nextWindowTime = calculateNext30MinWindow(velas100x);
-
-    renderSlidebar(velas100x);
-
-    if (nextWindowTime) {
-      label.textContent = `possível 100x às ${nextWindowTime} (±2min)`;
-      card.classList.remove('alerta-ativo');
-    } else {
-      card.classList.remove('alerta-ativo');
-      label.textContent = 'possível 100x às --:--';
-    }
+    const arr=get100xVelas(data);
+    const next=calculateNext30MinWindow(arr);
+    renderSlidebar(arr);
+    label.textContent= next ? `possível 100x às ${next} (±2min)`:`possível 100x às --:--`;
   }
 
-  function getDataBySelectedDate() {
-    const selected = document.getElementById('date-filter')?.value;
-    if (!selected || !Array.isArray(historyData)) return [];
-    return historyData.filter(it => it.date === selected);
+  function getDataBySelectedDate(){
+    const d=document.getElementById('date-filter')?.value;
+    return(!d||!Array.isArray(historyData))?[]:historyData.filter(x=>x.date===d);
   }
 
-  setInterval(() => {
-    const data = getDataBySelectedDate();
-    updateAlert100x(data);
-  }, 10000);
-
-  const originalRender = window.renderDashboard;
-  window.renderDashboard = function (...args) {
-    try { if (originalRender) originalRender.apply(this, args); }
-    finally {
-      const data = getDataBySelectedDate();
-      updateAlert100x(data);
-    }
-  };
-
-  setTimeout(() => updateAlert100x(getDataBySelectedDate()), 1000);
+  setInterval(()=>updateAlert100x(getDataBySelectedDate()),10000);
+  const OR=window.renderDashboard;
+  window.renderDashboard=function(...a){
+    try{OR&&OR.apply(this,a);}finally{updateAlert100x(getDataBySelectedDate());}
+  }
+  setTimeout(()=>updateAlert100x(getDataBySelectedDate()),1000);
 })();
-
 
     // ====================================================================
     // FIM DO CÓDIGO DE BLOQUEIO DO DEVTOOLS
     // ====================================================================
 
 })();
-
-
-
-
