@@ -35,87 +35,66 @@
 
     verificarSessao();
   </script>
-
     <link rel="stylesheet" href="style.css"/>
 
     <style>
-        .logout-button {
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 500;
-            font-size: 0.8rem;
-            transition: background-color 0.2s;
-            margin-top: 5px;
+        .logout-button{
+            background-color:#dc3545;color:white;border:none;padding:5px 10px;border-radius:4px;
+            cursor:pointer;font-weight:500;font-size:0.8rem;transition:background-color .2s;margin-top:5px;
         }
-        .logout-button:hover { background-color: #c82333; }
+        .logout-button:hover{background-color:#c82333;}
 
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-        }
-        .header-left-content {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-        }
+        .header{display:flex;justify-content:space-between;align-items:flex-start;}
+        .header-left-content{display:flex;flex-direction:column;align-items:flex-start;}
 
         /* ------------------------------ */
-        /* CARD SLIM DE ALERTA 100x (TOPO) */
+        /* CARD SLIM 100x – RADAR VERMELHO CENTRAL, MÉDIO E GROSSO */
         /* ------------------------------ */
         .alerta-100x-card{
-            position: relative;
-            width: 100%;
-            height: 26px; /* slim */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #383838; /* cinza neutro */
-            color: #fff;
-            font-size: 14px;
-            font-weight: 700;
-            overflow: hidden;
-            cursor: pointer;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            z-index: 1000;
-            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            position:relative;width:100%;height:36px;display:flex;align-items:center;
+            justify-content:center;background-color:#1a1a1a !important;color:#ffffff !important;
+            font-size:14px;font-weight:600;overflow:hidden;cursor:pointer;border-radius:8px;
+            margin-bottom:15px;z-index:1000;padding:0 12px;
         }
-        /* Estado ativo (±2 min): amarelo #e7c84b conforme escolhido */
         .alerta-100x-card.alerta-ativo{
-            background-color: #e7c84b;
-            color: #1a1a1a;
+            background-color:#e7c84b !important;color:#1a1a1a !important;
         }
         .alerta-100x-content{
-            padding: 0 10px;
-            z-index: 2;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            display:flex;align-items:center;justify-content:center;width:100%;z-index:2;
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative;
         }
-        /* Borda animada vermelha contornando o card */
-        .alerta-100x-border{
-            position: absolute; inset: 0; pointer-events: none;
+        .alerta-100x-content .info-icon{
+            margin-left:8px;font-style:italic;font-weight:bold;font-size:12px;opacity:.8;
         }
-        .alerta-100x-border::before{
-    content:"";
-    position:absolute;
-    inset:-40%;
-    border-radius:50%;
-    background:conic-gradient(from 0deg, transparent 50%, #ff0000 65%, transparent 80%);
-    animation:rotate 2.8s linear infinite;
-}
-        @keyframes rotate { to { transform: rotate(1turn);} }
 
-        /* Popup simples (mantido caso queira usar no futuro) */
+        /* RADAR VERMELHO CENTRAL – TAMANHO MÉDIO (60px) E MAIS GROSSO */
+        .alerta-100x-radar{
+            position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+            width:60px;height:60px;border-radius:50%;overflow:hidden;pointer-events:none;
+            z-index:1;
+        }
+        .radar-circle{
+            position:absolute;width:100%;height:100%;
+            border:3.5px solid rgba(255,0,0,.6);border-radius:50%;
+            animation:radarPulse 2s infinite;
+        }
+        .radar-circle:nth-child(2){animation-delay:.5s;opacity:.7;}
+        .radar-circle:nth-child(3){animation-delay:1s;opacity:.4;}
+        .radar-scan{
+            position:absolute;top:50%;left:50%;width:4px;height:50%;
+            background:linear-gradient(to top,transparent,#ff3333);
+            transform-origin:bottom;animation:radarScan 3s linear infinite;
+        }
+        @keyframes radarPulse{
+            0%{transform:scale(.6);opacity:1;}
+            100%{transform:scale(1.8);opacity:0;}
+        }
+        @keyframes radarScan{to{transform:rotate(360deg);}}
+
         .historico-100x-popup{
-            position: fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-            background-color:#2e2e2e; color:#fff; padding:20px; border-radius:14px;
-            box-shadow:0 4px 15px rgba(0,0,0,.8); z-index:2000; text-align:center;
+            position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+            background:#2e2e2e;color:#fff;padding:20px;border-radius:14px;
+            box-shadow:0 4px 15px rgba(0,0,0,.8);z-index:2000;text-align:center;
         }
     </style>
 </head>
@@ -156,16 +135,23 @@
                 </div>
             </div>
 
-            <!-- CARD SLIM 100x (TOPO) -->
+            <!-- CARD SLIM 100x – RADAR VERMELHO CENTRAL, MÉDIO E GROSSO -->
             <div id="alerta-100x-card" class="alerta-100x-card" title="Clique para ver o último 100x+"
                  onclick="openSlidebar('alert-100x-slidebar')">
                 <div class="alerta-100x-content">
                     <span id="alerta-100x-texto">⚠️ possível 100x às --:--</span>
+                    <span class="info-icon">i</span>
                 </div>
-                <div class="alerta-100x-border"></div>
+
+                <!-- RADAR VERMELHO CENTRAL -->
+                <div class="alerta-100x-radar">
+                    <div class="radar-circle"></div>
+                    <div class="radar-circle"></div>
+                    <div class="radar-circle"></div>
+                    <div class="radar-scan"></div>
+                </div>
             </div>
 
-            <!-- Popup simples (mantido só se quiser usar) -->
             <div id="historico-100x" class="historico-100x-popup" style="display:none;">
                 <p id="historico-texto"></p>
             </div>
@@ -260,14 +246,14 @@
 
             <h3>Gráfico Atual em tempo real</h3>
             <div class="multiplier-grid" id="multiplier-grid">
-                <div style="grid-column:1 / -1; text-align:center; padding:50px; color:var(--cor-texto-suave);">
+                <div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--cor-texto-suave);">
                   Aguardando dados do bot...
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Slidebars existentes -->
+    <!-- Slidebars -->
     <div id="prob-10x-slidebar" class="slidebar">
         <button class="slidebar-close" onclick="closeSlidebar('prob-10x-slidebar')">×</button>
         <div class="slidebar-title">Probabilidade 10x</div>
@@ -305,7 +291,7 @@
         <button class="slidebar-close" onclick="closeSlidebar('prob-5x-slidebar')">×</button>
         <div class="slidebar-title">Chance de 5x</div>
         <div class="slidebar-content">
-            <p>Informações sobre velas de 5.00x ou mais, chance de 5x apos 3 e 5 minutos alem do intervalo entre o penultimo e ultimo 5x.</p>
+            <p>Informações sobre velas de 5.00x ou mais, chance de 5x após 3 e 5 minutos além do intervalo entre o penúltimo e último 5x.</p>
             <h4>Informações:</h4>
             <div class="info-card" id="time-since-last-5x"></div>
             <div class="info-card" id="average-time-between-5x"></div>
@@ -322,40 +308,43 @@
         </div>
     </div>
 
-    <!-- NOVO: Slidebar exclusivo do 100x -->
+    <!-- Slidebar 100x -->
     <div id="alert-100x-slidebar" class="slidebar">
         <button class="slidebar-close" onclick="closeSlidebar('alert-100x-slidebar')">×</button>
-        <div class="slidebar-title">Alerta Rosa ≥100x (30/30)</div>
+        <div class="slidebar-title">Últimas 4 100x e horários</div>
         <div class="slidebar-content">
             <div class="info-card" id="alert-100x-last">
                 Última rosa ≥100x: Nenhuma
             </div>
-            <h4>Próximas janelas possíveis (4 passos):</h4>
+
+            <h4>Histórico das últimas 4 velas ≥100x:</h4>
             <div class="info-card" id="alert-100x-next1">--</div>
             <div class="info-card" id="alert-100x-next2">--</div>
             <div class="info-card" id="alert-100x-next3">--</div>
             <div class="info-card" id="alert-100x-next4">--</div>
+
+            <h4 style="margin-top:16px;">Intervalo entre últimos 100x</h4>
+            <div class="info-card" id="interval-100x-info">
+                Média: -- minutos | Último intervalo: -- min
+            </div>
         </div>
     </div>
 
-    <!-- Script principal (mantido separado como no seu projeto) -->
     <script type="module" src="script.js"></script>
 
-    <!-- Anti-DevTools (mantido) -->
+    <!-- Anti-DevTools -->
     <script>
-      (function antiDevTools() {
-        const redirectURL = "/";
-        document.addEventListener("keydown", (e) => {
-          if (e.key === "F12" || (e.ctrlKey && e.shiftKey && ["I","i","J","j","C","c"].includes(e.key))) {
-            e.preventDefault(); window.location.replace(redirectURL);
+      (function antiDevTools(){
+        const redirectURL="/";
+        document.addEventListener("keydown",e=>{
+          if(e.key==="F12"||(e.ctrlKey&&e.shiftKey&&["I","i","J","j","C","c"].includes(e.key))){
+            e.preventDefault();window.location.replace(redirectURL);
           }
         });
-        document.addEventListener("contextmenu", (e) => e.preventDefault());
-        const element = new Image();
-        Object.defineProperty(element, "id", {
-          get: function () { throw new Error("DevTools detectado!"); },
-        });
-        setInterval(() => { console.log(element); }, 1000);
+        document.addEventListener("contextmenu",e=>e.preventDefault());
+        const element=new Image();
+        Object.defineProperty(element,"id",{get:()=> {throw new Error("DevTools detectado!");}});
+        setInterval(()=>{console.log(element);},1000);
       })();
     </script>
 </body>
