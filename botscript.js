@@ -114,7 +114,7 @@ function predominancePositive(list, N=6){
   const lastN = list.slice(-N);
   const pos=lastN.filter(c=>c.color==="purple"||c.color==="pink").length;
   const pct= lastN.length? pos/lastN.length:0;
-  return {pct, ok:pct>=0.4}; // Mantido 60% como mínimo para 'ok' (operando)
+  return {pct, ok:pct>=0.5}; // Mantido 60% como mínimo para 'ok' (operando)
 }
 function consecutiveBlueCount(list){
   let c=0; for(let i=list.length-1;i>=0;i--){ if(list[i].color==="blue") c++; else break; } return c;
@@ -242,7 +242,7 @@ function ngramPositiveProb(colors, order){
 function modelSuggest(colors){
   for(const k of [4,3,2]){
     const res = ngramPositiveProb(colors, k);
-    if(res && res.n>=3 && res.p>=0.60){
+    if(res && res.n>=3 && res.p>=0.40){
       return {name:`modelo n-grama k=${k}`, gate:`IA: P(positiva|ctx)=${(res.p*100).toFixed(0)}% · n=${res.n}`}; 
     }
   }
@@ -263,7 +263,7 @@ function onNewCandle(arr){
   if(arr.length<2) return;
   renderHistory(arr);
   
-  const pred10 = predominancePositive(arr, 6);
+  const pred10 = predominancePositive(arr, 5);
   const blueRun = consecutiveBlueCount(arr);
   predStatus.textContent = `Predominância: ${(pred10.pct*100).toFixed(0)}% positivas`;
   blueRunPill.textContent = `Azuis seguidas: ${blueRun}`;
