@@ -6,7 +6,6 @@
     <title>GoathBet Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap" rel="stylesheet">
 
-
 <script>
     const API_BASE = "https://keysdash.espanhaserrita.workers.dev/";
 
@@ -48,9 +47,7 @@
         .header{display:flex;justify-content:space-between;align-items:flex-start;}
         .header-left-content{display:flex;flex-direction:column;align-items:flex-start;}
 
-        /* ------------------------------ */
         /* CARD SLIM 100x – RADAR VERMELHO CENTRAL */
-        /* ------------------------------ */
         .alerta-100x-card{
             position:relative;width:100%;height:36px;display:flex;align-items:center;
             justify-content:center;background-color:#1a1a1a !important;color:#ffffff !important;
@@ -136,7 +133,7 @@
                 </div>
             </div>
 
-            <!-- CARD SLIM 100x – COM ALERTA E RADAR -->
+            <!-- CARD SLIM 100x -->
             <div id="alerta-100x-card" class="alerta-100x-card" title="Clique para ver o último 100x+"
                  onclick="openSlidebar('alert-100x-slidebar')">
                 <div class="alerta-100x-content">
@@ -309,10 +306,10 @@
         </div>
     </div>
 
-    <!-- SLIDEBAR 100x – COM TODOS OS CARDS CORRIGIDOS -->
+    <!-- SLIDEBAR 100x – TEXTOS CORRIGIDOS -->
     <div id="alert-100x-slidebar" class="slidebar">
         <button class="slidebar-close" onclick="closeSlidebar('alert-100x-slidebar')">×</button>
-        <div class="slidebar-title">Últimas 4 100x e horários</div>
+        <div class="slidebar-title">Informações 100x</div>
         <div class="slidebar-content">
 
             <!-- ÚLTIMA VELA ≥100x -->
@@ -320,22 +317,22 @@
                 Última rosa ≥100x: Nenhuma
             </div>
 
-            <!-- NOVO CARD: TEMPO 100 ≥100x -->
+            <!-- TEMPO SEM 100x -->
             <div class="info-card" id="tempo-100x-card" style="margin-top:12px; background:#2c3e50; color:#fff;">
-                <strong>Tempo 100 ≥100x:</strong> <span id="tempo-100x-value">-- minutos</span>
+                <strong>tempo sem 100x:</strong> <span id="tempo-100x-value">-- minutos</span>
             </div>
 
             <!-- HISTÓRICO DAS ÚLTIMAS 4 VELAS -->
-            <h4 style="margin-top:16px;">Histórico das últimas 4 velas ≥100x:</h4>
+            <h4 style="margin-top:16px;">Histórico das últimas 4 velas de 100x:</h4>
             <div class="info-card" id="alert-100x-next1">--</div>
             <div class="info-card" id="alert-100x-next2">--</div>
             <div class="info-card" id="alert-100x-next3">--</div>
             <div class="info-card" id="alert-100x-next4">--</div>
 
-            <!-- ÚLTIMO INTERVALO ENTRE 100x -->
+            <!-- ÚLTIMO INTERVALO -->
             <h4 style="margin-top:16px;">Último intervalo entre 100x</h4>
             <div class="info-card" id="interval-100x-info">
-                Último intervalo: -- min
+                Último intervalo: -- minutos
             </div>
         </div>
     </div>
