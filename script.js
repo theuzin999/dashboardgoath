@@ -1020,18 +1020,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 // =========================
-// ALERTA 100x — MÓDULO FINAL (7 velas)
+// ALERTA 100x — MÓDULO (lista duplica o último como 1º)
 // =========================
 (function () {
   const CARD_ID = 'alerta-100x-card';
   const CARD_TEXT_ID = 'alerta-100x-texto';
+
   const SB_LAST_ID = 'alert-100x-last';
+  // agora a lista tem 6 blocos (o 1º repete o "último 100x")
   const SB_NEXT_IDS = [
-    'alert-100x-next1','alert-100x-next2','alert-100x-next3','alert-100x-next4',
-    'alert-100x-next5','alert-100x-next6','alert-100x-next7'
+    'alert-100x-next1','alert-100x-next2','alert-100x-next3',
+    'alert-100x-next4','alert-100x-next5','alert-100x-next6'
   ];
   const SB_INTERVAL_ID = 'interval-100x-info';
-  const SB_TIME_SINCE_ID = 'tempo-100x-value'; 
+  const SB_TIME_SINCE_ID = 'tempo-100x-value';
 
   const timeToMinutes = (timeStr) => {
     if (!timeStr) return 0;
@@ -1071,9 +1073,11 @@ document.addEventListener('DOMContentLoaded', () => {
           return h*3600 + m*60 + s;
         })()
       }));
-      
-    filtered.sort((a, b) => b.seconds - a.seconds); 
-    
+
+    // mais recente primeiro
+    filtered.sort((a, b) => b.seconds - a.seconds);
+
+    // pegamos 7 no total (1 será duplicado no topo da lista)
     return filtered.slice(0, 7).map(x => ({ ...x }));
   }
 
@@ -1088,26 +1092,13 @@ document.addEventListener('DOMContentLoaded', () => {
     return { avg, last };
   }
 
-  // FINAL 30/30 CORRIGIDO
+  // 30/30: avança sempre até a próxima janela futura
   function calculateNext30MinWindow(velas100x) {
     if (velas100x.length === 0) return null;
-
-    const baseTimeStr = velas100x[0].time;
-    const [baseH, baseM, baseS] = baseTimeStr.split(':').map(Number);
-
-    let base = new Date();
-    base.setHours(baseH, baseM, baseS, 0);
-
-    let next = new Date(base);
-
-    while (next <= new Date()) {
-      next.setMinutes(next.getMinutes() + 30);
-    }
-
-    const h = String(next.getHours()).padStart(2, '0');
-    const m = String(next.getMinutes()).padStart(2, '0');
-
-    return `${h}:${m}`;
+    const [H, M, S] = velas100x[0].time.split(':').map(Number);
+    let next = new Date(); next.setHours(H, M, S, 0);
+    while (next <= new Date()) next.setMinutes(next.getMinutes() + 30);
+    return `${String(next.getHours()).padStart(2,'0')}:${String(next.getMinutes()).padStart(2,'0')}`;
   }
 
   function renderSlidebar(velas100x) {
@@ -1115,28 +1106,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const timeSinceBox = document.getElementById(SB_TIME_SINCE_ID);
     const intervalBox = document.getElementById(SB_INTERVAL_ID);
 
+    // Card exclusivo "Última rosa ≥100x"
     if (velas100x.length > 0) {
-        const last = velas100x[0];
-        lastBox.textContent = `Última rosa ≥100x: ${last.multiplier.toFixed(2)}x às ${last.time}`;
-        const timeSince = calculateTimeSinceLast100x(last.time);
-        timeSinceBox.textContent = formatMinutesToHhMm(timeSince);
+      const last = velas100x[0];
+      if (lastBox) lastBox.textContent =
+        `Última rosa ≥100x: ${last.multiplier.toFixed(2)}x às ${last.time}`;
+      if (timeSinceBox) {
+        const t = calculateTimeSinceLast100x(last.time);
+        timeSinceBox.textContent = formatMinutesToHhMm(t);
+      }
     } else {
-        lastBox.textContent = `Última rosa ≥100x: Nenhuma`;
-        timeSinceBox.textContent = '-- minutos';
+      if (lastBox) lastBox.textContent = 'Última rosa ≥100x: Nenhuma';
+      if (timeSinceBox) timeSinceBox.textContent = '-- minutos';
     }
 
-    // agora lista começa do index [1]
+    // Lista: 1º item duplica o último 100x (velas[0]),
+    // depois velas[1]..velas[5]. Se faltar, preenche com "--".
     SB_NEXT_IDS.forEach((id, idx) => {
       const el = document.getElementById(id);
       if (!el) return;
-      const vela = velas100x[idx + 1];
-      if (vela) el.textContent = `${vela.multiplier.toFixed(2)}x às ${vela.time}`;
-      else el.textContent = `--`;
+      const vela = velas100x[idx] || null; // idx 0 = último (duplicado)
+      el.textContent = vela
+        ? `${vela.multiplier.toFixed(2)}x às ${vela.time}`
+        : `--`;
     });
 
     if (intervalBox) {
       const { last } = calculateIntervals(velas100x);
-      intervalBox.textContent = last ? `Último intervalo: ${formatMinutesToHhMm(last)}` : `Último intervalo: --`;
+      intervalBox.textContent = last
+        ? `Último intervalo: ${formatMinutesToHhMm(last)}`
+        : `Último intervalo: --`;
     }
   }
 
@@ -1144,8 +1143,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const card = document.getElementById(CARD_ID);
     const label = document.getElementById(CARD_TEXT_ID);
     if (!card || !label || !Array.isArray(dataForDate)) {
-      label.textContent = 'possível 100x às --:--';
-      card.classList.remove('alerta-ativo');
+      if (label) label.textContent = 'possível 100x às --:--';
+      if (card) card.classList.remove('alerta-ativo');
       renderSlidebar([]);
       return;
     }
@@ -1156,11 +1155,11 @@ document.addEventListener('DOMContentLoaded', () => {
     renderSlidebar(velas100x);
 
     if (nextWindowTime) {
-        label.textContent = `possível 100x às ${nextWindowTime} (±2min)`; 
-        card.classList.remove('alerta-ativo');
+      label.textContent = `possível 100x às ${nextWindowTime} (±2min)`;
+      card.classList.remove('alerta-ativo');
     } else {
-        card.classList.remove('alerta-ativo');
-        label.textContent = 'possível 100x às --:--';
+      card.classList.remove('alerta-ativo');
+      label.textContent = 'possível 100x às --:--';
     }
   }
 
@@ -1177,9 +1176,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const originalRender = window.renderDashboard;
   window.renderDashboard = function (...args) {
-    try {
-      if (originalRender) originalRender.apply(this, args);
-    } finally {
+    try { if (originalRender) originalRender.apply(this, args); }
+    finally {
       const data = getDataBySelectedDate();
       updateAlert100x(data);
     }
@@ -1188,10 +1186,12 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => updateAlert100x(getDataBySelectedDate()), 1000);
 })();
 
+
     // ====================================================================
     // FIM DO CÓDIGO DE BLOQUEIO DO DEVTOOLS
     // ====================================================================
 
 })();
+
 
 
