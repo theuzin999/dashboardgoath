@@ -1020,13 +1020,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 // =========================
-// ALERTA 100x — MÓDULO FINALMENTE CORRIGIDO E ROBUSTO
+// ALERTA 100x — MÓDULO FINAL (7 velas)
 // =========================
 (function () {
   const CARD_ID = 'alerta-100x-card';
   const CARD_TEXT_ID = 'alerta-100x-texto';
   const SB_LAST_ID = 'alert-100x-last';
-  const SB_NEXT_IDS = ['alert-100x-next1', 'alert-100x-next2', 'alert-100x-next3', 'alert-100x-next4'];
+  const SB_NEXT_IDS = [
+    'alert-100x-next1','alert-100x-next2','alert-100x-next3','alert-100x-next4',
+    'alert-100x-next5','alert-100x-next6','alert-100x-next7'
+  ];
   const SB_INTERVAL_ID = 'interval-100x-info';
   const SB_TIME_SINCE_ID = 'tempo-100x-value'; 
 
@@ -1071,7 +1074,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
     filtered.sort((a, b) => b.seconds - a.seconds); 
     
-    return filtered.slice(0, 5).map(x => ({ ...x }));
+    return filtered.slice(0, 7).map(x => ({ ...x }));
   }
 
   function calculateIntervals(velas100x) {
@@ -1085,7 +1088,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return { avg, last };
   }
 
-  // NOVA FUNÇÃO CORRIGIDA 30/30
+  // FINAL 30/30 CORRIGIDO
   function calculateNext30MinWindow(velas100x) {
     if (velas100x.length === 0) return null;
 
@@ -1191,3 +1194,4 @@ document.addEventListener('DOMContentLoaded', () => {
     // ====================================================================
 
 })();
+
