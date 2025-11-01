@@ -1020,11 +1020,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 // =========================
-// ALERTA 100x — MÓDULO FINAL (7 slots + antecipar/atrasar ±2)
+// ALERTA 100x — GLOBAL base +30min (7 slots) com antecipar/atrasar (±2)
 // =========================
 (function () {
   const CARD_ID = 'alerta-100x-card';
   const CARD_TEXT_ID = 'alerta-100x-texto';
+
   const SB_LAST_ID = 'alert-100x-last';
   const SB_NEXT_IDS = [
     'alert-100x-next1','alert-100x-next2','alert-100x-next3',
@@ -1033,133 +1034,207 @@ document.addEventListener('DOMContentLoaded', () => {
   const SB_INTERVAL_ID = 'interval-100x-info';
   const SB_TIME_SINCE_ID = 'tempo-100x-value';
 
-  function parseTime(t){const[h,m,s]=t.split(':').map(Number);return{h,m,s};}
-  function toMinutes(h,m,s){return h*60+m+s/60;}
+  // ---------- helpers de tempo ----------
+  const pad = (n) => String(n).padStart(2,'0');
 
-  const formatMinutesToHhMm = (totalMinutes) => {
+  function parseHMStoParts(timeStr) {
+    // aceita "HH:MM:SS" ou "HH:MM"
+    const parts = timeStr.split(':').map(Number);
+    const [h=0,m=0,s=0] = parts.length >= 3 ? parts : [parts[0]||0, parts[1]||0, 0];
+    return { h, m, s };
+  }
+
+  function toDateFromItem(item) {
+    // item: { date: "YYYY-MM-DD", time: "HH:MM[:SS]" }
+    const { h, m/*, s*/ } = parseHMStoParts(item.time);
+    // ZERA segundos (decisão B) e usa data do próprio item
+    const d = new Date();
+    const [Y,Mo,Da] = item.date.split('-').map(Number);
+    d.setFullYear(Y, Mo-1, Da);
+    d.setHours(h, m, 0, 0);
+    return d;
+  }
+
+  function minutesBetween(now, hh, mm) {
+    const nowMin = now.getHours()*60 + now.getMinutes();
+    const tgtMin = hh*60 + mm;
+    return nowMin - tgtMin; // negativo = antes; positivo = depois
+  }
+
+  function formatMinutesHuman(totalMinutes) {
     if (typeof totalMinutes !== 'number' || totalMinutes < 0) return '-- minutos';
     const mins = Math.round(totalMinutes);
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return h>0?`${h}h ${m}min`:`${m}min`;
-  };
+    const h = Math.floor(mins/60), m = mins%60;
+    return h>0 ? `${h}h ${m}min` : `${m}min`;
+  }
 
-  const calculateTimeSinceLast100x = (t) => {
-    const {h,m,s}=parseTime(t);
-    const now=new Date();
-    const nowMin=toMinutes(now.getHours(),now.getMinutes(),now.getSeconds());
-    const lastMin=toMinutes(h,m,s);
-    let diff=nowMin-lastMin;
-    if(diff<0)diff+=1440;
+  // ---------- seleção dos dados ----------
+  function getGlobal100x(history) {
+    if (!Array.isArray(history)) return [];
+    const list = history
+      .filter(x => x && x.multiplier >= 100 && typeof x.date === 'string' && typeof x.time === 'string')
+      .map(x => ({ ...x, _dt: toDateFromItem(x), _sec: (() => {
+        const {h,m,s} = parseHMStoParts(x.time);
+        return h*3600 + m*60 + (s||0);
+      })() }));
+    // ordena por data/hora real desc
+    list.sort((a,b) => b._dt - a._dt || b._sec - a._sec);
+    return list;
+  }
+
+  function getDay100xForSidebar(selectedDate) {
+    if (!Array.isArray(historyData)) return [];
+    const day = historyData
+      .filter(x => x && x.date === selectedDate && x.multiplier >= 100)
+      .map(x => ({ ...x, _sec: (() => {
+        const {h,m,s} = parseHMStoParts(x.time);
+        return h*3600 + m*60 + (s||0);
+      })() }));
+    day.sort((a,b) => b._sec - a._sec);
+    return day.slice(0, 8); // até 8, porque podemos precisar duplicar topo se quiser
+  }
+
+  // ---------- cálculo da próxima janela (base + 30 em cascata) ----------
+  function nextTargetFromBase(baseDate, now) {
+    // Regra: alvo = base zerando segundos + N*30min
+    // avança enquanto (now > target + 2min)
+    if (!baseDate) return null;
+    const target = new Date(baseDate);
+    target.setSeconds(0,0);
+
+    // garante que target está em sequência +30 até ficar dentro da janela "não passou +2"
+    while (true) {
+      const passed = now - target; // ms
+      if (passed <= 2*60*1000) break; // não passou mais que +2 -> ok
+      target.setMinutes(target.getMinutes() + 30);
+    }
+    return target;
+  }
+
+  // ---------- mensagem (label) ----------
+  function buildLabelForTarget(target, now) {
+    if (!target) return '⚠️ possível 100x às --:--';
+
+    const tH = target.getHours();
+    const tM = target.getMinutes();
+
+    const diffMin = minutesBetween(now, tH, tM); // negativo = antes; 0 = exato; positivo = depois
+
+    // horários auxiliares
+    const ant1 = new Date(target); ant1.setMinutes(tM - 2, 0, 0);
+    const ant2 = new Date(target); ant2.setMinutes(tM - 1, 0, 0);
+    const atr1 = new Date(target); atr1.setMinutes(tM + 1, 0, 0);
+    const atr2 = new Date(target); atr2.setMinutes(tM + 2, 0, 0);
+
+    const fmt = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+    // Regra final acordada:
+    // - Longe/antes do alvo: SEMPRE mostrar "podendo antecipar" (mesmo faltando muito)
+    // - No minuto exato e +1/+2: "podendo atrasar"
+    // - Se passou +2, o nextTargetFromBase já terá avançado a janela; então aqui não cai nesse caso.
+    if (diffMin <= -1) {
+      return `⚠️ possível 100x às ${pad(tH)}:${pad(tM)} — podendo antecipar: ${fmt(ant1)} - ${fmt(ant2)}`;
+    }
+    // minuto exato ou atrasos de até +2
+    return `⚠️ possível 100x às ${pad(tH)}:${pad(tM)} — podendo atrasar: ${fmt(atr1)} - ${fmt(atr2)}`;
+  }
+
+  // ---------- métricas auxiliares ----------
+  function timeSinceLast100xMinutes(lastItem) {
+    if (!lastItem) return null;
+    const { h, m, s } = parseHMStoParts(lastItem.time);
+    const now = new Date();
+    const nowMin = now.getHours()*60 + now.getMinutes() + now.getSeconds()/60;
+    const lastMin = h*60 + m + (s||0)/60;
+    let diff = nowMin - lastMin;
+    if (diff < 0) diff += 1440;
     return diff;
-  };
-
-  function get100xVelas(data){
-    const r=data.filter(x=>x.multiplier>=100).map(it=>{
-      const{h,m,s}=parseTime(it.time);
-      return{...it,seconds:h*3600+m*60+s};
-    });
-    r.sort((a,b)=>b.seconds-a.seconds);
-    return r.slice(0,8).map(x=>({...x}));
   }
 
-  function calculateIntervals(arr){
-    if(arr.length<2)return{last:null};
-    const last=(arr[0].seconds-arr[1].seconds)/60;
-    return{last};
+  function calcLastIntervalMinutes(arr) {
+    if (!arr || arr.length < 2) return null;
+    const {h: h0, m: m0, s: s0} = parseHMStoParts(arr[0].time);
+    const {h: h1, m: m1, s: s1} = parseHMStoParts(arr[1].time);
+    return ( (h0*3600+m0*60+(s0||0)) - (h1*3600+m1*60+(s1||0)) ) / 60;
   }
 
-  function calculateNext30MinWindow(arr){
-    if(!arr.length)return null;
-    const{h,m,s}=parseTime(arr[0].time);
-    let ref=new Date();ref.setHours(h,m,s,0);
-    while(ref<=new Date())ref.setMinutes(ref.getMinutes()+30);
-    return `${String(ref.getHours()).padStart(2,'0')}:${String(ref.getMinutes()).padStart(2,'0')}`;
-  }
+  // ---------- render do sidebar ----------
+  function renderSidebar(selectedDate, globalList) {
+    const lastBox = document.getElementById(SB_LAST_ID);
+    const timeBox = document.getElementById(SB_TIME_SINCE_ID);
+    const intervalBox = document.getElementById(SB_INTERVAL_ID);
 
-  function buildMessage(target){
-    const[nowH,nowM]=[new Date().getHours(),new Date().getMinutes()];
-    const[nowMin]=[toMinutes(nowH,nowM,0)];
-    const[tH,tM]=target.split(':').map(Number);
-    const targetMin=toMinutes(tH,tM,0);
-
-    const diff = nowMin - targetMin; // negativo = antecipar / positivo = atrasar
-
-    const minExact1 = (tH*60+tM)-2;
-    const minExact2 = (tH*60+tM)-1;
-    const minLate1  = (tH*60+tM)+1;
-    const minLate2  = (tH*60+tM)+2;
-
-    const make = (msg) => `⚠️ possível 100x às ${target} — ${msg}`;
-
-    if(diff < -2) return `⚠️ possível 100x às ${target}`;
-    if(diff>=-2 && diff<=-1) return make(`podendo antecipar: ${padTime(minExact1)} ${padTime(minExact2)}`);
-    if(diff===0) return make(`podendo atrasar: ${padTime(minLate1)} ${padTime(minLate2)}`);
-    if(diff===1 || diff===2) return make(`podendo atrasar: ${padTime(minLate1)} ${padTime(minLate2)}`);
-    return null;
-  }
-
-  function padTime(min){
-    let h=Math.floor(min/60)%24;
-    let m=min%60;
-    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-  }
-
-  function renderSlidebar(arr){
-    const lastBox=document.getElementById(SB_LAST_ID);
-    const timeBox=document.getElementById(SB_TIME_SINCE_ID);
-    const intervalBox=document.getElementById(SB_INTERVAL_ID);
-
-    if(arr.length>0){
-      lastBox.textContent=`Última rosa ≥100x: ${arr[0].multiplier.toFixed(2)}x às ${arr[0].time}`;
-      timeBox.textContent=formatMinutesToHhMm(calculateTimeSinceLast100x(arr[0].time));
-    }else{
-      lastBox.textContent=`Última rosa ≥100x: Nenhuma`;
-      timeBox.textContent='-- minutos';
+    const lastGlobal = globalList[0] || null;
+    if (lastGlobal) {
+      lastBox.textContent = `Última rosa ≥100x: ${lastGlobal.multiplier.toFixed(2)}x às ${lastGlobal.time}`;
+      timeBox.textContent = formatMinutesHuman(timeSinceLast100xMinutes(lastGlobal));
+    } else {
+      lastBox.textContent = 'Última rosa ≥100x: Nenhuma';
+      timeBox.textContent = '-- minutos';
     }
 
-    SB_NEXT_IDS.forEach((id,i)=>{
-      const el=document.getElementById(id);
-      const vela=arr[i]??null;
-      el.textContent=vela?`${vela.multiplier.toFixed(2)}x às ${vela.time}`:`--`;
-    });
+    // histórico por DIA selecionado (visual)
+    const dayList = getDay100xForSidebar(selectedDate);
 
-    const{last}=calculateIntervals(arr);
-    intervalBox.textContent=last?`Último intervalo: ${formatMinutesToHhMm(last)}`:`Último intervalo: --`;
+    // Preencher 7 slots: duplicamos o topo do dia em next1, e depois next2..next7
+    // (se não quiser duplicar, basta trocar para arr[i+1])
+    for (let i = 0; i < SB_NEXT_IDS.length; i++) {
+      const el = document.getElementById(SB_NEXT_IDS[i]);
+      const vela = dayList[i] || null; // next1 mostra a mais recente do dia; se faltar, "--"
+      el.textContent = vela ? `${vela.multiplier.toFixed(2)}x às ${vela.time}` : `--`;
+    }
+
+    const lastInterval = calcLastIntervalMinutes(dayList);
+    if (intervalBox) {
+      intervalBox.textContent = lastInterval != null
+        ? `Último intervalo: ${formatMinutesHuman(lastInterval)}`
+        : `Último intervalo: --`;
+    }
   }
 
-  function updateAlert100x(data){
-    const card=document.getElementById(CARD_ID);
-    const label=document.getElementById(CARD_TEXT_ID);
-    const arr=get100xVelas(data);
-    const target=calculateNext30MinWindow(arr);
-    
-    if(!target){
-      label.textContent=`⚠️ possível 100x às --:--`;
-      renderSlidebar(arr);
+  // ---------- loop principal ----------
+  function updateModule() {
+    if (typeof historyData === 'undefined' || !Array.isArray(historyData)) return;
+
+    const label = document.getElementById(CARD_TEXT_ID);
+    if (!label) return;
+
+    // GLOBAL: sempre usa a última 100x de TODO o historyData (independente do filtro visual)
+    const globalList = getGlobal100x(historyData);
+    const last = globalList[0] || null;
+
+    // Se não tiver 100x global, reseta
+    if (!last) {
+      label.textContent = '⚠️ possível 100x às --:--';
+      renderSidebar(document.getElementById('date-filter')?.value, []);
       return;
     }
 
-    const msg = buildMessage(target);
-    if(msg===null){
-      const newTarget=calculateNext30MinWindow(arr);
-      label.textContent=`⚠️ possível 100x às ${newTarget}`;
-    }else label.textContent=msg;
+    // Base = horário da última 100x (zerando segundos)
+    const base = toDateFromItem(last);
+    const now = new Date();
 
-    renderSlidebar(arr);
+    // Calcula PRÓXIMO alvo em degraus de 30 min (avança se já passou +2)
+    const target = nextTargetFromBase(base, now);
+
+    // Mensagem dinâmica (antecipar sempre antes; atrasar no exato/+1/+2)
+    const msg = buildLabelForTarget(target, now);
+    label.textContent = msg;
+
+    // Sidebar: usa o dia selecionado apenas para o histórico visual
+    const selectedDate = document.getElementById('date-filter')?.value;
+    renderSidebar(selectedDate, globalList);
   }
 
-  function getDataBySelectedDate(){
-    const d=document.getElementById('date-filter')?.value;
-    return(!d||!Array.isArray(historyData))?[]:historyData.filter(x=>x.date===d);
-  }
+  // Hooka no renderDashboard e também atualiza em loop
+  const originalRender = window.renderDashboard;
+  window.renderDashboard = function (...args) {
+    try { if (originalRender) originalRender.apply(this, args); }
+    finally { updateModule(); }
+  };
 
-  setInterval(()=>updateAlert100x(getDataBySelectedDate()),5000);
-  const OR=window.renderDashboard;
-  window.renderDashboard=function(...a){
-    try{OR&&OR.apply(this,a);}finally{updateAlert100x(getDataBySelectedDate());}
-  }
-  setTimeout(()=>updateAlert100x(getDataBySelectedDate()),1000);
+  setInterval(updateModule, 5000);
+  setTimeout(updateModule, 800);
 })();
 
     // ====================================================================
