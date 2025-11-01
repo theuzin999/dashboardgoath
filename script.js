@@ -1028,129 +1028,96 @@ document.addEventListener('DOMContentLoaded', () => {
   const SB_LAST_ID = 'alert-100x-last';
   const SB_NEXT_IDS = ['alert-100x-next1', 'alert-100x-next2', 'alert-100x-next3', 'alert-100x-next4'];
   const SB_INTERVAL_ID = 'interval-100x-info';
-  // Note: O HTML usa 'tempo-100x-value' para o valor do tempo sem 100x
   const SB_TIME_SINCE_ID = 'tempo-100x-value'; 
 
-  // Converte HH:MM:SS para minutos (com segundos fracionados)
   const timeToMinutes = (timeStr) => {
     if (!timeStr) return 0;
     const [h, m, s] = timeStr.split(':').map(Number);
     return h * 60 + m + s / 60;
   };
 
-  // Formata minutos totais (inteiros ou decimais) para 'Hh MMmin' (ex: 1h 20min)
   const formatMinutesToHhMm = (totalMinutes) => {
     if (typeof totalMinutes !== 'number' || totalMinutes < 0) return '-- minutos';
     const mins = Math.round(totalMinutes);
     const h = Math.floor(mins / 60);
     const m = mins % 60;
-
     let parts = [];
-    if (h > 0) {
-      parts.push(`${h}h`);
-    }
-    if (m > 0 || mins === 0) {
-      parts.push(`${m}min`);
-    }
-
-    if (parts.length === 0) return '0 min';
+    if (h > 0) parts.push(`${h}h`);
+    if (m > 0 || mins === 0) parts.push(`${m}min`);
     return parts.join(' ');
   };
 
-  // Calcula o tempo decorrido entre a última 100x e o momento atual (em minutos)
   const calculateTimeSinceLast100x = (last100xTimeStr) => {
-      if (!last100xTimeStr) return null;
-
-      const [lastH, lastM, lastS] = last100xTimeStr.split(':').map(Number);
-      
-      const now = new Date();
-      
-      const nowMin = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
-      const lastMin = lastH * 60 + lastM + lastS / 60;
-      
-      let diff = nowMin - lastMin;
-
-      // Se a diferença for negativa (virada do dia), ajusta
-      if (diff < 0) {
-          diff += 1440; // 24 * 60 minutos
-      }
-      
-      return diff;
+    if (!last100xTimeStr) return null;
+    const [lastH, lastM, lastS] = last100xTimeStr.split(':').map(Number);
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+    const lastMin = lastH * 60 + lastM + lastS / 60;
+    let diff = nowMin - lastMin;
+    if (diff < 0) diff += 1440;
+    return diff;
   };
 
-  // Pega todas as velas ≥100x do histórico
   function get100xVelas(data) {
-    // Filtra velas >= 100x e mapeia o tempo para minutos
     const filtered = data
       .filter(it => it.multiplier >= 100)
       .map(it => ({
         ...it,
-        minutes: timeToMinutes(it.time)
+        seconds: (() => {
+          const [h, m, s] = it.time.split(':').map(Number);
+          return h*3600 + m*60 + s;
+        })()
       }));
       
-    // CORREÇÃO FINAL: Garante que os dados estão ordenados por tempo (mais recente primeiro)
-    filtered.sort((a, b) => b.minutes - a.minutes); 
-
-    // Retorna as 5 mais recentes (a última + 4 anteriores para o histórico)
-    return filtered.slice(0, 5); 
+    filtered.sort((a, b) => b.seconds - a.seconds); 
+    
+    return filtered.slice(0, 5).map(x => ({ ...x }));
   }
 
-  // Calcula média e último intervalo entre 100x
   function calculateIntervals(velas100x) {
     if (velas100x.length < 2) return { avg: null, last: null };
     const intervals = [];
     for (let i = 1; i < velas100x.length; i++) {
-      intervals.push(velas100x[i - 1].minutes - velas100x[i].minutes);
+      intervals.push((velas100x[i - 1].seconds - velas100x[i].seconds) / 60);
     }
     const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-    const last = intervals[0]; 
-    return { avg: avg, last: last };
+    const last = intervals[0];
+    return { avg, last };
   }
 
-  // Implementa a Estratégia "Vela Rosa 100x • janela 30/30"
   function calculateNext30MinWindow(velas100x) {
     if (velas100x.length === 0) return null;
-    
     const baseTimeStr = velas100x[0].time;
     const [baseH, baseM, baseS] = baseTimeStr.split(':').map(Number);
 
     let nextH = baseH;
     let nextM = 0;
-    
-    // 1. Calcula o próximo horário redondo (00 ou 30) a partir da hora base
-    if (baseM < 30) {
-      nextM = 30; 
-    } else {
+
+    if (baseM < 30) nextM = 30; 
+    else {
       nextM = 0; 
       nextH = (baseH + 1) % 24;
     }
-    
-    // 2. Compara o horário base com a próxima janela calculada
+
     let nextTarget = new Date();
     nextTarget.setHours(nextH, nextM, 0, 0);
 
     let baseTime = new Date();
     baseTime.setHours(baseH, baseM, baseS, 0);
 
-    // Se o horário base for MAIOR ou IGUAL à próxima janela redonda, avança 30 minutos
-    if (baseTime >= nextTarget) {
-        nextTarget.setMinutes(nextTarget.getMinutes() + 30);
-    }
-    
+    if (baseTime >= nextTarget) nextTarget.setMinutes(nextTarget.getMinutes() + 30);
+
     const targetH = nextTarget.getHours();
     const targetM = nextTarget.getMinutes();
-    
+  
     return `${String(targetH).padStart(2, '0')}:${String(targetM).padStart(2, '0')}`;
   }
 
-
-  // Atualiza slidebar com histórico e tempos formatados
   function renderSlidebar(velas100x) {
     const lastBox = document.getElementById(SB_LAST_ID);
     const timeSinceBox = document.getElementById(SB_TIME_SINCE_ID);
     const intervalBox = document.getElementById(SB_INTERVAL_ID);
 
-    // 1. ÚLTIMA VELA 100x e TEMPO SEM 100x
     if (velas100x.length > 0) {
         const last = velas100x[0];
         lastBox.textContent = `Última rosa ≥100x: ${last.multiplier.toFixed(2)}x às ${last.time}`;
@@ -1162,32 +1129,21 @@ document.addEventListener('DOMContentLoaded', () => {
         timeSinceBox.textContent = '-- minutos';
     }
 
-
-    // 2. Histórico das últimas 4 velas
-    // Usa as posições [1], [2], [3], [4] (as 4 velas anteriores à última)
     SB_NEXT_IDS.forEach((id, idx) => {
       const el = document.getElementById(id);
       if (!el) return;
-      const vela = velas100x[idx + 1]; 
-      if (vela) {
-          el.textContent = `${vela.multiplier.toFixed(2)}x às ${vela.time}`;
-      } else {
-        el.textContent = `--`;
-      }
+      const vela = velas100x[idx + 1];
+      if (vela) el.textContent = `${vela.multiplier.toFixed(2)}x às ${vela.time}`;
+      else el.textContent = `--`;
     });
 
-    // 3. Último Intervalo (Formato Hh MMmin)
     if (intervalBox) {
       const { last } = calculateIntervals(velas100x);
-      if (last) {
-        intervalBox.textContent = `Último intervalo: ${formatMinutesToHhMm(last)}`; 
-      } else {
-        intervalBox.textContent = `Último intervalo: --`;
-      }
+      if (last) intervalBox.textContent = `Último intervalo: ${formatMinutesToHhMm(last)}`;
+      else intervalBox.textContent = `Último intervalo: --`;
     }
   }
 
-  // Atualiza card e slidebar
   function updateAlert100x(dataForDate) {
     const card = document.getElementById(CARD_ID);
     const label = document.getElementById(CARD_TEXT_ID);
@@ -1201,12 +1157,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const velas100x = get100xVelas(dataForDate);
     const nextWindowTime = calculateNext30MinWindow(velas100x);
 
-    // Atualiza slidebar (com histórico e formatação corrigidos)
     renderSlidebar(velas100x);
-    
-    // Atualiza card central
+
     if (nextWindowTime) {
-        // Exibição corrigida para a estratégia 30/30 com margem de erro
         label.textContent = `possível 100x às ${nextWindowTime} (±2min)`; 
         card.classList.remove('alerta-ativo');
     } else {
@@ -1215,33 +1168,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Pega dados da data selecionada
   function getDataBySelectedDate() {
     const selected = document.getElementById('date-filter')?.value;
     if (!selected || !Array.isArray(historyData)) return [];
     return historyData.filter(it => it.date === selected);
   }
 
-  // Atualiza a cada 10 segundos
   setInterval(() => {
     const data = getDataBySelectedDate();
     updateAlert100x(data);
   }, 10000);
 
-  // Sobrescreve renderDashboard
   const originalRender = window.renderDashboard;
   window.renderDashboard = function (...args) {
     try {
-      if (originalRender) {
-        originalRender.apply(this, args);
-      }
+      if (originalRender) originalRender.apply(this, args);
     } finally {
       const data = getDataBySelectedDate();
       updateAlert100x(data);
     }
   };
 
-  // Inicializa
   setTimeout(() => updateAlert100x(getDataBySelectedDate()), 1000);
 })();
 
@@ -1250,6 +1197,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ====================================================================
 
 })();
+
 
 
 
