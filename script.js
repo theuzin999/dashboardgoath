@@ -1085,32 +1085,26 @@ document.addEventListener('DOMContentLoaded', () => {
     return { avg, last };
   }
 
+  // NOVA FUNÇÃO CORRIGIDA 30/30
   function calculateNext30MinWindow(velas100x) {
     if (velas100x.length === 0) return null;
+
     const baseTimeStr = velas100x[0].time;
     const [baseH, baseM, baseS] = baseTimeStr.split(':').map(Number);
 
-    let nextH = baseH;
-    let nextM = 0;
+    let base = new Date();
+    base.setHours(baseH, baseM, baseS, 0);
 
-    if (baseM < 30) nextM = 30; 
-    else {
-      nextM = 0; 
-      nextH = (baseH + 1) % 24;
+    let next = new Date(base);
+
+    while (next <= new Date()) {
+      next.setMinutes(next.getMinutes() + 30);
     }
 
-    let nextTarget = new Date();
-    nextTarget.setHours(nextH, nextM, 0, 0);
+    const h = String(next.getHours()).padStart(2, '0');
+    const m = String(next.getMinutes()).padStart(2, '0');
 
-    let baseTime = new Date();
-    baseTime.setHours(baseH, baseM, baseS, 0);
-
-    if (baseTime >= nextTarget) nextTarget.setMinutes(nextTarget.getMinutes() + 30);
-
-    const targetH = nextTarget.getHours();
-    const targetM = nextTarget.getMinutes();
-  
-    return `${String(targetH).padStart(2, '0')}:${String(targetM).padStart(2, '0')}`;
+    return `${h}:${m}`;
   }
 
   function renderSlidebar(velas100x) {
@@ -1197,13 +1191,3 @@ document.addEventListener('DOMContentLoaded', () => {
     // ====================================================================
 
 })();
-
-
-
-
-
-
-
-
-
-
