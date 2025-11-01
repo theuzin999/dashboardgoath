@@ -1025,103 +1025,77 @@ document.addEventListener('DOMContentLoaded', () => {
 (function () {
   const CARD_ID = 'alerta-100x-card';
   const CARD_TEXT_ID = 'alerta-100x-texto';
+  const SLIDEBAR_ID = 'alert-100x-slidebar';
   const SB_LAST_ID = 'alert-100x-last';
   const SB_NEXT_IDS = ['alert-100x-next1', 'alert-100x-next2', 'alert-100x-next3', 'alert-100x-next4'];
-  const SB_INTERVAL_ID = 'interval-100x-info';
-  const TEMPO_100X_ID = 'tempo-100x-value';
 
-  // Helpers
-  const wrapMins = (m) => ((m % 1440) + 1440) % 1440;
+  // Helpers de tempo
+  const wrapMins = (m) => ((m % 1440) + 1440) % 1440; // 0..1439
   const toHMM = (mins) => {
     const h = Math.floor(mins / 60) % 24;
     const m = Math.floor(mins % 60);
-    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+  };
+  const nextHalfHourCenters = (baseMin, count=4) => {
+    const first = 30 * Math.ceil(baseMin/30); // ex.: 10:01 -> 10:30
+    return Array.from({length: count}, (_,i)=> wrapMins(first + i*30));
   };
 
-  const nextHalfHourCenters = (baseMin, count = 4) => {
-    const first = 30 * Math.ceil(baseMin / 30);
-    return Array.from({ length: count }, (_, i) => wrapMins(first + i * 30));
-  };
-
-  // Últimas 4 velas ≥100x
-  function getLastFour100x(data) {
-    return data
-      .filter(it => it.multiplier >= 100)
-      .sort((a, b) => b.minutes - a.minutes)
-      .slice(0, 4);
+  // Última vela >=100x do array (já vem ordenado decrescente no teu código)
+  function getLast100x(data) {
+    return data.find(it => it.multiplier >= 100);
   }
 
-  // Tempo sem 100x
-  function getTimeSinceLast100x(lastFour, nowMin) {
-    if (lastFour.length === 0) return null;
-    const last = lastFour[0];
-    return wrapMins(nowMin - last.minutes);
-  }
-
-  // Último intervalo entre 100x
-  function getLastInterval(lastFour) {
-    if (lastFour.length < 2) return null;
-    const last = lastFour[0];
-    const prev = lastFour[1];
-    return wrapMins(Math.abs(last.minutes - prev.minutes));
-  }
-
-  // Estado do card
+  // Decide estado do card relativo ao "centro" (HH:MM) com margem ±2
   function computeState(nowMin, centerMin) {
+    // Usa segundos inteiros pra detectar "minuto exato"
+    const nowSec = Math.round(nowMin*60);
+    const centerSec = Math.round(centerMin*60);
     const deltaMin = nowMin - centerMin;
-    const nowSec = Math.round(nowMin * 60);
-    const centerSec = Math.round(centerMin * 60);
 
-    if (nowSec === centerSec) return { mode: 'exact' };
+    if (nowSec === centerSec) {
+      return { mode: 'exact' }; // minuto exato
+    }
     if (deltaMin >= -2 && deltaMin < 0) {
-      return { mode: 'before', a1: wrapMins(centerMin - 2), a2: wrapMins(centerMin - 1) };
+      // antecipar: 2 e 1 min antes
+      const a1 = wrapMins(centerMin - 2);
+      const a2 = wrapMins(centerMin - 1);
+      return { mode: 'before', a1, a2 };
     }
     if (deltaMin > 0 && deltaMin <= 2) {
-      return { mode: 'after', d1: wrapMins(centerMin + 1), d2: wrapMins(centerMin + 2) };
+      // atrasar: 1 e 2 min depois
+      const d1 = wrapMins(centerMin + 1);
+      const d2 = wrapMins(centerMin + 2);
+      return { mode: 'after', d1, d2 };
     }
     return { mode: 'neutral' };
   }
 
-  // Renderiza slidebar
-  function renderSlidebar(lastFour, centers, nowMin) {
+  // Atualiza slidebar
+  function renderSlidebar(last100, centers) {
     const lastBox = document.getElementById(SB_LAST_ID);
-    const tempoBox = document.getElementById(TEMPO_100X_ID);
-    const intervalBox = document.getElementById(SB_INTERVAL_ID);
-
-    // Última vela
-    if (lastBox && lastFour.length > 0) {
-      const last = lastFour[0];
-      lastBox.textContent = `Última rosa ≥100x: ${last.multiplier.toFixed(2)}x às ${last.time}`;
-    } else if (lastBox) {
-      lastBox.textContent = `Última rosa ≥100x: Nenhuma`;
+    if (lastBox) {
+      if (last100) {
+        lastBox.textContent = `Última rosa ≥100x: ${last100.multiplier.toFixed(2)}x às ${last100.time}`;
+      } else {
+        lastBox.textContent = `Última rosa ≥100x: Nenhuma`;
+      }
     }
-
-    // tempo sem 100x
-    if (tempoBox) {
-      const timeSince = getTimeSinceLast100x(lastFour, nowMin);
-      tempoBox.textContent = timeSince !== null ? `${timeSince} minutos` : `-- minutos`;
-    }
-
-    // Histórico das 4 velas
     SB_NEXT_IDS.forEach((id, idx) => {
       const el = document.getElementById(id);
       if (!el) return;
-      if (lastFour[idx]) {
-        const vela = lastFour[idx];
-        el.textContent = `${vela.multiplier.toFixed(2)}x às ${vela.time}`;
+      const c = centers[idx];
+      if (typeof c === 'number') {
+        const s = toHMM(wrapMins(c - 2));
+        const e = toHMM(wrapMins(c + 2));
+        el.textContent = `${toHMM(c)} — janela: ${s} a ${e}`;
       } else {
         el.textContent = `--`;
       }
     });
-
-    // Último intervalo
-    if (intervalBox) {
-      const lastInterval = getLastInterval(lastFour);
-      intervalBox.textContent = `Último intervalo: ${lastInterval !== null ? lastInterval : '--'} minutos`;
-    }
   }
 
-  // Atualiza card + slidebar
+  // Núcleo: atualiza card + slidebar
   function updateAlert100x(dataForSelectedDate) {
     const card = document.getElementById(CARD_ID);
     const label = document.getElementById(CARD_TEXT_ID);
@@ -1129,69 +1103,72 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!Array.isArray(dataForSelectedDate) || dataForSelectedDate.length === 0) {
       card.classList.remove('alerta-ativo');
-      label.textContent = 'possível 100x às --:--';
-      renderSlidebar([], [], 0);
+      label.textContent = '⚠️ possível 100x às --:--';
+      renderSlidebar(null, []);
       return;
     }
 
-    const nowMin = dataForSelectedDate[0].minutes;
-    const lastFour = getLastFour100x(dataForSelectedDate);
+    const nowMin = dataForSelectedDate[0].minutes; // teu "agora" já vem da vela mais recente
+    const last100 = getLast100x(dataForSelectedDate);
 
-    if (lastFour.length === 0) {
+    if (!last100) {
       card.classList.remove('alerta-ativo');
-      label.textContent = 'possível 100x às --:--';
-      renderSlidebar([], [], nowMin);
+      label.textContent = '⚠️ possível 100x às --:--';
+      renderSlidebar(null, []);
       return;
     }
 
-    const baseMin = lastFour[0].minutes;
+    // Base e próximos 4 centros 30/30
+    const baseMin = last100.minutes;
     const centers = nextHalfHourCenters(baseMin, 4);
-    const nextCenter = centers.find(c => (c - nowMin) >= -2 || (nowMin - c) <= 2) ?? centers[0];
+
+    // Seleciona o próximo centro que ainda faça sentido (>= nowMin-2)
+    const nextCenter = centers.find(c => (c - nowMin) >= -2 || (nowMin > c && (nowMin - c) <= 2)) ?? centers[0];
+
+    // Estado atual (antes/exato/depois/neutro) relativo ao "nextCenter"
     const state = computeState(nowMin, nextCenter);
 
-    card.classList.toggle('alerta-ativo', ['before', 'after', 'exact'].includes(state.mode));
+    // Texto e cor do card
+    card.classList.toggle('alerta-ativo', state.mode === 'before' || state.mode === 'after' || state.mode === 'exact');
 
     if (state.mode === 'before') {
-      label.textContent = `possível 100x às ${toHMM(nextCenter)} — antecipar ${toHMM(state.a1)} ${toHMM(state.a2)}`;
+      label.textContent = `⚠️ possível 100x às ${toHMM(nextCenter)} — chance antecipar ${toHMM(state.a1)} ${toHMM(state.a2)}`;
     } else if (state.mode === 'after') {
-      label.textContent = `possível 100x às ${toHMM(nextCenter)} — atrasar ${toHMM(state.d1)} ${toHMM(state.d2)}`;
+      label.textContent = `⚠️ possível 100x às ${toHMM(nextCenter)} — chance atrasar ${toHMM(state.d1)} ${toHMM(state.d2)}`;
     } else {
-      label.textContent = `possível 100x às ${toHMM(nextCenter)}`;
+      // neutro e exato usam a mesma cópia, mas exato mantém amarelo via .alerta-ativo
+      label.textContent = `⚠️ possível 100x às ${toHMM(nextCenter)}`;
     }
 
-    renderSlidebar(lastFour, centers, nowMin);
+    // Slidebar com último 100x + 4 janelas
+    renderSlidebar(last100, centers);
   }
 
-  // Dados da data
+  // Data do filtro atual
   function getDataBySelectedDate() {
     try {
-      const selected = document.getElementById('date-filter')?.value;
-      if (!selected || !Array.isArray(window.historyData)) return [];
-      return window.historyData.filter(it => it.date === selected);
-    } catch {
-      return [];
-    }
+      const selected = dateFilter?.value;
+      if (!selected || !Array.isArray(historyData)) return [];
+      return historyData.filter(it => it.date === selected);
+    } catch { return []; }
   }
 
-  // Atualiza a cada 5s
+  // Loop de atualização (mesmo sem vela nova)
   setInterval(() => {
     const dataToday = getDataBySelectedDate();
     updateAlert100x(dataToday);
   }, 5000);
 
-  // Sobrescreve renderDashboard
+  // Também atualiza toda vez que o painel renderiza por entrada nova
   const _oldRenderDashboard = window.renderDashboard;
   window.renderDashboard = function (...args) {
     try {
-      _oldRenderDashboard?.apply(this, args);
+      _oldRenderDashboard.apply(this, args);
     } finally {
       const dataToday = getDataBySelectedDate();
       updateAlert100x(dataToday);
     }
   };
-
-  // Inicializa
-  updateAlert100x(getDataBySelectedDate());
 })();
 
     // ====================================================================
@@ -1199,5 +1176,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // ====================================================================
 
 })();
+
 
 
