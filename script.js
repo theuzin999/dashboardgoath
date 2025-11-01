@@ -1019,8 +1019,8 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
     });
 
- // =========================
-// ALERTA 100x (30/30) — MÓDULO
+// =========================
+// ALERTA 100x — VERSÃO FINAL (30/30 + JANELA ±2min)
 // =========================
 (function () {
   const CARD_ID = 'alerta-100x-card';
@@ -1029,146 +1029,118 @@ document.addEventListener('DOMContentLoaded', () => {
   const SB_LAST_ID = 'alert-100x-last';
   const SB_NEXT_IDS = ['alert-100x-next1', 'alert-100x-next2', 'alert-100x-next3', 'alert-100x-next4'];
 
-  // Helpers de tempo
-  const wrapMins = (m) => ((m % 1440) + 1440) % 1440; // 0..1439
-  const toHMM = (mins) => {
-    const h = Math.floor(mins / 60) % 24;
-    const m = Math.floor(mins % 60);
-    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
-  };
-  const nextHalfHourCenters = (baseMin, count=4) => {
-    const first = 30 * Math.ceil(baseMin/30); // ex.: 10:01 -> 10:30
-    return Array.from({length: count}, (_,i)=> wrapMins(first + i*30));
+  // Converte HH:MM:SS para minutos decimais
+  const timeToMinutes = (timeStr) => {
+    if (!timeStr) return 0;
+    const [h, m, s] = timeStr.split(':').map(Number);
+    return h * 60 + m + (s || 0) / 60;
   };
 
-  // Última vela >=100x do array (já vem ordenado decrescente no teu código)
+  // Formata minutos para HH:MM
+  const toHMM = (mins) => {
+    const total = Math.round(mins);
+    const h = Math.floor(total / 60) % 24;
+    const m = total % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+
+  // Gera próximos 4 centros de 30/30 a partir de um baseMin
+  const nextHalfHourCenters = (baseMin, count = 4) => {
+    const first = 30 * Math.ceil(baseMin / 30);
+    return Array.from({ length: count }, (_, i) => (first + i * 30) % 1440);
+  };
+
+  // Última vela ≥100x
   function getLast100x(data) {
     return data.find(it => it.multiplier >= 100);
   }
 
-  // Decide estado do card relativo ao "centro" (HH:MM) com margem ±2
-  function computeState(nowMin, centerMin) {
-    // Usa segundos inteiros pra detectar "minuto exato"
-    const nowSec = Math.round(nowMin*60);
-    const centerSec = Math.round(centerMin*60);
-    const deltaMin = nowMin - centerMin;
-
-    if (nowSec === centerSec) {
-      return { mode: 'exact' }; // minuto exato
-    }
-    if (deltaMin >= -2 && deltaMin < 0) {
-      // antecipar: 2 e 1 min antes
-      const a1 = wrapMins(centerMin - 2);
-      const a2 = wrapMins(centerMin - 1);
-      return { mode: 'before', a1, a2 };
-    }
-    if (deltaMin > 0 && deltaMin <= 2) {
-      // atrasar: 1 e 2 min depois
-      const d1 = wrapMins(centerMin + 1);
-      const d2 = wrapMins(centerMin + 2);
-      return { mode: 'after', d1, d2 };
-    }
-    return { mode: 'neutral' };
-  }
-
-  // Atualiza slidebar
-  function renderSlidebar(last100, centers) {
+  // Atualiza slidebar com os 4 próximos centros + janela ±2
+  function renderSlidebar(last100x, centers) {
     const lastBox = document.getElementById(SB_LAST_ID);
     if (lastBox) {
-      if (last100) {
-        lastBox.textContent = `Última rosa ≥100x: ${last100.multiplier.toFixed(2)}x às ${last100.time}`;
+      if (last100x) {
+        lastBox.textbrokenContent = `Última rosa ≥100x: ${last100x.multiplier.toFixed(2)}x às ${last100x.time}`;
       } else {
         lastBox.textContent = `Última rosa ≥100x: Nenhuma`;
       }
     }
+
     SB_NEXT_IDS.forEach((id, idx) => {
       const el = document.getElementById(id);
-      if (!el) return;
-      const c = centers[idx];
-      if (typeof c === 'number') {
-        const s = toHMM(wrapMins(c - 2));
-        const e = toHMM(wrapMins(c + 2));
-        el.textContent = `${toHMM(c)} — janela: ${s} a ${e}`;
-      } else {
-        el.textContent = `--`;
-      }
+      if (!el || !centers[idx]) return;
+      const center = centers[idx];
+      const start = toHMM(center - 2);
+      const end = toHMM(center + 2);
+      el.textContent = `${toHMM(center)} — janela: ${start} a ${end}`;
     });
   }
 
-  // Núcleo: atualiza card + slidebar
-  function updateAlert100x(dataForSelectedDate) {
+  // Atualiza card e slidebar
+  function updateAlert100x(dataForDate) {
     const card = document.getElementById(CARD_ID);
     const label = document.getElementById(CARD_TEXT_ID);
-    if (!card || !label) return;
-
-    if (!Array.isArray(dataForSelectedDate) || dataForSelectedDate.length === 0) {
+    if (!card || !label || !Array.isArray(dataForDate) || dataForDate.length === 0) {
       card.classList.remove('alerta-ativo');
-      label.textContent = '⚠️ possível 100x às --:--';
+      label.textContent = 'possível 100x às --:--';
       renderSlidebar(null, []);
       return;
     }
 
-    const nowMin = dataForSelectedDate[0].minutes; // teu "agora" já vem da vela mais recente
-    const last100 = getLast100x(dataForSelectedDate);
+    const nowMin = dataForDate[0].minutes;
+    const last100x = getLast100x(dataForDate);
 
-    if (!last100) {
+    if (!last100x) {
       card.classList.remove('alerta-ativo');
-      label.textContent = '⚠️ possível 100x às --:--';
+      label.textContent = 'possível 100x às --:--';
       renderSlidebar(null, []);
       return;
     }
 
-    // Base e próximos 4 centros 30/30
-    const baseMin = last100.minutes;
+    const baseMin = last100x.minutes;
     const centers = nextHalfHourCenters(baseMin, 4);
 
-    // Seleciona o próximo centro que ainda faça sentido (>= nowMin-2)
-    const nextCenter = centers.find(c => (c - nowMin) >= -2 || (nowMin > c && (nowMin - c) <= 2)) ?? centers[0];
+    // Próximo centro que ainda não passou (ou está próximo)
+    const nextCenter = centers.find(c => {
+      const diff = nowMin - c;
+      return diff >= -2 && diff <= 2;
+    }) || centers[0];
 
-    // Estado atual (antes/exato/depois/neutro) relativo ao "nextCenter"
-    const state = computeState(nowMin, nextCenter);
+    const diffNow = nowMin - nextCenter;
+    const isActive = diffNow >= -2 && diffNow <= 2;
 
-    // Texto e cor do card
-    card.classList.toggle('alerta-ativo', state.mode === 'before' || state.mode === 'after' || state.mode === 'exact');
+    card.classList.toggle('alerta-ativo', isActive);
+    label.textContent = `possível 100x às ${toHMM(nextCenter)}`;
 
-    if (state.mode === 'before') {
-      label.textContent = `⚠️ possível 100x às ${toHMM(nextCenter)} — chance antecipar ${toHMM(state.a1)} ${toHMM(state.a2)}`;
-    } else if (state.mode === 'after') {
-      label.textContent = `⚠️ possível 100x às ${toHMM(nextCenter)} — chance atrasar ${toHMM(state.d1)} ${toHMM(state.d2)}`;
-    } else {
-      // neutro e exato usam a mesma cópia, mas exato mantém amarelo via .alerta-ativo
-      label.textContent = `⚠️ possível 100x às ${toHMM(nextCenter)}`;
-    }
-
-    // Slidebar com último 100x + 4 janelas
-    renderSlidebar(last100, centers);
+    renderSlidebar(last100x, centers);
   }
 
-  // Data do filtro atual
+  // Dados da data selecionada
   function getDataBySelectedDate() {
-    try {
-      const selected = dateFilter?.value;
-      if (!selected || !Array.isArray(historyData)) return [];
-      return historyData.filter(it => it.date === selected);
-    } catch { return []; }
+    const selected = document.getElementById('date-filter')?.value;
+    if (!selected || !Array.isArray(historyData)) return [];
+    return historyData.filter(it => it.date === selected);
   }
 
-  // Loop de atualização (mesmo sem vela nova)
+  // Atualiza a cada 5 segundos
   setInterval(() => {
-    const dataToday = getDataBySelectedDate();
-    updateAlert100x(dataToday);
+    const data = getDataBySelectedDate();
+    updateAlert100x(data);
   }, 5000);
 
-  // Também atualiza toda vez que o painel renderiza por entrada nova
-  const _oldRenderDashboard = window.renderDashboard;
+  // Sobrescreve renderDashboard
+  const originalRender = window.renderDashboard;
   window.renderDashboard = function (...args) {
     try {
-      _oldRenderDashboard.apply(this, args);
+      originalRender.apply(this, args);
     } finally {
-      const dataToday = getDataBySelectedDate();
-      updateAlert100x(dataToday);
+      const data = getDataBySelectedDate();
+      updateAlert100x(data);
     }
   };
+
+  // Inicializa
+  setTimeout(() => updateAlert100x(getDataBySelectedDate()), 1000);
 })();
 
     // ====================================================================
@@ -1176,6 +1148,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ====================================================================
 
 })();
+
 
 
 
