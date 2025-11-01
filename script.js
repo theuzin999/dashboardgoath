@@ -1020,7 +1020,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 // =========================
-// ALERTA 100x — MÓDULO FINAL (7 slots corretos)
+// ALERTA 100x — MÓDULO FINAL (7 slots + antecipar/atrasar ±2)
 // =========================
 (function () {
   const CARD_ID = 'alerta-100x-card';
@@ -1033,28 +1033,30 @@ document.addEventListener('DOMContentLoaded', () => {
   const SB_INTERVAL_ID = 'interval-100x-info';
   const SB_TIME_SINCE_ID = 'tempo-100x-value';
 
-  const calculateTimeSinceLast100x = (t) =>{
-    if(!t)return null;
-    const[nH,nM,nS]=t.split(':').map(Number);
-    const now=new Date();
-    const nMin=now.getHours()*60+now.getMinutes()+now.getSeconds()/60;
-    const b=nH*60+nM+nS/60;
-    let d=nMin-b; if(d<0)d+=1440;
-    return d;
+  function parseTime(t){const[h,m,s]=t.split(':').map(Number);return{h,m,s};}
+  function toMinutes(h,m,s){return h*60+m+s/60;}
+
+  const formatMinutesToHhMm = (totalMinutes) => {
+    if (typeof totalMinutes !== 'number' || totalMinutes < 0) return '-- minutos';
+    const mins = Math.round(totalMinutes);
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return h>0?`${h}h ${m}min`:`${m}min`;
   };
 
-  const formatMinutesToHhMm=(mins)=>{
-    if(typeof mins!=='number'||mins<0)return'--';
-    mins=Math.round(mins);
-    const h=Math.floor(mins/60);
-    const m=mins%60;
-    if(h>0)return`${h}h ${m}min`;
-    return`${m}min`;
+  const calculateTimeSinceLast100x = (t) => {
+    const {h,m,s}=parseTime(t);
+    const now=new Date();
+    const nowMin=toMinutes(now.getHours(),now.getMinutes(),now.getSeconds());
+    const lastMin=toMinutes(h,m,s);
+    let diff=nowMin-lastMin;
+    if(diff<0)diff+=1440;
+    return diff;
   };
 
   function get100xVelas(data){
     const r=data.filter(x=>x.multiplier>=100).map(it=>{
-      const[h,m,s]=it.time.split(':').map(Number);
+      const{h,m,s}=parseTime(it.time);
       return{...it,seconds:h*3600+m*60+s};
     });
     r.sort((a,b)=>b.seconds-a.seconds);
@@ -1069,10 +1071,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function calculateNext30MinWindow(arr){
     if(!arr.length)return null;
-    const[h,m,s]=arr[0].time.split(':').map(Number);
+    const{h,m,s}=parseTime(arr[0].time);
     let ref=new Date();ref.setHours(h,m,s,0);
     while(ref<=new Date())ref.setMinutes(ref.getMinutes()+30);
-    return`${String(ref.getHours()).padStart(2,'0')}:${String(ref.getMinutes()).padStart(2,'0')}`;
+    return `${String(ref.getHours()).padStart(2,'0')}:${String(ref.getMinutes()).padStart(2,'0')}`;
+  }
+
+  function buildMessage(target){
+    const[nowH,nowM]=[new Date().getHours(),new Date().getMinutes()];
+    const[nowMin]=[toMinutes(nowH,nowM,0)];
+    const[tH,tM]=target.split(':').map(Number);
+    const targetMin=toMinutes(tH,tM,0);
+
+    const diff = nowMin - targetMin; // negativo = antecipar / positivo = atrasar
+
+    const minExact1 = (tH*60+tM)-2;
+    const minExact2 = (tH*60+tM)-1;
+    const minLate1  = (tH*60+tM)+1;
+    const minLate2  = (tH*60+tM)+2;
+
+    const make = (msg) => `⚠️ possível 100x às ${target} — ${msg}`;
+
+    if(diff < -2) return `⚠️ possível 100x às ${target}`;
+    if(diff>=-2 && diff<=-1) return make(`podendo antecipar: ${padTime(minExact1)} ${padTime(minExact2)}`);
+    if(diff===0) return make(`podendo atrasar: ${padTime(minLate1)} ${padTime(minLate2)}`);
+    if(diff===1 || diff===2) return make(`podendo atrasar: ${padTime(minLate1)} ${padTime(minLate2)}`);
+    return null;
+  }
+
+  function padTime(min){
+    let h=Math.floor(min/60)%24;
+    let m=min%60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
   }
 
   function renderSlidebar(arr){
@@ -1085,7 +1115,7 @@ document.addEventListener('DOMContentLoaded', () => {
       timeBox.textContent=formatMinutesToHhMm(calculateTimeSinceLast100x(arr[0].time));
     }else{
       lastBox.textContent=`Última rosa ≥100x: Nenhuma`;
-      timeBox.textContent='--';
+      timeBox.textContent='-- minutos';
     }
 
     SB_NEXT_IDS.forEach((id,i)=>{
@@ -1094,22 +1124,29 @@ document.addEventListener('DOMContentLoaded', () => {
       el.textContent=vela?`${vela.multiplier.toFixed(2)}x às ${vela.time}`:`--`;
     });
 
-    const {last}=calculateIntervals(arr);
+    const{last}=calculateIntervals(arr);
     intervalBox.textContent=last?`Último intervalo: ${formatMinutesToHhMm(last)}`:`Último intervalo: --`;
   }
 
   function updateAlert100x(data){
     const card=document.getElementById(CARD_ID);
     const label=document.getElementById(CARD_TEXT_ID);
-    if(!card||!label||!Array.isArray(data)){
-      label.textContent='possível 100x às --:--';
-      renderSlidebar([]);
+    const arr=get100xVelas(data);
+    const target=calculateNext30MinWindow(arr);
+    
+    if(!target){
+      label.textContent=`⚠️ possível 100x às --:--`;
+      renderSlidebar(arr);
       return;
     }
-    const arr=get100xVelas(data);
-    const next=calculateNext30MinWindow(arr);
+
+    const msg = buildMessage(target);
+    if(msg===null){
+      const newTarget=calculateNext30MinWindow(arr);
+      label.textContent=`⚠️ possível 100x às ${newTarget}`;
+    }else label.textContent=msg;
+
     renderSlidebar(arr);
-    label.textContent= next ? `possível 100x às ${next} (±2min)`:`possível 100x às --:--`;
   }
 
   function getDataBySelectedDate(){
@@ -1117,7 +1154,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return(!d||!Array.isArray(historyData))?[]:historyData.filter(x=>x.date===d);
   }
 
-  setInterval(()=>updateAlert100x(getDataBySelectedDate()),10000);
+  setInterval(()=>updateAlert100x(getDataBySelectedDate()),5000);
   const OR=window.renderDashboard;
   window.renderDashboard=function(...a){
     try{OR&&OR.apply(this,a);}finally{updateAlert100x(getDataBySelectedDate());}
