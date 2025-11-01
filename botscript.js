@@ -132,7 +132,7 @@ function detectStrategies(colors, predPct){
   const a=colors[L-3], b=colors[L-2], c=colors[L-1];
   
   // ===================== BLOQUEIO DE ALTO RISCO (Anti-Repetição de Azuis) =======================
-  if(L >= 8 && colors[L-1] === "blue" && colors[L-2] === "blue"){ 
+  if(L >= 8 && colors[L-2] === "blue" && colors[L-4] === "blue"){ 
       
       let posRunLen = 0;
       for(let i=L-3; i>=0; i--){
@@ -195,7 +195,7 @@ function detectStrategies(colors, predPct){
 
   // Regra 3: Fileiras com 1 ou 2 Azuis (Padrões de reversão/continuação após correções curtas)
   // Padrão: Positiva - 1/2 Azuis - Positiva - Azul (Entrada)
-  if(L>=5 && isPos(colors[L-3]) && isPos(colors[L-2]) && c==="blue"){
+  if(L>=5 && isPos(colors[L-1]) && isPos(colors[L-2]) && c==="blue"){
      // P-B-B-P-B ou P-B-P-B (últimas 5 ou 4)
      if((colors[L-4]==="blue" && colors[L-3]==="blue") || colors[L-4]==="blue"){
       return {name:"pos-corr-simples", gate:"Pósitiva - Correção (1-2 Azuis) - Pósitiva - Azul ⇒ P (2x)"};
@@ -203,7 +203,7 @@ function detectStrategies(colors, predPct){
   }
 
   // Regra 4: Gemini 2x Reversão
-  if(predPct >= 0.60 && L>=5 && colors[L-1]==="blue"){
+  if(predPct >= 0.40 && L>=5 && colors[L-1]==="blue"){
     const last5 = colors.slice(L-5).join("-");
     if(last5 === "blue-purple-blue-blue-blue" || last5 === "blue-blue-purple-blue-blue"){
       return {name:"Gemini 2x Reversão", gate:"Gatilho: Gemini 2x - Quebra de Sequência (B-P-B ou B-B-P) ⇒ P (2x)"};
