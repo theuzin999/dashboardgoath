@@ -381,7 +381,7 @@ function onNewCandle(arr){
     
     // Se estava em G1_WAIT/G2_WAIT e o hardPaused ativou, mantém o pending no WAIT mas não processa mais nada
     if(pending && (pending.stage === 'G1_WAIT' || pending.stage === 'G2_WAIT')) return;
-    if(pending) clearPending(); // Cancela o pending G0 se cair no hard pause
+    if(pending && pending.stage === 0) clearPending(); // Cancela o pending G0 se cair no hard pause
     return;
   }
   window.lastPauseMessage = null; 
