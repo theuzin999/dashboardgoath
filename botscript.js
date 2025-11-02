@@ -1,6 +1,6 @@
 // ===================== CONFIG FIREBASE ===========================
 const firebaseConfig = {
-  apiKey: "AIzaSyB-35zQDrQbz8ohZUdqpFkayYdAUDrLw6g",
+  apiKey: "AIzaSyB-35zQDrQbz8ohdUdqpFkayYdAUDrLw6g",
   authDomain: "history-dashboard-a70ee.firebaseapp.com",
   databaseURL: "https://history-dashboard-a70ee-default-rtdb.firebaseio.com",
   projectId: "history-dashboard-a70ee",
@@ -360,15 +360,8 @@ function onNewCandle(arr){
           
           let forceLoss = false;
           
-          // **REGRA: Bloqueio G2 se 2 Azuis (Só aplica se estiver indo para G2)**
+          // **REGRA: Bloqueio G2 se 2 Azuis**
           if(nextStage === 2){
-             // justClosed é a vela de perda do G1 (que entrou atrasada).
-             // A vela anterior é a vela skip (arr[arr.length-2]).
-             // A vela antes do skip é a vela de perda do G0 (arr[arr.length-3]).
-             
-             // O usuário quer: "Nunca fazer o G2 na frente de dois azuis."
-             // Isso significa: Se a perda do G1 (justClosed) E a vela anterior (skip) forem azuis.
-             
              const G1LossCandle = justClosed; 
              const candleBeforeG1Loss = arr[arr.length-2]; 
              // Checa se as duas velas MAIS RECENTES são azuis (vela G1 e vela Skip)
@@ -380,13 +373,13 @@ function onNewCandle(arr){
           }
           
           if(forceLoss){
-             // G2 CANCELADO (Bloqueado por Alto Risco)
+             // G2 REJEITADO (Bloqueado por Alto Risco) - É o único "cancelamento"
              stats.losses++; stats.streak=0; syncStatsUI(); store.set(stats);
              addFeed("err","LOSS 2x (G1 falhou, G2 REJEITADO por 2 Azuis seguidos)"); 
-             topSlide("G2 Bloqueado!", false); 
+             topSlide("G2 Rejeitado!", false); 
              clearPending();
           } else {
-             // **GALE FORÇADO E ATRASADO (Entry em 2 velas)**
+             // **GALE FORÇADO (Entry Imediata ou Atrasada em 1 Vela)**
 
              // 1. Re-analisa o mercado (encontra o melhor sinal)
              const newSignal = findBestSignal(arr, pred8, arr40, colors);
@@ -399,22 +392,42 @@ function onNewCandle(arr){
                usedGate = pending.reason;
              }
              
-             // Atraso de 1 vela: O próximo sinal (G1 ou G2) entra em 2 velas: 
-             // justClosed.idx + 1 (vela skip) + 1 (vela de entrada)
-             const newEntryIdx = justClosed.idx + 2; 
+             // --- NOVO CÁLCULO DE ATRASO ---
+             let skipCandles = 1; // Default: espera 1 vela (+1 de skip)
+             if (usedName === "xadrez" || usedName === "pós-rosa xadrez") {
+                 skipCandles = 0; // Exceção Xadrez: sem espera (0 de skip)
+             }
+             
+             // newEntryIdx: vela da perda (justClosed.idx) + 1 (próxima vela) + skipCandles
+             const newEntryIdx = justClosed.idx + 1 + skipCandles; 
+             const entryIsImmediate = skipCandles === 0;
 
-             pending.stage = nextStage; 
+             // 2. ATUALIZA O ESTADO PENDENTE
+             pending.stage = nextStage;
              pending.enterAtIdx = newEntryIdx; 
              martingaleTag.style.display = "inline-block";
-             
-             // 3. ATUALIZA A INTERFACE/REGISTRO COM A MELHOR INFORMAÇÃO ENCONTRADA
              pending.reason = usedGate;
              pending.strategy = usedName;
 
-             setCardState({active:true, title:`Chance de 2x G${nextStage} (Aguardando)`, sub:`próx. entrada em 2 velas (Sinal Atualizado)`}); 
+             // 3. ATUALIZA A INTERFACE/REGISTRO
+             let cardTitle = `Chance de 2x G${nextStage}`;
+             let cardSub;
+             if (entryIsImmediate) {
+                 cardSub = `ENTRADA IMEDIATA (XADREZ) após (${justClosed.mult.toFixed(2)}x)`;
+             } else {
+                 cardSub = `próx. entrada em 1 vela (SKIP) - Sinal Atualizado`;
+             }
+
+             setCardState({
+                 active: entryIsImmediate, // Só roxo se for imediato
+                 awaiting: !entryIsImmediate, // Cinza/Amarelo se estiver esperando
+                 title: cardTitle, 
+                 sub: cardSub
+             }); 
+
              strategyTag.textContent = "Estratégia: " + usedName;
              gateTag.textContent = "Gatilho: " + usedGate;
-             addFeed("warn",`Ativando G${nextStage} (Sinal atualizado, entrada em 2 velas: ${usedName})`);
+             addFeed("warn",`Ativando G${nextStage} (Sinal atualizado, Skip: ${skipCandles} vela(s)): ${usedName}`);
           }
           
         } else {
@@ -423,43 +436,13 @@ function onNewCandle(arr){
           addFeed("err","LOSS 2x (G2 falhou)"); topSlide("LOSS 2x (G2)", false); clearPending();
         }
       }
-    } else if (justClosed.idx > pending.enterAtIdx && pending.stage > 0) {
-        // [TRATAMENTO DE ATRASO]: Se a vela atual passou do índice de entrada do G1/G2, mas não houve WIN/LOSS, 
-        // significa que o sinal falhou. Isso não deve ocorrer com a lógica de +2, mas é uma segurança.
-        
-        // Força a perda e cancela (se G1) ou passa para o próximo estágio (se G0)
-        
-        if (pending.stage === 2) {
-            // Perda de G2 - Finaliza
-            stats.losses++; stats.streak=0; syncStatsUI(); store.set(stats);
-            addFeed("err","LOSS 2x (G2 falhou)"); topSlide("LOSS 2x (G2)", false); clearPending();
-        } else {
-             // Perda de G0 ou G1 (Se não houve WIN e já passou do índice)
-            // Recalcula o próximo Gale, mas mantém o estado para não perder o ciclo.
-            
-            const nextStage = pending.stage + 1;
-            const newEntryIdx = justClosed.idx + 1; // Apenas o próximo índice para o próximo estágio
-
-            pending.stage = nextStage;
-            pending.enterAtIdx = newEntryIdx;
-            martingaleTag.style.display = "inline-block";
-            
-            const newSignal = findBestSignal(arr, pred8, arr40, colors);
-            pending.reason = newSignal?.reason || pending.reason;
-            pending.strategy = newSignal?.strategy || pending.strategy;
-            
-            setCardState({active:true, title:`Chance de 2x G${nextStage} (Aguardando)`, sub:`entrada imediata - recuperando ciclo`}); 
-            strategyTag.textContent = "Estratégia: " + pending.strategy;
-            gateTag.textContent = "Gatilho: " + pending.reason;
-            addFeed("warn", `G${pending.stage} (Forçado) — reentrada imediata para G${nextStage}`);
-        }
-        
     }
   }
 
   // ================= PAUSES / COOLDOWNS =================
   if(hardPaused){
     let sub = (blockCorrections?"correção BBB repetida (micro 8)": weakPred?"predom. <50% (micro 8)": hardPauseBlueRun ? "3+ azuis seguidas na ponta" : "aguarde uma possibilidade");
+    // Garante que o card de pausa não use 'active: true' para não ficar roxo
     setCardState({active:false, awaiting:true, title:"aguardando estabilidade", sub});
     const pauseMsg = sub;
     if (window.lastPauseMessage !== pauseMsg) { addFeed("warn", pauseMsg); window.lastPauseMessage = pauseMsg; }
@@ -483,12 +466,14 @@ function onNewCandle(arr){
         strategy: signal.strategy,
       };
 
+      // G0 sempre é entrada imediata, então é roxo/active
       setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${lastMultTxt})`});
       strategyTag.textContent = "Estratégia: " + signal.strategy + (fastLane ? " · FAST LANE" : (pred8.strong?" · cenário forte":""));
       gateTag.textContent = "Gatilho: " + signal.reason;
       addFeed("warn", `SINAL 2x (${signal.strategy}) — entrar após (${lastMultTxt})`);
       return;
     } else {
+      // Nenhum sinal encontrado: card desativado
       setCardState({active:false, awaiting:false, title:"Chance de 2x", sub:"identificando padrão"});
       strategyTag.textContent = "Estratégia: —";
       gateTag.textContent = "Gatilho: —";
