@@ -199,7 +199,7 @@ function onNewCandle(arr){
   const nowTs = arr[arr.length-1]?.ts || Date.now();
   const arr40 = macroWindow40m(arr, nowTs);
 
-  const pred5 = predominancePositive(arr, 5);
+  const pred8 = predominancePositive(arr, 5);
   const blueRun = consecutiveBlueCount(arr);
   const colors = arr.map(r=>r.color);
   const bbbCount = countBBBSequences(colors, 6);
