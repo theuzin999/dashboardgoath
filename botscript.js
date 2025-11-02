@@ -12,14 +12,16 @@ const firebaseConfig = {
 };
 
 /* ============================================================================
-   REGRAS-CHAVE (confirmadas)
-   1) Predominância = últimas 8 velas (pague leve ≥55%, pague forte ≥60%).
-   2) Correções PRINCIPAIS = nas últimas 8 (frente do gráfico).
-      - 1 azul  ⇒ entra direta na próxima (se gatilho permitir)
-      - 2 azuis ⇒ só entra se padrão 2A/2R ou 2A/1R E pred ≥ 60%
-      - 3 azuis ⇒ espera 1 vela; se pagar roxo e pred já era boa, pode voltar (sem entrar na frente de 2 azuis)
-   3) Correções SECUNDÁRIAS (últimas 17) = só freio de risco (2 blocos ≥2 azuis) — não bloqueia pague bom.
-   4) G1/G2 seguem as MESMAS regras de correções do G0.
+   REGRAS-CHAVE (definitivas)
+   1) Predominância = últimas 8 velas. Pague bom a partir de ≥55%.
+   2) Correções PRINCIPAIS = últimas 8 (frente do gráfico):
+      - 0 azul  → entra normal
+      - 1 azul  → entra direto na próxima
+      - 2 azuis → entra se padrão 2A/2R ou 2A/1R (ou surf em construção) E pred ≥55%
+      - 3 azuis → esperar 1 vela; se essa pagar roxo e pred já era boa, volta a operar
+      - 4 azuis → nunca entra
+   3) Correções SECUNDÁRIAS (últimas 17) = só freio pesado (se houver ≥2 blocos de 2+ azuis) — não travar pague bom.
+   4) G1/G2 seguem as MESMAS regras de correção do G0.
    ============================================================================ */
 
 // ===================== UI Helpers ================================
@@ -77,7 +79,7 @@ syncStatsUI();
 clearStatsBtn?.addEventListener("click", ()=>{ if(confirm("Limpar estatísticas?")){ stats={wins:0,losses:0,streak:0,maxStreak:0,normalWins:0,g1Wins:0,g2Wins:0}; store.set(stats); syncStatsUI(); topSlideMsg("Estatísticas limpas!", true);} });
 
 // ===================== Utils / Leitura ======================
-const PCT_SOFT=0.55, PCT_STRONG=0.60; // pague leve/forte
+const PCT_SOFT=0.55, PCT_STRONG=0.60; // pague leve/forte (55% é o gatilho principal)
 const TIME_WINDOWS=[5,7,10,20], TIME_TOL=2; const HARD_PAUSE_BLUE_RUN=3; // failsafe
 
 function colorFrom(mult){ if(mult<2) return "blue"; if(mult<10) return "purple"; return "pink"; }
@@ -105,12 +107,10 @@ function macroConfirm(arr40, nowTs){ return inPinkTime(nowTs, arr40) || isSurfVa
 
 // Padrões 2A/2R e 2A/1R na ponta
 function pattern2A2R_or_2A1R(arr){
-  const L=arr.length; if(L<4) return false; // checa 2A/2R
+  const L=arr.length; if(L<4) return false; // checa 2A/2R e 2A/1R
   const c = arr.map(x=>x.color);
-  // 2A/2R (na cauda de 4)
   const last4 = c.slice(-4).join("-");
   const twoA_twoR = (last4==="blue-blue-purple-purple") || (last4==="purple-purple-blue-blue");
-  // 2A/1R (na cauda de 3)
   const last3 = c.slice(-3).join("-");
   const twoA_oneR = (last3==="blue-blue-purple") || (last3==="purple-blue-blue");
   return twoA_twoR || twoA_oneR;
@@ -135,7 +135,7 @@ function onNewCandle(arr){
   const colors = arr.map(r=>r.color);
 
   const pred = predominance8(arr); // base do momento
-  const corr8 = corrInfo8(arr);     // correções da frente
+  const { corr } = corrInfo8(arr); // correções da frente
   const blueSeqTail = blueTail(arr);// azuis consecutivas na ponta
   const b17 = blocks17(colors);     // freio pesado
 
@@ -143,25 +143,33 @@ function onNewCandle(arr){
   if(predStatus) predStatus.textContent = `Predominância: ${(pred.pct*100|0)}%`+(pred.strong?" · forte": pred.soft?" · leve":"");
   if(blueRunPill) blueRunPill.textContent = `Azuis seguidas: ${blueSeqTail}`;
 
-  // Failsafes simples (não engessar):
+  // Failsafes simples (evitar travar demais):
   if(blueSeqTail>=HARD_PAUSE_BLUE_RUN){ engineStatus&&(engineStatus.textContent="aguardando"); setCardState({awaiting:true,title:"Aguardando estabilidade",sub:"3 azuis seguidas"}); return; }
   if(pred.pct<0.50){ engineStatus&&(engineStatus.textContent="aguardando"); setCardState({awaiting:true,title:"Aguardando estabilidade",sub:"pred <50%"}); return; }
-
   engineStatus&&(engineStatus.textContent="operando");
 
   // Fechamento de sinal
   if(pending && typeof pending.enterAtIdx==="number"){ const closed=arr[arr.length-1]; if(closed.idx===pending.enterAtIdx) return finishSignal(closed); }
 
   // Retomadas (G1_WAIT / G2_WAIT) — mesmas regras de correção
-  const allowTwoByPattern = corr8.corr===2 && pred.strong && pattern2A2R_or_2A1R(arr);
-  const allowOne = corr8.corr<=1; // 0 ou 1 azul
+  const allowOne = corr <= 1; // 0 ou 1 azul
+  const allowTwoByPattern = (corr === 2) && pred.soft && (pattern2A2R_or_2A1R(arr) || isSurfConstruction(colors));
 
   if(pending && pending.stage==='G1_WAIT'){
-    // regra: após 1 vela, se pagar roxo e (allowOne || allowTwoByPattern) → ativa G1
-    const last=arr[arr.length-1]; const paidPos = last.color!=="blue"; if(paidPos && (allowOne || allowTwoByPattern)){ pending.stage=1; pending.enterAtIdx=last.idx+1; martingaleTag&& (martingaleTag.style.display="inline-block"); setCardState({active:true,title:"Chance de 2x (G1)",sub:`entrar após (${last.mult.toFixed(2)}x)`}); addFeed("warn","Ativando G1"); return; }
+    const last=arr[arr.length-1]; const paidPos = last.color!=="blue";
+    if(paidPos && (allowOne || allowTwoByPattern)){
+      pending.stage=1; pending.enterAtIdx=last.idx+1; martingaleTag&& (martingaleTag.style.display="inline-block");
+      setCardState({active:true,title:"Chance de 2x (G1)",sub:`entrar após (${last.mult.toFixed(2)}x)`}); addFeed("warn","Ativando G1");
+      return;
+    }
   }
   if(pending && pending.stage==='G2_WAIT'){
-    const last=arr[arr.length-1]; const paidPos = last.color!=="blue"; if(paidPos && (allowOne || allowTwoByPattern)){ pending.stage=2; pending.enterAtIdx=last.idx+1; martingaleTag&& (martingaleTag.style.display="inline-block"); setCardState({active:true,title:"Chance de 2x (G2)",sub:`entrar após (${last.mult.toFixed(2)}x)`}); addFeed("warn","Ativando G2"); return; }
+    const last=arr[arr.length-1]; const paidPos = last.color!=="blue";
+    if(paidPos && (allowOne || allowTwoByPattern)){
+      pending.stage=2; pending.enterAtIdx=last.idx+1; martingaleTag&& (martingaleTag.style.display="inline-block");
+      setCardState({active:true,title:"Chance de 2x (G2)",sub:`entrar após (${last.mult.toFixed(2)}x)`}); addFeed("warn","Ativando G2");
+      return;
+    }
   }
 
   // Freio pesado (17): só impede se houver 2 blocos ≥2 azuis (não travar pague bom)
@@ -172,17 +180,16 @@ function onNewCandle(arr){
     const macroOk = macroConfirm(arr40, nowTs) || isSurfConstruction(colors) || isSurfValidated(colors) || hasChess(colors);
 
     let canEnter=false;
-    if(allowOne && pred.soft) canEnter=true;                              // 0/1 azul → pague leve já deixa
-    if(!canEnter && allowTwoByPattern) canEnter=true;                     // 2 azuis → precisa padrão + pred forte
+    if(allowOne && pred.pct >= 0.50) canEnter=true;                  // 0/1 azul → entra com ≥50%
+    if(!canEnter && allowTwoByPattern) canEnter=true;                // 2 azuis → padrão + ≥55%
 
     if(canEnter && macroOk){
       const last=arr[arr.length-1]; pending={stage:0, enterAtIdx:last.idx+1};
       setCardState({active:true,title:"Chance de 2x",sub:`entrar após (${last.mult.toFixed(2)}x)`});
       addFeed("warn",`SINAL 2x — entrar após (${last.mult.toFixed(2)}x)`);
       return;
-    }else{
-      // Caso especial: 3 azuis nas últimas 8 → espera 1 vela; se próxima pagar roxo e pred boa, pode operar depois.
-      if(corr8.corr>=3){ setCardState({awaiting:true,title:"Aguardando estabilidade",sub:"3 correções — aguardando 1"}); return; }
+    } else {
+      if(corr>=3){ setCardState({awaiting:true,title:"Aguardando estabilidade",sub:"3 correções — aguardando 1"}); return; }
       setCardState({title:"Chance de 2x", sub:"identificando padrão"});
     }
   }
