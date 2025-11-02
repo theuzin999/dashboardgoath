@@ -164,7 +164,7 @@ function macroConfirm(arr40, nowTs, fullArr){ // Adicionado fullArr
 const SOFT_PCT = 0.50;  // ≥50% = pague leve (pode operar se contexto permitir)
 const STRONG_PCT = 0.60; // ≥60% = pague forte (libera até com correção leve) // alinhado com tua prática
 const HARD_PAUSE_BLUE_RUN = 3; // ebook: após 3 azuis → parar e reavaliar (micro) // janela 8 velas: bloqueio extra com BBB≥2
-const COOLDOWN_AFTER_100X_CANDLES = 10; // após 100x, ciclo tende a esfriar
+// const COOLDOWN_AFTER_100X_CANDLES = 10; // REMOVIDO POR SOLICITAÇÃO
 const TIME_WINDOWS_AFTER_PINK = [5,7,10,20]; // ±2 min
 const TIME_TOLERANCE_MIN = 2;
 
@@ -184,10 +184,7 @@ function inPinkTimeWindow(nowTs, arr){
   return false;
 }
 
-function hasRecent100x(arr, k=COOLDOWN_AFTER_100X_CANDLES){
-  const win = arr.slice(-k);
-  return win.some(r=> r.color==="pink" && r.mult>=100);
-}
+// REMOVIDA A FUNÇÃO: function hasRecent100x(arr, k=COOLDOWN_AFTER_100X_CANDLES){...}
 
 function roseResetBooster(arr){
   // Booster: rosa recente (últimas 2) ou última não-azul muito alta
@@ -325,16 +322,16 @@ function onNewCandle(arr){
   predStatus.textContent = `Predominância (8 velas): ${(pred8.pct*100).toFixed(0)}%` + (pred8.strong?" · forte":"");
   blueRunPill.textContent = `Azuis seguidas: ${blueRun}`;
 
-  // Cooldown pós 100x
-  const cooled = !hasRecent100x(arr, COOLDOWN_AFTER_100X_CANDLES);
+  // Cooldown pós 100x (REMOVIDO. 'cooled' agora é sempre 'true')
+  const cooled = true; // Mantido como true para simplificar a lógica de pausa abaixo.
 
   // Bloqueios de contexto (Alinhado com a nova lista)
   const blockCorrections = bbbCount>=2; // Trava se tiver 2 ou mais sequências BBB (repetição)
   const weakPred = !pred8.ok; // < 50%
   const hardPauseBlueRun = blueRun >= HARD_PAUSE_BLUE_RUN; // Trava se tiver 3+ azuis na ponta
 
-  // Lógica de pausa
-  const hardPaused = hardPauseBlueRun || blockCorrections || weakPred || (!cooled);
+  // Lógica de pausa (AGORA SEM O COOLDOWN 100X)
+  const hardPaused = hardPauseBlueRun || blockCorrections || weakPred;
   engineStatus.textContent = hardPaused ? "aguardando" : "operando";
   
   const last = arr[arr.length-1];
@@ -403,7 +400,7 @@ function onNewCandle(arr){
 
   // ================= PAUSES / COOLDOWNS =================
   if(hardPaused){
-    let sub = (!cooled?"cooldown pós 100x": blockCorrections?"correção BBB repetida (micro 8)": weakPred?"predom. <50% (micro 8)": hardPauseBlueRun ? "3+ azuis seguidas na ponta" : "aguarde uma possibilidade");
+    let sub = (blockCorrections?"correção BBB repetida (micro 8)": weakPred?"predom. <50% (micro 8)": hardPauseBlueRun ? "3+ azuis seguidas na ponta" : "aguarde uma possibilidade");
     setCardState({active:false, awaiting:true, title:"aguardando estabilidade", sub});
     const pauseMsg = sub;
     if (window.lastPauseMessage !== pauseMsg) { addFeed("warn", pauseMsg); window.lastPauseMessage = pauseMsg; }
