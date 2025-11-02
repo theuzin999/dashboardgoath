@@ -315,7 +315,7 @@ function onNewCandle(arr){
   const blueRun = consecutiveBlueCount(arr);
   const bbbCount = countBBBSequences(colors, 8); // Checa repetição de BBB na janela 8
 
-  predStatus.textContent = `Predominância (8 velas): ${(pred8.pct*100).toFixed(0)}%` + (pred8.strong?" · forte":"");
+  predStatus.textContent = `Predominância: ${(pred8.pct*100).toFixed(0)}%` + (pred8.strong?" · forte":"");
   blueRunPill.textContent = `Azuis seguidas: ${blueRun}`;
 
   // Cooldown pós 100x REMOVIDO
