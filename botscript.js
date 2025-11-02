@@ -365,12 +365,16 @@ function onNewCandle(arr){
   blueRunPill.textContent = `Azuis seguidas: ${blueRun}`;
 
   // ================= BLOQUEIOS E PAUSAS GERAIS =================
-  // ... outras variáveis de bloqueio
+  const line5Block = check5LineBlock(arr); // Nova regra: Bloqueio por Linha de 5
+  const blockCorrections = bbbCount>=2; 
+  const weakPred = !pred8.ok; // < 50%
+  const hardPauseBlueRun = blueRun >= HARD_PAUSE_BLUE_RUN;
+
   const hardPaused = hardPauseBlueRun || blockCorrections || weakPred || line5Block;
   engineStatus.textContent = hardPaused ? "aguardando" : "operando";
 
   if(hardPaused){
-    let sub = (line5Block ? lastBlockReason : blockCorrections?"correção BBB repetida (micro 8)": weakPred?"predom. <50% (micro 8)": hardPauseBlueRun ? "3+ azuis seguidas na ponta" : "aguarde uma possibilidade");
+    let sub = (line5Block ? lastBlockReason : blockCorrections?"correção BBB repetida (micro 8)": weakPred?"Aguardando Estabilização": hardPauseBlueRun ? "3+ azuis seguidas na ponta" : "aguarde uma possibilidade");
     setCardState({active:false, awaiting:true, title:"aguardando estabilidade", sub});
     const pauseMsg = sub;
     if (window.lastPauseMessage !== pauseMsg) { addFeed("warn", pauseMsg); window.lastPauseMessage = pauseMsg; }
@@ -378,12 +382,10 @@ function onNewCandle(arr){
     // Se estava em G1_WAIT/G2_WAIT e o hardPaused ativou, mantém o pending no WAIT mas não processa mais nada
     if(pending && (pending.stage === 'G1_WAIT' || pending.stage === 'G2_WAIT')) return;
     
-    // Correção 1: Cancela apenas G0 se cair no hard pause.
-    if(pending && pending.stage === 0) clearPending(); 
+    // [CORREÇÃO 1] - REMOVIDA a limpeza do G0 (linha abaixo) para permitir que o G1_WAIT seja ativado no bloco LOSS
+    // if(pending && pending.stage === 0) clearPending(); 
     
-    // Correção 2: Se não há pending, ou se o pending não é G0 (ou foi cancelado), retorna.
-    // Se houver pending G0 a ser resolvido, ele NÃO RETORNA, permitindo que o LOSS seja processado abaixo.
-    if(!pending || pending.stage !== 0) return; 
+    return;
   }
   window.lastPauseMessage = null; 
 
@@ -470,16 +472,18 @@ function onNewCandle(arr){
      const predOk = pred8.ok;
      const newPatternFound = !!nextSuggestion;
     
-    let transitioned = false; // NOVO: Flag para saber se houve transição para G1/G2
+    let transitioned = false; // NOVO: Flag para saber se houve transição
 
     if(pending.stage==='G1_WAIT'){
         const g1Allowed = predOk && newPatternFound;
         if(g1Allowed){
             pending.stage=1; 
-            pending.enterAtIdx=last.idx; // MUDANÇA: Entra na vela atual
+            // [CORREÇÃO 2A] - MUDANÇA: Entra na vela seguinte (last.idx + 1)
+            pending.enterAtIdx=last.idx + 1; 
             martingaleTag.style.display="inline-block";
             setCardState({active:true, title:"Chance de 2x G1", sub:`Gatilho: ${nextSuggestion.name}`}); 
-            addFeed("warn",`SINAL 2x (G1) — entrar AGORA (${lastMultTxt})`);
+            // [CORREÇÃO 2A] - MUDANÇA: Mensagem "entrar após"
+            addFeed("warn",`SINAL 2x (G1) — entrar após (${lastMultTxt})`);
             transitioned = true; // Houve transição
         } else {
             const reason = !predOk ? "aguardando pred. >= 50%" : "aguardando novo padrão/estratégia";
@@ -490,20 +494,26 @@ function onNewCandle(arr){
         const g2Allowed = predOk && newPatternFound;
         if(g2Allowed){
             pending.stage=2; 
-            pending.enterAtIdx=last.idx; // MUDANÇA: Entra na vela atual
+            // [CORREÇÃO 2A] - MUDANÇA: Entra na vela seguinte (last.idx + 1)
+            pending.enterAtIdx=last.idx + 1; 
             martingaleTag.style.display="inline-block";
             setCardState({active:true, title:"Chance de 2x G2", sub:`Gatilho: ${nextSuggestion.name}`});
             strategyTag.textContent = "Estratégia: " + nextSuggestion.name;
             gateTag.textContent = "Gatilho: " + nextSuggestion.gate;
-            addFeed("warn",`SINAL 2x (G2) — entrar AGORA (${lastMultTxt})`);
+            // [CORREÇÃO 2A] - MUDANÇA: Mensagem "entrar após"
+            addFeed("warn",`SINAL 2x (G2) — entrar após (${lastMultTxt})`);
             transitioned = true; // Houve transição
         } else {
             const reason = !predOk ? "aguardando pred. >= 50% (G2)" : "aguardando novo padrão/estratégia (G2)";
             setCardState({active:false, awaiting:true, title:"Aguardando G2", sub: reason});
         }
     }
-    // MUDANÇA: Se não houve transição (ainda está em WAIT), retorna. Se houve, prossegue para processar a vitória/perda.
-    if(!transitioned) return;
+    
+    // [CORREÇÃO 2B] - MUDANÇA: 
+    // Se ainda está em WAIT (!transitioned), retorna.
+    // Se HOUVE transição (transitioned = true), o pending foi atualizado para G1/G2 (aguardando a próxima vela).
+    // Em AMBOS os casos, deve retornar para não processar G0.
+    return;
   }
   // ================= NOVO SINAL (G0) =================
   if(!pending){
