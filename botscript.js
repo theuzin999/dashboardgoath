@@ -199,10 +199,10 @@ function onNewCandle(arr){
   const nowTs = arr[arr.length-1]?.ts || Date.now();
   const arr40 = macroWindow40m(arr, nowTs);
 
-  const pred8 = predominancePositive(arr, 8);
+  const pred5 = predominancePositive(arr, 5);
   const blueRun = consecutiveBlueCount(arr);
   const colors = arr.map(r=>r.color);
-  const bbbCount = countBBBSequences(colors, 8);
+  const bbbCount = countBBBSequences(colors, 6);
   const cooled = !hasRecent100x(arr, COOLDOWN_AFTER_100X_CANDLES);
 
   predStatus && (predStatus.textContent = `Predominância: ${(pred8.pct*100).toFixed(0)}%` + (pred8.strong?" · forte":""));
