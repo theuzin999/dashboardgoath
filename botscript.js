@@ -1,5 +1,5 @@
 // ===================== CONFIG FIREBASE ===========================
-// Usa Firebase compat (igual ao seu HTML bot2x.html)
+// Usa Firebase compat (compatível com seu bot2x.html)
 const firebaseConfig = {
   apiKey: "AIzaSyB-35zQDrQbz8ohZUdqpFkayYdAUDrLw6g",
   authDomain: "history-dashboard-a70ee.firebaseapp.com",
@@ -12,16 +12,17 @@ const firebaseConfig = {
 };
 
 /* ============================================================================
-   REGRAS-CHAVE (definitivas)
-   1) Predominância = últimas 8 velas. Pague bom a partir de ≥55%.
-   2) Correções PRINCIPAIS = últimas 8 (frente do gráfico):
-      - 0 azul  → entra normal
-      - 1 azul  → entra direto na próxima
-      - 2 azuis → entra se padrão 2A/2R ou 2A/1R (ou surf em construção) E pred ≥55%
-      - 3 azuis → esperar 1 vela; se essa pagar roxo e pred já era boa, volta a operar
-      - 4 azuis → nunca entra
-   3) Correções SECUNDÁRIAS (últimas 17) = só freio pesado (se houver ≥2 blocos de 2+ azuis) — não travar pague bom.
-   4) G1/G2 seguem as MESMAS regras de correção do G0.
+   REGRAS (consolidadas)
+   • Predominância = últimas 8 velas. Pague bom a partir de ≥55%.
+   • Correções PRINCIPAIS = últimas 7 (janela curta de momento):
+       0 azul  → entra
+       1 azul  → entra direto na próxima
+       2 azuis → entra se padrão (2A/2R ou 2A/1R flexível / xadrez positivo / surf construção) E pred ≥55%
+       3 azuis → REGRA: esperar 1 vela; EXCEÇÃO: entra direto se pred ≥55% + (repetição/xadrez/surf)
+       4 azuis → nunca entra
+   • Correções SECUNDÁRIAS (últimas 17) = só freio pesado (se houver ≥2 blocos de 2+ azuis) — não travar pague bom.
+   • Surf: rosa conta como positiva (roxo/rosa = positivo).
+   • G1/G2 seguem as MESMAS regras de correção do G0.
    ============================================================================ */
 
 // ===================== UI Helpers ================================
@@ -79,7 +80,7 @@ syncStatsUI();
 clearStatsBtn?.addEventListener("click", ()=>{ if(confirm("Limpar estatísticas?")){ stats={wins:0,losses:0,streak:0,maxStreak:0,normalWins:0,g1Wins:0,g2Wins:0}; store.set(stats); syncStatsUI(); topSlideMsg("Estatísticas limpas!", true);} });
 
 // ===================== Utils / Leitura ======================
-const PCT_SOFT=0.55, PCT_STRONG=0.60; // pague leve/forte (55% é o gatilho principal)
+const PCT_SOFT=0.55, PCT_STRONG=0.60; // pague leve/forte
 const TIME_WINDOWS=[5,7,10,20], TIME_TOL=2; const HARD_PAUSE_BLUE_RUN=3; // failsafe
 
 function colorFrom(mult){ if(mult<2) return "blue"; if(mult<10) return "purple"; return "pink"; }
@@ -89,35 +90,30 @@ function positivesRatio(list){ const p=list.filter(x=>x.color!=="blue").length; 
 function predominance8(arr){ const last8=arr.slice(-8); const pct=positivesRatio(last8); return {pct, soft:pct>=PCT_SOFT, strong:pct>=PCT_STRONG, last8}; }
 function blueTail(arr){ let c=0; for(let i=arr.length-1;i>=0;i--){ if(arr[i].color==="blue") c++; else break; } return c; }
 
-// Correções PRINCIPAIS (últimas 8)
-function corrInfo8(arr){ const last8=arr.slice(-8); const corr=last8.filter(x=>x.color==="blue").length; return {corr, last8}; }
+// Correções PRINCIPAIS (últimas 7)
+function corrInfo7(arr){ const last7=arr.slice(-7); const corr=last7.filter(x=>x.color==="blue").length; return {corr, last7}; }
 
 // Correções SECUNDÁRIAS (últimas 17) → só freio pesado
 function blocks17(colors){ const last17=colors.slice(-17); const blocks=[]; let run=0; for(const c of last17){ if(c==="blue"){ run++; } else { if(run>0){ blocks.push(run); run=0; } } } if(run>0) blocks.push(run); const heavy2plus = blocks.filter(x=>x>=2).length; const max = blocks.reduce((a,b)=>Math.max(a,b),0); return {heavy2plus, max}; }
 
-// Padrões
-function isSurfValidated(colors){ let run=0; for(let i=colors.length-1;i>=0;i--){ if(colors[i]!=="blue"){ run++; if(run>=4) return true; } else break; } return false; }
-function isSurfConstruction(colors){ const last8=colors.slice(-8); const corr=last8.filter(x=>x==="blue").length; const pos=last8.length-corr; return corr<=2 && (pos/Math.max(1,last8.length))>=0.50; }
-function hasChess(colors){ const L=colors.length; if(L<3) return false; const a=colors[L-3],b=colors[L-2],c=colors[L-1]; return (a==="blue"&&b!=="blue"&&c==="blue") || (a!=="blue"&&b==="blue"&&c!=="blue"); }
-function minutesSince(now, ts){ return (now-ts)/60000; }
-function lastPink(arr){ for(let i=arr.length-1;i>=0;i--){ if(arr[i].color==="pink") return arr[i]; } return null; }
-function macro40(arr, nowTs){ const from=nowTs-40*60*1000; return arr.filter(r=>typeof r.ts==="number" && r.ts>=from && r.ts<=nowTs); }
-function inPinkTime(nowTs, arr){ const lp=lastPink(arr); if(!lp||!lp.ts) return false; const diff=Math.abs(minutesSince(nowTs, lp.ts)); return TIME_WINDOWS.some(w=> Math.abs(diff-w)<=TIME_TOL ); }
-function macroConfirm(arr40, nowTs){ return inPinkTime(nowTs, arr40) || isSurfValidated(arr40.map(r=>r.color)) || hasChess(arr40.map(r=>r.color)); }
+// Padrões (positiva = roxo OU rosa)
+function isPositive(c){ return c!=="blue"; }
+function isSurfValidated(colors){ let run=0; for(let i=colors.length-1;i>=0;i--){ if(isPositive(colors[i])){ run++; if(run>=4) return true; } else break; } return false; }
+function isSurfConstruction(colors){ let run=0; for(let i=colors.length-1;i>=0 && i>colors.length-6;i--){ if(isPositive(colors[i])) run++; else break; } return run>=3; }
+function hasChessPositive(colors){ const L=colors.length; if(L<4) return false; const a=colors[L-4],b=colors[L-3],c=colors[L-2],d=colors[L-1]; const alt1=(a==="blue"&&isPositive(b)&&c==="blue"&&isPositive(d)); const alt2=(isPositive(a)&&b==="blue"&&isPositive(c)&&d==="blue"); return alt1||alt2; }
 
-// Padrões 2A/2R e 2A/1R na ponta
-function pattern2A2R_or_2A1R(arr){
-  const L=arr.length; if(L<4) return false; // checa 2A/2R e 2A/1R
-  const c = arr.map(x=>x.color);
-  const last4 = c.slice(-4).join("-");
-  const twoA_twoR = (last4==="blue-blue-purple-purple") || (last4==="purple-purple-blue-blue");
-  const last3 = c.slice(-3).join("-");
-  const twoA_oneR = (last3==="blue-blue-purple") || (last3==="purple-blue-blue");
-  return twoA_twoR || twoA_oneR;
+// Repetição flexível 2A/2R ou 2A/1R (janela 5) — não precisa estar colado
+function hasFlexibleRepetition(arr){
+  const c = arr.slice(-5).map(x=>x.color);
+  const has2A = c.join('-').includes('blue-blue');
+  const has2R = c.join('-').includes('purple-purple') || c.join('-').includes('pink-pink') || c.join('-').includes('pink-purple') || c.join('-').includes('purple-pink');
+  const has1R = c.includes('purple') || c.includes('pink');
+  // 2A/2R OU 2A/1R
+  return (has2A && has2R) || (has2A && has1R);
 }
 
 // ===================== Estado =======================
-let pending=null; // {stage:0|1|2|'G1_WAIT'|'G2_WAIT', enterAtIdx}
+let pending=null; // {stage:0|1|2|'G1_WAIT'|'G2_WAIT'|'WAIT3', enterAtIdx}
 
 function finishSignal(candle){
   const win = candle.mult>=2.0;
@@ -131,41 +127,44 @@ function finishSignal(candle){
 function onNewCandle(arr){
   if(arr.length<2) return; renderHistory(arr);
   const nowTs = arr[arr.length-1]?.ts || Date.now();
-  const arr40 = macro40(arr, nowTs);
+  const arr40 = arr.filter(r=> typeof r.ts==="number" && r.ts>= nowTs-40*60*1000 && r.ts<=nowTs);
   const colors = arr.map(r=>r.color);
 
-  const pred = predominance8(arr); // base do momento
-  const { corr } = corrInfo8(arr); // correções da frente
+  const pred = predominance8(arr); // base do momento (8)
+  const { corr } = corrInfo7(arr); // correções da frente (7)
   const blueSeqTail = blueTail(arr);// azuis consecutivas na ponta
   const b17 = blocks17(colors);     // freio pesado
 
   // UI
-  if(predStatus) predStatus.textContent = `Predominância: ${(pred.pct*100|0)}%`+(pred.strong?" · forte": pred.soft?" · leve":"");
-  if(blueRunPill) blueRunPill.textContent = `Azuis seguidas: ${blueSeqTail}`;
+  predStatus && (predStatus.textContent = `Predominância: ${(pred.pct*100|0)}%`+(pred.strong?" · forte": pred.soft?" · leve":""));
+  blueRunPill && (blueRunPill.textContent = `Azuis seguidas: ${blueSeqTail}`);
 
-  // Failsafes simples (evitar travar demais):
+  // Failsafes simples
   if(blueSeqTail>=HARD_PAUSE_BLUE_RUN){ engineStatus&&(engineStatus.textContent="aguardando"); setCardState({awaiting:true,title:"Aguardando estabilidade",sub:"3 azuis seguidas"}); return; }
   if(pred.pct<0.50){ engineStatus&&(engineStatus.textContent="aguardando"); setCardState({awaiting:true,title:"Aguardando estabilidade",sub:"pred <50%"}); return; }
   engineStatus&&(engineStatus.textContent="operando");
 
-  // Fechamento de sinal
+  // Fechamento de sinal ativo
   if(pending && typeof pending.enterAtIdx==="number"){ const closed=arr[arr.length-1]; if(closed.idx===pending.enterAtIdx) return finishSignal(closed); }
 
-  // Retomadas (G1_WAIT / G2_WAIT) — mesmas regras de correção
-  const allowOne = corr <= 1; // 0 ou 1 azul
-  const allowTwoByPattern = (corr === 2) && pred.soft && (pattern2A2R_or_2A1R(arr) || isSurfConstruction(colors));
+  // Retomadas G1/G2 waiting — mesmas regras
+  const patternOK = hasFlexibleRepetition(arr) || hasChessPositive(colors) || isSurfConstruction(colors) || isSurfValidated(colors);
+  const allowOne = corr <= 1; // 0/1 azul
+  const allowTwo = (corr===2) && pred.soft && patternOK; // 2 azuis com pred≥55 + padrão
 
   if(pending && pending.stage==='G1_WAIT'){
-    const last=arr[arr.length-1]; const paidPos = last.color!=="blue";
-    if(paidPos && (allowOne || allowTwoByPattern)){
+    const last=arr[arr.length-1];
+    const paidPos = isPositive(last.color);
+    if(paidPos && (allowOne || allowTwo)){
       pending.stage=1; pending.enterAtIdx=last.idx+1; martingaleTag&& (martingaleTag.style.display="inline-block");
       setCardState({active:true,title:"Chance de 2x (G1)",sub:`entrar após (${last.mult.toFixed(2)}x)`}); addFeed("warn","Ativando G1");
       return;
     }
   }
   if(pending && pending.stage==='G2_WAIT'){
-    const last=arr[arr.length-1]; const paidPos = last.color!=="blue";
-    if(paidPos && (allowOne || allowTwoByPattern)){
+    const last=arr[arr.length-1];
+    const paidPos = isPositive(last.color);
+    if(paidPos && (allowOne || allowTwo)){
       pending.stage=2; pending.enterAtIdx=last.idx+1; martingaleTag&& (martingaleTag.style.display="inline-block");
       setCardState({active:true,title:"Chance de 2x (G2)",sub:`entrar após (${last.mult.toFixed(2)}x)`}); addFeed("warn","Ativando G2");
       return;
@@ -177,19 +176,21 @@ function onNewCandle(arr){
 
   // ===== NOVO SINAL (G0) =====
   if(!pending){
-    const macroOk = macroConfirm(arr40, nowTs) || isSurfConstruction(colors) || isSurfValidated(colors) || hasChess(colors);
+    const macroOk = isSurfValidated(colors) || isSurfConstruction(colors) || hasChessPositive(colors) || hasFlexibleRepetition(arr);
 
     let canEnter=false;
-    if(allowOne && pred.pct >= 0.50) canEnter=true;                  // 0/1 azul → entra com ≥50%
-    if(!canEnter && allowTwoByPattern) canEnter=true;                // 2 azuis → padrão + ≥55%
+    if((corr<=1) && pred.pct>=0.50) canEnter=true;                 // 0/1 azul → entra com ≥50%
+    if(!canEnter && (corr===2) && pred.soft && macroOk) canEnter=true; // 2 azuis → padrão + ≥55%
 
-    if(canEnter && macroOk){
+    // 3 correções → exceção: entra direto se pred≥55 e padrão; senão espera 1
+    if(!canEnter && corr===3){ if(pred.soft && macroOk){ canEnter=true; } else { setCardState({awaiting:true,title:"Aguardando estabilidade",sub:"3 correções — aguardando 1"}); return; } }
+
+    if(canEnter){
       const last=arr[arr.length-1]; pending={stage:0, enterAtIdx:last.idx+1};
       setCardState({active:true,title:"Chance de 2x",sub:`entrar após (${last.mult.toFixed(2)}x)`});
       addFeed("warn",`SINAL 2x — entrar após (${last.mult.toFixed(2)}x)`);
       return;
     } else {
-      if(corr>=3){ setCardState({awaiting:true,title:"Aguardando estabilidade",sub:"3 correções — aguardando 1"}); return; }
       setCardState({title:"Chance de 2x", sub:"identificando padrão"});
     }
   }
