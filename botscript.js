@@ -371,7 +371,7 @@ function onNewCandle(arr){
             pending.enterAtIdx = null; // Não entra ainda
             const reason = !isXadrez ? "aguardando padrão xadrez" : "aguardando estabilidade";
             setCardState({active:false, awaiting:true, title:"Aguardando G1", sub: reason});
-            addFeed("warn", `G1 em espera: ${reason}`);
+            addFeed("warn", `G1 em espera`);
           }
         } else if(pending.stage===1){
           // Condição G2: Pred Forte OU Macro E obrigatório ser padrão Xadrez
@@ -403,7 +403,7 @@ function onNewCandle(arr){
   // ================= PAUSES / COOLDOWNS =================
   if(hardPaused){
     // Cooldown 100x removido da mensagem
-    let sub = (blockCorrections?"correção BBB repetida (micro 8)": weakPred?"predom. <50% (micro 8)": hardPauseBlueRun ? "3+ azuis seguidas na ponta" : "aguarde uma possibilidade");
+    let sub = (blockCorrections?"correção BBB repetida (micro 8)": weakPred?"Aguardando Predominância": hardPauseBlueRun ? "3+ azuis seguidas na ponta" : "aguarde uma possibilidade");
     setCardState({active:false, awaiting:true, title:"aguardando estabilidade", sub});
     const pauseMsg = sub;
     if (window.lastPauseMessage !== pauseMsg) { addFeed("warn", pauseMsg); window.lastPauseMessage = pauseMsg; }
