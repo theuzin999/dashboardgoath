@@ -369,7 +369,7 @@ function onNewCandle(arr){
             // [MUDANÇA] G1 EM ESPERA (Não cancela)
             pending.stage = 'G1_WAIT'; // Novo estado de espera
             pending.enterAtIdx = null; // Não entra ainda
-            const reason = !isXadrez ? "aguardando padrão xadrez" : "aguardando estabilidade";
+            const reason = !isXadrez ? "aguardando padrão" : "aguardando estabilidade";
             setCardState({active:false, awaiting:true, title:"Aguardando G1", sub: reason});
             addFeed("warn", `G1 em espera`);
           }
@@ -387,7 +387,7 @@ function onNewCandle(arr){
             // [MUDANÇA] G2 EM ESPERA (Não cancela)
             pending.stage = 'G2_WAIT'; // Novo estado de espera
             pending.enterAtIdx = null; // Não entra ainda
-            const reason = !isXadrez ? "aguardando padrão xadrez (G2)" : "aguardando estabilidade (G2)";
+            const reason = !isXadrez ? "aguardando padrão (G2)" : "aguardando estabilidade (G2)";
             setCardState({active:false, awaiting:true, title:"Aguardando G2", sub: reason});
             addFeed("warn", `G2 em espera`);
           }
@@ -436,7 +436,7 @@ function onNewCandle(arr){
             addFeed("warn",`SINAL 2x (G1) — entrar após (${lastMultTxt})`);
         } else {
             // AINDA ESPERANDO G1
-            const reason = !isXadrez ? "aguardando padrão xadrez" : "aguardando estabilidade";
+            const reason = !isXadrez ? "aguardando padrão" : "aguardando estabilidade";
             setCardState({active:false, awaiting:true, title:"Aguardando G1", sub: reason});
         }
     } 
@@ -453,7 +453,7 @@ function onNewCandle(arr){
             addFeed("warn",`SINAL 2x (G2) — entrar após (${lastMultTxt})`);
         } else {
             // AINDA ESPERANDO G2
-            const reason = !isXadrez ? "aguardando padrão xadrez (G2)" : "aguardando estabilidade (G2)";
+            const reason = !isXadrez ? "aguardando padrão (G2)" : "aguardando estabilidade (G2)";
             setCardState({active:false, awaiting:true, title:"Aguardando G2", sub: reason});
         }
     }
