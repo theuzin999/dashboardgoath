@@ -1,9 +1,3 @@
-// ===================== CHECAGEM DE LOGIN ===========================
-(function checkLoginStatus() {
-  const isLoggedIn = localStorage.getItem('isLoggedIn');
-  if (isLoggedIn !== 'true') window.location.replace('/');
-})();
-
 // ===================== CONFIG FIREBASE (history/) ===========================
 const firebaseConfig = {
   apiKey: "AIzaSyB-35zQDrQbz8ohZUdqpFkayYdAUDrLw6g",
