@@ -116,7 +116,7 @@ function positivesRatio(list){
 function predominancePositive(list, N=8){ // leitura micro do MOMENTO (últimas 8 velas)
   const lastN = list.slice(-N);
   const pct = positivesRatio(lastN);
-  return {pct, ok:pct>=SOFT_PCT, strong:pct>=STRONG_PCT};
+  return {pct, ok:pct>=SOFT_PCT, strong:pct>=STRONG_PCT}; // strong é >= 0.60
 }
 function consecutiveBlueCount(list){
   let c=0; for(let i=list.length-1;i>=0;i--){ if(list[i].color==="blue") c++; else break; } return c;
@@ -315,7 +315,7 @@ function onNewCandle(arr){
   const blueRun = consecutiveBlueCount(arr);
   const bbbCount = countBBBSequences(colors, 8); // Checa repetição de BBB na janela 8
 
-  predStatus.textContent = `Predominância: ${(pred8.pct*100).toFixed(0)}%` + (pred8.strong?" · forte":"");
+  predStatus.textContent = `Predominância (8 velas): ${(pred8.pct*100).toFixed(0)}%` + (pred8.strong?" · forte":"");
   blueRunPill.textContent = `Azuis seguidas: ${blueRun}`;
 
   // Cooldown pós 100x REMOVIDO
@@ -329,8 +329,6 @@ function onNewCandle(arr){
   // Lógica de pausa (Cooldown 100x removido)
   const hardPaused = hardPauseBlueRun || blockCorrections || weakPred;
   engineStatus.textContent = hardPaused ? "aguardando" : "operando";
-
-  //const awaitingStability = (blueRun>=2); // Conservador para retomar gales // [REMOVIDO, REGRA DO XADREZ SUBSTITUI]
 
   // ================= WIN/LOSS (fecha sinais anteriores) =================
   if(pending && typeof pending.enterAtIdx === "number"){
@@ -349,47 +347,46 @@ function onNewCandle(arr){
         const label = pending.stage===0 ? "WIN 2x" : `WIN 2x (G${pending.stage})`;
         addFeed("ok", label); topSlide("WIN 2x", true); clearPending();
       } else {
-        // [NOVA LÓGICA DE GALE - REGRA DO XADREZ]
+        // [NOVA LÓGICA DE GALE - REGRA PRED >= 60%]
         const newSuggestion = detectStrategies(colors, pred8.pct) || detectRepetitionStrategy(colors) || modelSuggest(colors);
         const newMacroOk = macroConfirm(arr40, nowTs, arr);
-        const { originalSuggestion } = pending; // Pega o gatilho original
         
-        // [MUDANÇA] Regra do Xadrez: Só entra no gale se a vela de loss formar um padrão xadrez
-        const isXadrez = (newSuggestion?.name === "xadrez" || newSuggestion?.name === "pós-rosa xadrez");
+        // [MUDANÇA] Regra do Xadrez REMOVIDA
+        // const isXadrez = (newSuggestion?.name === "xadrez" || newSuggestion?.name === "pós-rosa xadrez");
 
         if(pending.stage===0){
-          // Condição G1: Estabilidade E obrigatório ser padrão Xadrez
-          const stableForGale = pred8.ok && !blockCorrections && isXadrez;
+          // Condição G1: Estabilidade E obrigatório Pred >= 60%
+          const stableForGale = pred8.strong && !blockCorrections; // [MUDANÇA]
 
           if(stableForGale){
-            // G1 ATIVADO (Xadrez e estabilidade OK)
+            // G1 ATIVADO (Pred >= 60% e estabilidade OK)
             pending.stage=1; pending.enterAtIdx=justClosed.idx+1; martingaleTag.style.display="inline-block";
-            setCardState({active:true, title:"Chance de 2x G1", sub:`entrar após (${justClosed.mult.toFixed(2)}x)`}); addFeed("warn",`Ativando G1 (padrão Xadrez confirmado)`);
+            setCardState({active:true, title:"Chance de 2x G1", sub:`entrar após (${justClosed.mult.toFixed(2)}x)`}); addFeed("warn",`Ativando G1 (Pred. >= 60% confirmado)`);
           } else {
             // [MUDANÇA] G1 EM ESPERA (Não cancela)
             pending.stage = 'G1_WAIT'; // Novo estado de espera
             pending.enterAtIdx = null; // Não entra ainda
-            const reason = !isXadrez ? "aguardando padrão" : "aguardando estabilidade";
+            const reason = !pred8.strong ? "aguardando pred. >= 60%" : "aguardando estabilidade"; // [MUDANÇA]
             setCardState({active:false, awaiting:true, title:"Aguardando G1", sub: reason});
-            addFeed("warn", `G1 em espera`);
+            addFeed("warn", `G1 em espera: ${reason}`);
           }
         } else if(pending.stage===1){
-          // Condição G2: Pred Forte OU Macro E obrigatório ser padrão Xadrez
-          const g2Allowed = (pred8.strong || newMacroOk) && !blockCorrections && isXadrez;
+          // Condição G2: Obrigatório Pred >= 60%
+          const g2Allowed = pred8.strong && !blockCorrections; // [MUDANÇA]
 
           if(g2Allowed){ 
              pending.stage=2; pending.enterAtIdx=justClosed.idx+1; martingaleTag.style.display="inline-block";
              setCardState({active:true, title:"Chance de 2x G2", sub:`entrar após (${justClosed.mult.toFixed(2)}x)`});
              strategyTag.textContent = "Estratégia: " + (newSuggestion ? newSuggestion.name : "macro/pred. forte");
-             gateTag.textContent = "Gatilho: " + (newSuggestion ? newSuggestion.gate : "confirmação macro/predom.");
+             gateTag.textContent = "Gatilho: " + (newSuggestion ? newSuggestion.gate : "confirmação pred. >= 60%");
              addFeed("warn","SINAL 2x (G2) — último recurso");
           } else {
             // [MUDANÇA] G2 EM ESPERA (Não cancela)
             pending.stage = 'G2_WAIT'; // Novo estado de espera
             pending.enterAtIdx = null; // Não entra ainda
-            const reason = !isXadrez ? "aguardando padrão (G2)" : "aguardando estabilidade (G2)";
+            const reason = !pred8.strong ? "aguardando pred. >= 60% (G2)" : "aguardando estabilidade (G2)"; // [MUDANÇA]
             setCardState({active:false, awaiting:true, title:"Aguardando G2", sub: reason});
-            addFeed("warn", `G2 em espera`);
+            addFeed("warn", `G2 em espera: ${reason}`);
           }
         } else if(pending.stage===2){
           // LOSS SÓ OCORRE APÓS O G2
@@ -403,7 +400,7 @@ function onNewCandle(arr){
   // ================= PAUSES / COOLDOWNS =================
   if(hardPaused){
     // Cooldown 100x removido da mensagem
-    let sub = (blockCorrections?"correção BBB repetida (micro 8)": weakPred?"Aguardando Predominância": hardPauseBlueRun ? "3+ azuis seguidas na ponta" : "aguarde uma possibilidade");
+    let sub = (blockCorrections?"correção BBB repetida (micro 8)": weakPred?"predom. <50% (micro 8)": hardPauseBlueRun ? "3+ azuis seguidas na ponta" : "aguarde uma possibilidade");
     setCardState({active:false, awaiting:true, title:"aguardando estabilidade", sub});
     const pauseMsg = sub;
     if (window.lastPauseMessage !== pauseMsg) { addFeed("warn", pauseMsg); window.lastPauseMessage = pauseMsg; }
@@ -421,12 +418,12 @@ function onNewCandle(arr){
     const newSuggestion = detectStrategies(colors, pred8.pct) || detectRepetitionStrategy(colors) || modelSuggest(colors);
     const newMacroOk = macroConfirm(arr40, nowTs, arr);
     
-    // [MUDANÇA] Regra do Xadrez
-    const isXadrez = (newSuggestion?.name === "xadrez" || newSuggestion?.name === "pós-rosa xadrez");
+    // [MUDANÇA] Regra do Xadrez REMOVIDA
+    // const isXadrez = (newSuggestion?.name === "xadrez" || newSuggestion?.name === "pós-rosa xadrez");
 
     if(pending.stage==='G1_WAIT'){
-        // Condição G1: Estabilidade E obrigatório ser padrão Xadrez
-        const stableForGale = pred8.ok && !blockCorrections && isXadrez;
+        // Condição G1: Estabilidade E obrigatório Pred >= 60%
+        const stableForGale = pred8.strong && !blockCorrections; // [MUDANÇA]
         
         if(stableForGale){
             // [MUDANÇA] ATIVANDO G1 (após espera)
@@ -436,24 +433,24 @@ function onNewCandle(arr){
             addFeed("warn",`SINAL 2x (G1) — entrar após (${lastMultTxt})`);
         } else {
             // AINDA ESPERANDO G1
-            const reason = !isXadrez ? "aguardando padrão" : "aguardando estabilidade";
+            const reason = !pred8.strong ? "aguardando pred. >= 60%" : "aguardando estabilidade"; // [MUDANÇA]
             setCardState({active:false, awaiting:true, title:"Aguardando G1", sub: reason});
         }
     } 
     else if(pending.stage==='G2_WAIT'){
-        // Condição G2: Pred Forte OU Macro E obrigatório ser padrão Xadrez
-        const g2Allowed = (pred8.strong || newMacroOk) && !blockCorrections && isXadrez;
+        // Condição G2: Obrigatório Pred >= 60%
+        const g2Allowed = pred8.strong && !blockCorrections; // [MUDANÇA]
 
         if(g2Allowed){
             // [MUDANÇA] ATIVANDO G2 (após espera)
             pending.stage=2; pending.enterAtIdx=last.idx+1; martingaleTag.style.display="inline-block";
             setCardState({active:true, title:"Chance de 2x G2", sub:`entrar após (${lastMultTxt})`});
             strategyTag.textContent = "Estratégia: " + (newSuggestion ? newSuggestion.name : "macro/pred. forte");
-            gateTag.textContent = "Gatilho: " + (newSuggestion ? newSuggestion.gate : "confirmação macro/predom.");
+            gateTag.textContent = "Gatilho: " + (newSuggestion ? newSuggestion.gate : "confirmação pred. >= 60%");
             addFeed("warn",`SINAL 2x (G2) — entrar após (${lastMultTxt})`);
         } else {
             // AINDA ESPERANDO G2
-            const reason = !isXadrez ? "aguardando padrão (G2)" : "aguardando estabilidade (G2)";
+            const reason = !pred8.strong ? "aguardando pred. >= 60% (G2)" : "aguardando estabilidade (G2)"; // [MUDANÇA]
             setCardState({active:false, awaiting:true, title:"Aguardando G2", sub: reason});
         }
     }
@@ -536,11 +533,11 @@ function toArrayFromHistory(raw){
       onNewCandle(arr);
     },(error)=>{
       liveStatus.textContent = "Erro: "+error.message;
-      liveStatus.style.background="rgba(239,68,68,.15)"; liveStatus.style.color="#ffd1d1";
+      liveStatus.style.background="rgba(239,68,68,.15)"; liveStatus.style.color="#ffd1D1";
     });
   }catch(e){
     liveStatus.textContent="Falha ao iniciar Firebase";
-    liveStatus.style.background="rgba(239,68,68,.15)"; liveStatus.style.color="#ffd1d1";
+    liveStatus.style.background="rgba(239,68,68,.15)"; liveStatus.style.color="#ffd1D1";
     console.error(e);
   }
 })();
