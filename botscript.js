@@ -280,7 +280,36 @@ function modelSuggest(colors){
 let pending = null;
 function clearPending(){ pending=null; martingaleTag.style.display="none"; setCardState({active:false, awaiting:false}); }
 
-// [FUNÇÃO DO MOTOR TOTALMENTE ATUALIZADA E CORRIGIDA]
+/**
+ * Função unificada para encontrar o melhor sinal no momento (G0, G1 ou G2)
+ * @param {Array} arr - Histórico de velas.
+ * @param {Object} pred8 - Objeto de predominância.
+ * @param {Array} arr40 - Histórico macro de 40 minutos.
+ * @param {Array} colors - Array de cores.
+ * @returns {Object|null} Objeto de sugestão (name, gate) ou null.
+ */
+function findBestSignal(arr, pred8, arr40, colors) {
+  let suggestion = detectStrategies(colors, pred8.pct) || modelSuggest(colors); 
+  const macroOk = macroConfirm(arr40, arr[arr.length-1]?.ts || Date.now(), arr);
+
+  // Regras de permissão G0
+  const blockCorrections = countBBBSequences(colors, 8) >= 2;
+  const entryAllowed = pred8.ok && !blockCorrections && ( (countBBBSequences(colors,8)===0) || (countBBBSequences(colors,8)===1 && pred8.strong) );
+  
+  if(entryAllowed && (suggestion || (macroOk && pred8.ok)) ){ 
+    const usedName = suggestion ? suggestion.name : "macro";
+    const usedGate = suggestion ? suggestion.gate : "tempo/rosa/surf/coluna (40m)";
+    
+    return { 
+      strategy: usedName, 
+      reason: usedGate, 
+      isMacro: !suggestion 
+    };
+  }
+  return null;
+}
+
+
 function onNewCandle(arr){
   if(arr.length<2) return;
   renderHistory(arr);
@@ -304,11 +333,12 @@ function onNewCandle(arr){
   const weakPred = !pred8.ok; // < 50%
   const hardPauseBlueRun = blueRun >= HARD_PAUSE_BLUE_RUN; // Trava se tiver 3+ azuis na ponta
 
-  // Lógica de pausa alinhada com a nova lista
+  // Lógica de pausa
   const hardPaused = hardPauseBlueRun || blockCorrections || weakPred || (!cooled);
   engineStatus.textContent = hardPaused ? "aguardando" : "operando";
   
-  // (Variável awaitingStability removida pois a lógica de GALE mudou)
+  const last = arr[arr.length-1];
+  const lastMultTxt = last.mult.toFixed(2)+"x";
 
   // ================= WIN/LOSS (fecha sinais anteriores) =================
   if(pending && typeof pending.enterAtIdx === "number"){
@@ -318,7 +348,7 @@ function onNewCandle(arr){
       const win = justClosed.mult >= 2.0;
       
       if(win){
-        // ... (lógica de WIN não muda) ...
+        // Lógica de WIN
         stats.wins++; stats.streak++; stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
         if(pending.stage===0) stats.normalWins++;
         else if(pending.stage===1) stats.g1Wins++;
@@ -328,68 +358,42 @@ function onNewCandle(arr){
         addFeed("ok", label); topSlide("WIN 2x", true); clearPending();
       } else {
         
-        // [NOVA LÓGICA DE "GALE INTELIGENTE"]
-        // No momento da perda, o bot re-analisa o mercado como se fosse um G0.
-        
-        // 1. Roda as mesmas verificações de um G0
-        let suggestion = detectStrategies(colors, pred8.pct) || modelSuggest(colors); 
-        const macroOk = macroConfirm(arr40, nowTs, arr);
-        
-        // Regras de permissão (as mesmas do G0)
-        const entryAllowed = pred8.ok && !blockCorrections && ( (countBBBSequences(colors,8)===0) || (countBBBSequences(colors,8)===1 && pred8.strong) );
-        
-        // Verifica se um novo sinal foi encontrado
-        const newSignalFound = entryAllowed && (suggestion || (macroOk && pred8.ok));
-        
-        if(pending.stage===0){
-          if(newSignalFound){
-            // G1 ATIVADO (pois encontrou um novo sinal válido)
-            pending.stage=1; 
-            pending.enterAtIdx=justClosed.idx+1; 
-            martingaleTag.style.display="inline-block";
-            
-            // Atualiza o 'pending' com o NOVO motivo
-            const usedName = suggestion ? suggestion.name : "macro";
-            const usedGate = suggestion ? suggestion.gate : "tempo/rosa/surf/coluna (40m)";
-            pending.reason = usedGate;
-            pending.strategy = usedName;
-            pending.originalSuggestion = suggestion || { name: "macro" }; // Salva para o G2
+        // [LÓGICA DE "GALE FORÇADO E INTELIGENTE"]
+        const nextStage = pending.stage + 1;
 
-            setCardState({active:true, title:"Chance de 2x G1", sub:`entrar após (${justClosed.mult.toFixed(2)}x)`}); 
-            addFeed("warn",`Ativando G1 (Sinal re-analisado: ${usedName})`);
+        if(nextStage <= 2){ // G1 (nextStage=1) ou G2 (nextStage=2)
+          
+          // 1. Re-analisa o mercado (procura o melhor sinal atual - mesma lógica do G0)
+          const newSignal = findBestSignal(arr, pred8, arr40, colors);
+          
+          let usedName, usedGate;
+          
+          if(newSignal){
+            // Se encontrar um sinal, usa a lógica mais assertiva
+            usedName = newSignal.strategy;
+            usedGate = newSignal.reason;
           } else {
-            // G1 CANCELADO (pois não encontrou novo sinal)
-            const reason = "Mercado instável / Sem novo sinal";
-            addFeed("err", `Gale 1 cancelado: ${reason}`); topSlide("Gale 1 cancelado", false); clearPending();
+            // Se não encontrar sinal, usa a estratégia original
+            usedName = pending.strategy;
+            usedGate = pending.reason;
           }
-        } else if(pending.stage===1){
-           // G2 (Último recurso)
-           // Regra mais permissiva: (Pred forte OU Macro OK) E sem correções pesadas
-           const g2Allowed = (pred8.strong || macroOk) && !blockCorrections;
+          
+          // 2. FORÇA O AVANÇO (GALE É OBRIGATÓRIO)
+          pending.stage = nextStage; 
+          pending.enterAtIdx = justClosed.idx + 1; 
+          martingaleTag.style.display = "inline-block";
+          
+          // 3. ATUALIZA A INTERFACE/REGISTRO COM A MELHOR INFORMAÇÃO ENCONTRADA
+          pending.reason = usedGate;
+          pending.strategy = usedName;
 
-           if(newSignalFound && g2Allowed){
-             pending.stage=2; 
-             pending.enterAtIdx=justClosed.idx+1; 
-             martingaleTag.style.display="inline-block";
-             
-             const usedName = suggestion ? suggestion.name : "macro";
-             const usedGate = suggestion ? suggestion.gate : "tempo/rosa/surf/coluna (40m)";
-             pending.reason = usedGate;
-             pending.strategy = usedName;
-
-             setCardState({active:true, title:"Chance de 2x G2", sub:`entrar após (${justClosed.mult.toFixed(2)}x)`});
-             strategyTag.textContent = "EstratégIA: " + usedName;
-             gateTag.textContent = "Gatilho: " + usedGate;
-             addFeed("warn","SINAL 2x (G2) — Re-analisado");
-           } else {
-            // G2 CANCELADO
-            stats.losses++; stats.streak=0; syncStatsUI(); store.set(stats);
-            addFeed("err","LOSS 2x (G1 falhou, G2 cancelado)"); 
-            topSlide("LOSS 2x (G1)", false); 
-            clearPending();
-           }
-        } else if(pending.stage===2){
-          // G2 Loss - Final
+          setCardState({active:true, title:`Chance de 2x G${nextStage}`, sub:`entrar após (${justClosed.mult.toFixed(2)}x)`}); 
+          strategyTag.textContent = "Estratégia: " + usedName;
+          gateTag.textContent = "Gatilho: " + usedGate;
+          addFeed("warn",`Ativando G${nextStage} (Sinal atualizado: ${usedName})`);
+          
+        } else {
+          // G2 LOSS - Final
           stats.losses++; stats.streak=0; syncStatsUI(); store.set(stats);
           addFeed("err","LOSS 2x (G2 falhou)"); topSlide("LOSS 2x (G2)", false); clearPending();
         }
@@ -407,46 +411,26 @@ function onNewCandle(arr){
   }
   window.lastPauseMessage = null; 
 
-  const last = arr[arr.length-1];
-  const lastMultTxt = last.mult.toFixed(2)+"x";
-
-  // ================= RETOMADAS DE GALES (NÃO USADO NESTA LÓGICA) =================
-  // A lógica de GALE agora é instantânea (re-analisa ou cancela), não usa mais G1_WAIT / G2_WAIT
-  if(pending && (pending.stage==='G1_WAIT' || pending.stage==='G2_WAIT')){
-     addFeed("err", "Gale em espera cancelado (lógica antiga)");
-     clearPending();
-  }
-
 
   // ================= NOVO SINAL (G0) =================
   if(!pending){
-    let suggestion = detectStrategies(colors, pred8.pct) || modelSuggest(colors); 
-    const macroOk = macroConfirm(arr40, nowTs, arr); // Passa 'arr'
-
-    // Regras de permissão G0
-    const entryAllowed = pred8.ok && !blockCorrections && ( (countBBBSequences(colors,8)===0) || (countBBBSequences(colors,8)===1 && pred8.strong) );
+    const signal = findBestSignal(arr, pred8, arr40, colors);
     
-    // FAST-LANE (Regra "pred ≥60% + surf ou rosa ou tempo → entrar próxima vela direto")
-    const fastLane = pred8.strong && (suggestion || macroOk);
+    if(signal){ 
+      // Sinal G0 encontrado
+      const fastLane = pred8.strong && (signal.strategy !== "macro");
 
-    if(entryAllowed && (suggestion || (macroOk && pred8.ok)) ){ // Entra se tiver regra, ou se macro confirmar E pred for OK
-      
-      const usedName = suggestion ? suggestion.name : "macro";
-      const usedGate = suggestion ? suggestion.gate : "tempo/rosa/surf/coluna (40m)";
-      
-      // [IMPORTANTE] Armazena a sugestão original no 'pending'
       pending = { 
         stage: 0, 
         enterAtIdx: last.idx+1, 
-        reason: usedGate, 
-        strategy: usedName,
-        originalSuggestion: suggestion || { name: "macro" } // Salva o gatilho para o G1
+        reason: signal.reason, 
+        strategy: signal.strategy,
       };
 
       setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${lastMultTxt})`});
-      strategyTag.textContent = "Estratégia: " + usedName + (fastLane ? " · FAST LANE" : (pred8.strong?" · cenário forte":""));
-      gateTag.textContent = "Gatilho: " + usedGate;
-      addFeed("warn", `SINAL 2x (${usedName}) — entrar após (${lastMultTxt})`);
+      strategyTag.textContent = "Estratégia: " + signal.strategy + (fastLane ? " · FAST LANE" : (pred8.strong?" · cenário forte":""));
+      gateTag.textContent = "Gatilho: " + signal.reason;
+      addFeed("warn", `SINAL 2x (${signal.strategy}) — entrar após (${lastMultTxt})`);
       return;
     } else {
       setCardState({active:false, awaiting:false, title:"Chance de 2x", sub:"identificando padrão"});
