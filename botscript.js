@@ -110,18 +110,12 @@ clearStatsBtn.onclick = () => {
 // ===================== Utils =======================
 function colorFrom(mult){ if(mult<2.0) return "blue"; if(mult<10.0) return "purple"; return "pink"; }
 
-// [CORRIGIDO] Predominância ponderada por força
-function predominancePositiveWeighted(list, N=8){
+// [VOLTA AO V3] Predominância simples (50%)
+function predominancePositive(list, N=8){
   const lastN = list.slice(-N);
-  let total = 0, weightedPos = 0;
-  lastN.forEach(c => {
-    total++;
-    if(c.mult >= 2.0){
-      weightedPos += (c.mult >= 10 ? 1.5 : c.mult >= 5 ? 1.2 : 1.0);
-    }
-  });
-  const pct = total ? weightedPos / total : 0;
-  return {pct, ok: pct >= 0.55, strong: pct >= 0.70};
+  const pos = lastN.filter(c=>c.color!=="blue").length;
+  const pct = lastN.length ? pos/lastN.length : 0;
+  return {pct, ok:pct>=0.50, strong:pct>=0.60};
 }
 
 function consecutiveBlueCount(list){
@@ -148,7 +142,7 @@ function hasSurfWithin(arr){
 }
 function pinkInEdgeColumn(arr, cols=5){
   const lp = lastPink(arr);
-  if(!lp || lp.idx === undefined || lp.mult < 5.0) return false;
+  if(!lp || lp.idx === undefined) return false;
   const pinkColIndex = (lp.idx) % cols;
   return (pinkColIndex === 0 || pinkColIndex === (cols - 1));
 }
@@ -158,21 +152,21 @@ function check5LineBlock(arr, cols=5){
   const currentIdx = L - 1;
   const currentLineStartIdx = currentIdx - (currentIdx % cols);
   const line = arr.slice(currentLineStartIdx, currentLineStartIdx + cols);
-  let blueCount = 0, posCount = 0, hasStrongPos = false;
+  let blueCount = 0, posCount = 0;
   for (const candle of line) {
     if (candle.color === "blue") blueCount++;
-    else { posCount++; if(candle.mult >= 5.0) hasStrongPos = true; }
+    else posCount++;
   }
-  if (blueCount > posCount && !hasStrongPos) {
-    window.lastBlockReason = "Predominância de Azul, aguardando...";
+  if (blueCount > posCount) {
+    window.lastBlockReason = `BLOQUEIO LINHA 5: ${blueCount}B / ${posCount}P`;
     return true;
   }
   return false;
 }
 
-// ===================== Parâmetros =======================
-const SOFT_PCT = 0.55;
-const STRONG_PCT = 0.70;
+// ===================== Parâmetros (V3) =======================
+const SOFT_PCT = 0.50;
+const STRONG_PCT = 0.60;
 const HARD_PAUSE_BLUE_RUN = 3;
 const TIME_WINDOWS_AFTER_PINK = [5,7,10,20];
 const TIME_TOLERANCE_MIN = 2;
@@ -180,7 +174,7 @@ const TIME_TOLERANCE_MIN = 2;
 window.lastBlockReason = null;
 window.lastPauseMessage = null;
 
-// ===================== Estratégias =======================
+// ===================== Estratégias (V3 + GRK) =======================
 function inPinkTimeWindow(nowTs, arr){
   const lp = lastPink(arr);
   if(!lp || !lp.ts) return false;
@@ -205,14 +199,13 @@ function macroConfirm(arr40, nowTs, fullArr){
          pinkInEdgeColumn(fullArr, 5);
 }
 
-// [NOVA] ESTRATÉGIA GRK
+// [NOVA] GRK
 function detectGRKStrategy(colors, arr){
   const L = colors.length;
   if (L < 6) return null;
   const last6 = colors.slice(-6);
   const lastCandles = arr.slice(-6);
 
-  // GRK-1: Triângulo de Força
   if (last6.join("") === "bluepurplebluepurpleblue") {
     const positives = lastCandles.filter((c,i) => i%2===1);
     const avgPos = positives.reduce((s,c)=>s+c.mult,0)/positives.length;
@@ -221,7 +214,6 @@ function detectGRKStrategy(colors, arr){
     }
   }
 
-  // GRK-2: Escada de Retorno
   if (L >= 7 && 
       lastCandles[0].color !== "blue" && lastCandles[0].mult < 3.0 &&
       lastCandles[1].color === "blue" &&
@@ -232,7 +224,6 @@ function detectGRKStrategy(colors, arr){
     return {name: "GRK-escada", gate: `P<3x-BB-P≥3x-BB ⇒ P (2x)`};
   }
 
-  // GRK-3: Rosa na Borda + Surf
   const lp = lastPink(arr);
   if (lp && lp.mult >= 10 && lp.idx !== undefined) {
     const col = lp.idx % 5;
@@ -244,13 +235,23 @@ function detectGRKStrategy(colors, arr){
   return null;
 }
 
-// [CORRIGIDO] detectStrategies: BBBP ATIVA SINAL
+// [V3] detectStrategies
 function detectStrategies(colors, predPct){ 
   const L=colors.length; if(L<3) return null;
   const isPos = (c) => c==="purple" || c==="pink";
   const a=colors[L-3], b=colors[L-2], c=colors[L-1];
 
-  // SURF
+  if(L >= 8 && colors[L-2] === "blue" && colors[L-4] === "blue"){ 
+    let posRunLen = 0; for(let i=L-3; i>=0; i--){ if(isPos(colors[i])) posRunLen++; else break; }
+    if(posRunLen >= 2 && posRunLen <= 4){ 
+      let prevBlueRunLen = 0; let startIdx = L - 3 - posRunLen;
+      for(let i=startIdx; i>=0; i--){ if(colors[i] === "blue") prevBlueRunLen++; else break; }
+      if(prevBlueRunLen >= 3 && prevBlueRunLen <= 4){
+        return null;
+      }
+    }
+  }
+
   if(L >= 3 && isPos(a) && isPos(b) && isPos(c)){
     let posRunLen = 0; for(let i=L-1;i>=0;i--){ if(isPos(colors[i])) posRunLen++; else break; }
     if(posRunLen >= 4) return {name:"surfing-4+", gate:`Sequência de ${posRunLen} positivas ⇒ P (2x)`};
@@ -282,7 +283,7 @@ function ngramPositiveProb(colors, order, windowSize=120){ /* ... igual ... */ }
 function detectRepetitionStrategy(colors){ /* ... igual ... */ }
 function modelSuggest(colors){ /* ... igual ... */ }
 
-// ===================== Motor =======================
+// ===================== Motor (V3 + GRK) =======================
 let pending = null;
 function clearPending(){ pending=null; martingaleTag.style.display="none"; setCardState({active:false, awaiting:false}); }
 
@@ -309,23 +310,25 @@ function onNewCandle(arr){
   const last = arr[arr.length-1];
   const lastMultTxt = last.mult.toFixed(2)+"x";
 
-  const pred8 = predominancePositiveWeighted(arr, 8);
+  const pred8 = predominancePositive(arr, 8);
   const blueRun = consecutiveBlueCount(arr);
   const bbbCount = countBBBSequences(colors, 8); 
 
-  predStatus.textContent = `predominância: ${(pred8.pct*100).toFixed(0)}%` + (pred8.strong?" · FORTE":"");
-  blueRunPill.textContent = `Azuis: ${blueRun}`;
+  predStatus.textContent = `Predominância (8 velas): ${(pred8.pct*100).toFixed(0)}%` + (pred8.strong?" · forte":"");
+  blueRunPill.textContent = `Azuis seguidas: ${blueRun}`;
 
   const line5Block = check5LineBlock(arr);
-  const hardPauseBlueRun = blueRun >= HARD_PAUSE_BLUE_RUN;
+  const blockCorrections = bbbCount>=2; 
   const weakPred = !pred8.ok;
+  const hardPauseBlueRun = blueRun >= HARD_PAUSE_BLUE_RUN;
 
-  const hardPaused = hardPauseBlueRun || weakPred || line5Block;
+  const hardPaused = hardPauseBlueRun || blockCorrections || weakPred || line5Block;
   engineStatus.textContent = hardPaused ? "aguardando" : "operando";
 
   if(hardPaused){
-    let sub = line5Block ? "Predominância de Azul, aguardando..." :
-              weakPred ? "Aguardando Estabilização" :
+    let sub = line5Block ? window.lastBlockReason : 
+              blockCorrections?"correção BBB repetida (micro 8)": 
+              weakPred?"predom. <50% (micro 8)": 
               hardPauseBlueRun ? "3+ azuis seguidas na ponta" : "aguarde uma possibilidade";
     setCardState({active:false, awaiting:true, title:"aguardando estabilidade", sub});
     if (window.lastPauseMessage !== sub) { addFeed("warn", sub); window.lastPauseMessage = sub; }
@@ -347,8 +350,8 @@ function onNewCandle(arr){
       addFeed("ok", label); topSlide("WIN 2x", true); 
       if (last.color === 'pink' && !pred8.ok) { 
          pending = { stage: 'POST_PINK_WAIT', enterAtIdx: last.idx + 1 };
-         setCardState({ active: false, awaiting: true, title: "Aguardando", sub: "Pós-Rosa, reanalisando próxima vela" });
-         addFeed("warn", "WIN (Rosa) - Aguardando 1 vela");
+         setCardState({ active: false, awaiting: true, title: "Aguardando", sub: "Pós-Rosa, reanalisando próxima vela (Pred < 50%)" });
+         addFeed("warn", "WIN (Rosa) - Aguardando 1 vela para reanalisar (Pred < 50%)");
          return;
       }
       clearPending();
@@ -364,7 +367,7 @@ function onNewCandle(arr){
             addFeed("warn",`Ativando G1 (Gatilho: ${nextSuggestion.name})`);
           } else {
             pending.stage = 'G1_WAIT'; pending.enterAtIdx = null; 
-            const reason = !predOk ? "Aguardando Estabilização" : "aguardando novo padrão"; 
+            const reason = !predOk ? "aguardando pred. >= 50%" : "aguardando novo padrão/estratégia"; 
             setCardState({active:false, awaiting:true, title:"Aguardando G1", sub: reason});
             addFeed("warn", `G1 em espera: ${reason}`);
           }
@@ -378,7 +381,7 @@ function onNewCandle(arr){
              addFeed("warn","SINAL 2x (G2) — último recurso");
           } else {
             pending.stage = 'G2_WAIT'; pending.enterAtIdx = null; 
-            const reason = !predOk ? "Aguardando Estabilização" : "aguardando novo padrão"; 
+            const reason = !predOk ? "aguardando pred. >= 50% (G2)" : "aguardando novo padrão/estratégia (G2)"; 
             setCardState({active:false, awaiting:true, title:"Aguardando G2", sub: reason});
             addFeed("warn", `G2 em espera: ${reason}`);
           }
@@ -392,7 +395,7 @@ function onNewCandle(arr){
 
   if(pending && pending.stage==='POST_PINK_WAIT'){
       clearPending();
-      addFeed("info", "Pós-Rosa concluído. Reanalisando.");
+      addFeed("info", "Pós-Rosa (Pred < 50%) concluído. Reanalisando.");
       setCardState({ active: false, awaiting: false, title: "Chance de 2x", sub: "identificando padrão" });
   }
 
@@ -407,7 +410,7 @@ function onNewCandle(arr){
             setCardState({active:true, title:"Chance de 2x G1", sub:`Gatilho: ${nextSuggestion.name}`}); 
             addFeed("warn",`SINAL 2x (G1) — entrar após (${lastMultTxt})`);
         } else {
-            const reason = !predOk ? "Aguardando Estabilização" : "aguardando novo padrão";
+            const reason = !predOk ? "aguardando pred. >= 50%" : "aguardando novo padrão/estratégia";
             setCardState({active:false, awaiting:true, title:"Aguardando G1", sub: reason});
         }
      } else if(pending.stage==='G2_WAIT'){
@@ -419,7 +422,7 @@ function onNewCandle(arr){
             gateTag.textContent = "Gatilho: " + nextSuggestion.gate;
             addFeed("warn",`SINAL 2x (G2) — entrar após (${lastMultTxt})`);
         } else {
-            const reason = !predOk ? "Aguardando Estabilização" : "aguardando novo padrão";
+            const reason = !predOk ? "aguardando pred. >= 50% (G2)" : "aguardando novo padrão/estratégia (G2)";
             setCardState({active:false, awaiting:true, title:"Aguardando G2", sub: reason});
         }
      }
@@ -428,7 +431,7 @@ function onNewCandle(arr){
 
   if(!pending){
     const analysis = getStrategyAndGate(colors, pred8, arr40, arr);
-    const entryAllowed = pred8.ok && (bbbCount === 0 || (bbbCount === 1 && pred8.strong));
+    const entryAllowed = pred8.ok && !blockCorrections;
     const fastLane = pred8.strong && !!analysis;
 
     if(entryAllowed && analysis){
