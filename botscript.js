@@ -365,24 +365,25 @@ function onNewCandle(arr){
   blueRunPill.textContent = `Azuis seguidas: ${blueRun}`;
 
   // ================= BLOQUEIOS E PAUSAS GERAIS =================
-  const line5Block = check5LineBlock(arr); // Nova regra: Bloqueio por Linha de 5
-  const blockCorrections = bbbCount>=2; 
-  const weakPred = !pred8.ok; // < 50%
-  const hardPauseBlueRun = blueRun >= HARD_PAUSE_BLUE_RUN;
-
+  // ... outras variáveis de bloqueio
   const hardPaused = hardPauseBlueRun || blockCorrections || weakPred || line5Block;
   engineStatus.textContent = hardPaused ? "aguardando" : "operando";
 
   if(hardPaused){
-    let sub = (line5Block ? lastBlockReason : blockCorrections?"correção BBB repetida (micro 8)": weakPred?"Aguardando Estabilização": hardPauseBlueRun ? "3+ azuis seguidas na ponta" : "aguarde uma possibilidade");
+    let sub = (line5Block ? lastBlockReason : blockCorrections?"correção BBB repetida (micro 8)": weakPred?"predom. <50% (micro 8)": hardPauseBlueRun ? "3+ azuis seguidas na ponta" : "aguarde uma possibilidade");
     setCardState({active:false, awaiting:true, title:"aguardando estabilidade", sub});
     const pauseMsg = sub;
     if (window.lastPauseMessage !== pauseMsg) { addFeed("warn", pauseMsg); window.lastPauseMessage = pauseMsg; }
     
     // Se estava em G1_WAIT/G2_WAIT e o hardPaused ativou, mantém o pending no WAIT mas não processa mais nada
     if(pending && (pending.stage === 'G1_WAIT' || pending.stage === 'G2_WAIT')) return;
-    if(pending && pending.stage === 0) clearPending(); // Cancela o pending G0 se cair no hard pause
-    return;
+    
+    // Correção 1: Cancela apenas G0 se cair no hard pause.
+    if(pending && pending.stage === 0) clearPending(); 
+    
+    // Correção 2: Se não há pending, ou se o pending não é G0 (ou foi cancelado), retorna.
+    // Se houver pending G0 a ser resolvido, ele NÃO RETORNA, permitindo que o LOSS seja processado abaixo.
+    if(!pending || pending.stage !== 0) return; 
   }
   window.lastPauseMessage = null; 
 
