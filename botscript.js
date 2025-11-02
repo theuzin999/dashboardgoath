@@ -144,7 +144,7 @@ function hasSurfWithin(arr){
 // [NOVA FUNÇÃO] - Verifica se a última rosa caiu em uma coluna de borda (1 ou 5)
 function pinkInEdgeColumn(arr, cols=5){
   const lp = lastPink(arr);
-  // Requer que o 'idx' esteja presente no histórico (já está no seu 'toArrayFromHistory')
+  // Requer que o 'idx' esteja presente no histórico
   if(!lp || lp.idx === undefined) return false;
   
   const pinkColIndex = (lp.idx) % cols;
@@ -205,7 +205,7 @@ function detectStrategies(colors, predPct){
   const isPos = (c) => c==="purple" || c==="pink";
   const a=colors[L-3], b=colors[L-2], c=colors[L-1];
 
-  // BLOQUEIO: (Seu bloqueio customizado B-P-P-B-B etc)
+  // BLOQUEIO: sequência com risco de repetição de quebra (anti flood de azuis)
   if(L >= 8 && colors[L-2] === "blue" && colors[L-4] === "blue"){ 
     let posRunLen = 0; for(let i=L-3; i>=0; i--){ if(isPos(colors[i])) posRunLen++; else break; }
     if(posRunLen >= 2 && posRunLen <= 4){ 
@@ -280,7 +280,7 @@ function modelSuggest(colors){
 let pending = null;
 function clearPending(){ pending=null; martingaleTag.style.display="none"; setCardState({active:false, awaiting:false}); }
 
-// [FUNÇÃO DO MOTOR TOTALMENTE ATUALIZADA]
+// [FUNÇÃO DO MOTOR TOTALMENTE ATUALIZADA E CORRIGIDA]
 function onNewCandle(arr){
   if(arr.length<2) return;
   renderHistory(arr);
@@ -361,7 +361,8 @@ function onNewCandle(arr){
              pending.stage=2; pending.enterAtIdx=justClosed.idx+1; martingaleTag.style.display="inline-block";
              setCardState({active:true, title:"Chance de 2x G2", sub:`entrar após (${justClosed.mult.toFixed(2)}x)`});
              strategyTag.textContent = "Estratégia: " + (newSuggestion ? newSuggestion.name : "macro/pred. forte");
-             gateTag.textContent = "Gatilho: "Gatilho: " + (newSuggestion ? newSuggestion.gate : "confirmação macro/predom.");
+             // CORREÇÃO: Removido o Gatilho: Gatilho: para evitar erro de sintaxe
+             gateTag.textContent = "Gatilho: " + (newSuggestion ? newSuggestion.gate : "confirmação macro/predom.");
              addFeed("warn","SINAL 2x (G2) — último recurso");
           } else {
             // G2 CANCELADO
@@ -391,7 +392,7 @@ function onNewCandle(arr){
 
   // ================= RETOMADAS DE GALES (NÃO USADO NESTA LÓGICA) =================
   // A lógica de GALE agora é instantânea (cancela ou ativa), não usa mais G1_WAIT / G2_WAIT
-  // Esta seção pode ser removida se desejar, mas não interfere.
+  // Esta seção foi mantida como placeholder, mas não deve mais ser ativada.
   if(pending && (pending.stage==='G1_WAIT' || pending.stage==='G2_WAIT')){
      addFeed("err", "Gale em espera cancelado (lógica antiga)");
      clearPending();
