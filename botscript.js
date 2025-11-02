@@ -185,7 +185,7 @@ function onNewCandle(arr){
 
   // Pausas explicadas no feed
   if(hardPaused){
-    let sub = !pred8.ok?"pred baixa": tooManyBlueBlocks?"blocos de azul (17)": blueRun>=HARD_PAUSE_BLUE_RUN?"3 azuis seguidas":"aguarde";
+    let sub = !pred8.ok?"predominância baixa": tooManyBlueBlocks?"Muitas correções..": blueRun>=HARD_PAUSE_BLUE_RUN?"3 azuis seguidas":"aguarde";
     setCardState({awaiting:true, title:"aguardando estabilidade", sub});
     const msg = sub;
     if(window.lastPauseMessage!==msg){ addFeed("warn", msg); window.lastPauseMessage=msg; }
