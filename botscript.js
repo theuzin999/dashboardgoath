@@ -1,4 +1,19 @@
-// ===================== CONFIG FIREBASE ===========================
+// ================= NOVO SINAL (G0) =================$1// Fast-lane do Pague dos Roxinhos: se pague forte OU (pague leve + surf em construção/validado), entra na PRÓXIMA vela
+    const surfNow = isSurfValidated(colors) || isSurfConstruction(colors);
+    const fastLane = (pred8.strong && !blockCorrections) || (pred8.ok && surfNow && !blockCorrections);
+
+    if(fastLane){
+      const usedName = isSurfValidated(colors)? "Surf Validado" : (isSurfConstruction(colors)? "Surf em Construção" : (suggestion? suggestion.name : "macro"));
+      const usedGate = isSurfValidated(colors)? "pague forte" : (isSurfConstruction(colors)? "pague dos roxinhos" : (suggestion? suggestion.gate : "tempo/rosa/surf (40m)"));
+      pending = { stage:0, enterAtIdx: last.idx+1, reason: usedGate, strategy: usedName };
+      setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${lastMultTxt})`});
+      strategyTag.textContent = "Estratégia: " + usedName + (pred8.strong?" · cenário forte":"");
+      gateTag.textContent = "Gatilho: " + usedGate;
+      addFeed("warn", `SINAL 2x (${usedName}) — entrar após (${lastMultTxt})`);
+      return;
+    }
+
+    if(entryAllowed && (suggestion || macroOk)){// ===================== CONFIG FIREBASE ===========================
 const firebaseConfig = {
   apiKey: "AIzaSyB-35zQDrQbz8ohZUdqpFkayYdAUDrLw6g",
   authDomain: "history-dashboard-a70ee.firebaseapp.com",
@@ -140,6 +155,18 @@ function macroWindow40m(arr, nowTs){
 function hasSurfWithin(arr){
   let run=0; for(const r of arr){ if(r.color!=="blue"){ run++; if(run>=3) return true; } else run=0; } return false;
 }
+// ===== Surf dos roxinhos (pague operável) =====
+function isSurfValidated(colors){ // 4 roxos+ seguidos
+  let run=0; for(let i=colors.length-1;i>=0;i--){ if(colors[i]!=="blue"){ run++; if(run>=4) return true; } else break; }
+  return false;
+}
+function isSurfConstruction(colors){ // dominância positiva com até 2 correções nos últimos 8
+  const last8 = colors.slice(-8);
+  let positives=0, corrections=0;
+  for(const c of last8){ if(c==="blue") corrections++; else positives++; }
+  if(corrections>2) return false;
+  return positives/Math.max(1,last8.length) >= 0.50; // ≥50% positivas
+}
 function macroConfirm(arr40, nowTs){
   // confirma por TEMPO ou ROSA reset ou SURF ativo (camada macro)
   return inPinkTimeWindow(nowTs, arr40) || roseResetBooster(arr40) || hasSurfWithin(arr40);
@@ -266,7 +293,7 @@ function onNewCandle(arr){
   const colors = arr.map(r=>r.color);
   const bbbCount = countBBBSequences(colors, 8);
 
-  predStatus.textContent = `Predominância (8 velas): ${(pred8.pct*100).toFixed(0)}%` + (pred8.strong?" · forte":"");
+  predStatus.textContent = `Predominância:` ${(pred8.pct*100).toFixed(0)}%` + (pred8.strong?" · forte":"");
   blueRunPill.textContent = `Azuis seguidas: ${blueRun}`;
 
   // Cooldown pós 100x
@@ -320,7 +347,7 @@ function onNewCandle(arr){
 
   // ================= PAUSES / COOLDOWNS =================
   if(hardPaused){
-    let sub = (!cooled?"cooldown pós 100x": blockCorrections?"correção pesada repetida": weakPred?"predom. <50%":"aguarde uma possibilidade");
+    let sub = (!cooled?"cooldown pós 100x": blockCorrections?"correção pesada repetida": weakPred?"aguardando estabilidade":"aguarde uma possibilidade");
     setCardState({active:false, awaiting:true, title:"aguardando estabilidade", sub});
     const pauseMsg = sub;
     if (window.lastPauseMessage !== pauseMsg) { addFeed("warn", pauseMsg); window.lastPauseMessage = pauseMsg; }
