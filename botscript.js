@@ -1,4 +1,3 @@
-<script>
 // ===================== FIREBASE (history/) =====================
 const firebaseConfig = {
   apiKey: "AIzaSyB-35zQDrQbz8ohZUdqpFkayYdAUDrLw6g",
@@ -254,5 +253,4 @@ function toArrayFromHistory(raw){
   addEventListener("resize",check); check();
   addEventListener("keydown",e=>{ if(e.key==="F12"||e.keyCode===123) e.preventDefault(); if(e.ctrlKey&&e.shiftKey&&(e.key==="I"||e.key==="i"||e.key==="J"||e.key==="j")) e.preventDefault(); });
   addEventListener("contextmenu",e=>e.preventDefault());
-})();
-</script>
+})();>
