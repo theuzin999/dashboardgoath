@@ -454,7 +454,7 @@ function onNewCandle(arr){
     return; // Encerra o processamento da vela se houve fechamento de sinal
   }
 
-  // ================= PROCESSAMENTO DE ESPERA (GALE/PÓS-ROSA) =================
+ // ================= PROCESSAMENTO DE ESPERA (GALE/PÓS-ROSA) =================
   if(pending && pending.stage==='POST_PINK_WAIT'){
       // Apenas sai do estado de espera após 1 vela
       // Apenas limpa o pending e permite a próxima reavaliação (G0)
@@ -469,12 +469,17 @@ function onNewCandle(arr){
      const predOk = pred8.ok;
      const newPatternFound = !!nextSuggestion;
     
+    let transitioned = false; // NOVO: Flag para saber se houve transição para G1/G2
+
     if(pending.stage==='G1_WAIT'){
         const g1Allowed = predOk && newPatternFound;
         if(g1Allowed){
-            pending.stage=1; pending.enterAtIdx=last.idx+1; martingaleTag.style.display="inline-block";
+            pending.stage=1; 
+            pending.enterAtIdx=last.idx; // MUDANÇA: Entra na vela atual
+            martingaleTag.style.display="inline-block";
             setCardState({active:true, title:"Chance de 2x G1", sub:`Gatilho: ${nextSuggestion.name}`}); 
-            addFeed("warn",`SINAL 2x (G1) — entrar após (${lastMultTxt})`);
+            addFeed("warn",`SINAL 2x (G1) — entrar AGORA (${lastMultTxt})`);
+            transitioned = true; // Houve transição
         } else {
             const reason = !predOk ? "aguardando pred. >= 50%" : "aguardando novo padrão/estratégia";
             setCardState({active:false, awaiting:true, title:"Aguardando G1", sub: reason});
@@ -483,19 +488,22 @@ function onNewCandle(arr){
     else if(pending.stage==='G2_WAIT'){
         const g2Allowed = predOk && newPatternFound;
         if(g2Allowed){
-            pending.stage=2; pending.enterAtIdx=last.idx+1; martingaleTag.style.display="inline-block";
+            pending.stage=2; 
+            pending.enterAtIdx=last.idx; // MUDANÇA: Entra na vela atual
+            martingaleTag.style.display="inline-block";
             setCardState({active:true, title:"Chance de 2x G2", sub:`Gatilho: ${nextSuggestion.name}`});
             strategyTag.textContent = "Estratégia: " + nextSuggestion.name;
             gateTag.textContent = "Gatilho: " + nextSuggestion.gate;
-            addFeed("warn",`SINAL 2x (G2) — entrar após (${lastMultTxt})`);
+            addFeed("warn",`SINAL 2x (G2) — entrar AGORA (${lastMultTxt})`);
+            transitioned = true; // Houve transição
         } else {
             const reason = !predOk ? "aguardando pred. >= 50% (G2)" : "aguardando novo padrão/estratégia (G2)";
             setCardState({active:false, awaiting:true, title:"Aguardando G2", sub: reason});
         }
     }
-    return;
+    // MUDANÇA: Se não houve transição (ainda está em WAIT), retorna. Se houve, prossegue para processar a vitória/perda.
+    if(!transitioned) return;
   }
-
   // ================= NOVO SINAL (G0) =================
   if(!pending){
     const analysis = getStrategyAndGate(colors, pred8, arr40, arr);
