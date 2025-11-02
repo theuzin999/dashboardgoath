@@ -304,11 +304,11 @@ function onNewCandle(arr){
   const weakPred = !pred8.ok; // < 50%
   const hardPauseBlueRun = blueRun >= HARD_PAUSE_BLUE_RUN; // Trava se tiver 3+ azuis na ponta
 
-  // Lógica de pausa alinhada com a nova lista (sem maxBlueRun17)
+  // Lógica de pausa alinhada com a nova lista
   const hardPaused = hardPauseBlueRun || blockCorrections || weakPred || (!cooled);
   engineStatus.textContent = hardPaused ? "aguardando" : "operando";
-
-  const awaitingStability = (blueRun>=2); // Conservador para retomar gales
+  
+  // (Variável awaitingStability removida pois a lógica de GALE mudou)
 
   // ================= WIN/LOSS (fecha sinais anteriores) =================
   if(pending && typeof pending.enterAtIdx === "number"){
@@ -327,49 +327,69 @@ function onNewCandle(arr){
         const label = pending.stage===0 ? "WIN 2x" : `WIN 2x (G${pending.stage})`;
         addFeed("ok", label); topSlide("WIN 2x", true); clearPending();
       } else {
-        // [NOVA LÓGICA DE GALE]
-        // Verifica o padrão ATUAL antes de decidir o gale
-        const newSuggestion = detectStrategies(colors, pred8.pct) || modelSuggest(colors);
-        const newMacroOk = macroConfirm(arr40, nowTs, arr);
-        const { originalSuggestion } = pending; // Pega o gatilho original
         
-        let patternStillExists = false;
-        if (originalSuggestion.name === "macro") {
-          patternStillExists = newMacroOk; // Se o G0 foi por macro, checa se macro ainda confirma
-        } else if (newSuggestion && newSuggestion.name === originalSuggestion.name) {
-          patternStillExists = true; // Se o G0 foi por regra, checa se a MESMA regra ainda aplica
-        }
+        // [NOVA LÓGICA DE "GALE INTELIGENTE"]
+        // No momento da perda, o bot re-analisa o mercado como se fosse um G0.
         
-        // Verifica estabilidade (sempre necessária)
-        const stableForGale = pred8.ok && !blockCorrections && !awaitingStability;
-
+        // 1. Roda as mesmas verificações de um G0
+        let suggestion = detectStrategies(colors, pred8.pct) || modelSuggest(colors); 
+        const macroOk = macroConfirm(arr40, nowTs, arr);
+        
+        // Regras de permissão (as mesmas do G0)
+        const entryAllowed = pred8.ok && !blockCorrections && ( (countBBBSequences(colors,8)===0) || (countBBBSequences(colors,8)===1 && pred8.strong) );
+        
+        // Verifica se um novo sinal foi encontrado
+        const newSignalFound = entryAllowed && (suggestion || (macroOk && pred8.ok));
+        
         if(pending.stage===0){
-          if(patternStillExists && stableForGale){
-            // G1 ATIVADO (Padrão e estabilidade OK)
-            pending.stage=1; pending.enterAtIdx=justClosed.idx+1; martingaleTag.style.display="inline-block";
-            setCardState({active:true, title:"Chance de 2x G1", sub:`entrar após (${justClosed.mult.toFixed(2)}x)`}); addFeed("warn",`Ativando G1 (padrão ${originalSuggestion.name} confirmado)`);
+          if(newSignalFound){
+            // G1 ATIVADO (pois encontrou um novo sinal válido)
+            pending.stage=1; 
+            pending.enterAtIdx=justClosed.idx+1; 
+            martingaleTag.style.display="inline-block";
+            
+            // Atualiza o 'pending' com o NOVO motivo
+            const usedName = suggestion ? suggestion.name : "macro";
+            const usedGate = suggestion ? suggestion.gate : "tempo/rosa/surf/coluna (40m)";
+            pending.reason = usedGate;
+            pending.strategy = usedName;
+            pending.originalSuggestion = suggestion || { name: "macro" }; // Salva para o G2
+
+            setCardState({active:true, title:"Chance de 2x G1", sub:`entrar após (${justClosed.mult.toFixed(2)}x)`}); 
+            addFeed("warn",`Ativando G1 (Sinal re-analisado: ${usedName})`);
           } else {
-            // G1 CANCELADO
-            const reason = !patternStillExists ? "Padrão G0 mudou" : "Mercado instável";
+            // G1 CANCELADO (pois não encontrou novo sinal)
+            const reason = "Mercado instável / Sem novo sinal";
             addFeed("err", `Gale 1 cancelado: ${reason}`); topSlide("Gale 1 cancelado", false); clearPending();
           }
         } else if(pending.stage===1){
-          // G2 é o último recurso (regra "pred forte OU macro")
-          const g2Allowed = (pred8.strong || newMacroOk) && !blockCorrections;
+           // G2 (Último recurso)
+           // Regra mais permissiva: (Pred forte OU Macro OK) E sem correções pesadas
+           const g2Allowed = (pred8.strong || macroOk) && !blockCorrections;
 
-          if((patternStillExists || newSuggestion) && g2Allowed){ // Se o padrão original ou um NOVO padrão ou macro+pred forte
-             pending.stage=2; pending.enterAtIdx=justClosed.idx+1; martingaleTag.style.display="inline-block";
+           if(newSignalFound && g2Allowed){
+             pending.stage=2; 
+             pending.enterAtIdx=justClosed.idx+1; 
+             martingaleTag.style.display="inline-block";
+             
+             const usedName = suggestion ? suggestion.name : "macro";
+             const usedGate = suggestion ? suggestion.gate : "tempo/rosa/surf/coluna (40m)";
+             pending.reason = usedGate;
+             pending.strategy = usedName;
+
              setCardState({active:true, title:"Chance de 2x G2", sub:`entrar após (${justClosed.mult.toFixed(2)}x)`});
-             strategyTag.textContent = "Estratégia: " + (newSuggestion ? newSuggestion.name : "macro/pred. forte");
-             // CORREÇÃO: Removido o Gatilho: Gatilho: para evitar erro de sintaxe
-             gateTag.textContent = "Gatilho: " + (newSuggestion ? newSuggestion.gate : "confirmação macro/predom.");
-             addFeed("warn","SINAL 2x (G2) — último recurso");
-          } else {
+             strategyTag.textContent = "EstratégIA: " + usedName;
+             gateTag.textContent = "Gatilho: " + usedGate;
+             addFeed("warn","SINAL 2x (G2) — Re-analisado");
+           } else {
             // G2 CANCELADO
             stats.losses++; stats.streak=0; syncStatsUI(); store.set(stats);
-            addFeed("err","LOSS 2x (G1 falhou, G2 cancelado)"); topSlide("LOSS 2x (G1)", false); clearPending();
-          }
+            addFeed("err","LOSS 2x (G1 falhou, G2 cancelado)"); 
+            topSlide("LOSS 2x (G1)", false); 
+            clearPending();
+           }
         } else if(pending.stage===2){
+          // G2 Loss - Final
           stats.losses++; stats.streak=0; syncStatsUI(); store.set(stats);
           addFeed("err","LOSS 2x (G2 falhou)"); topSlide("LOSS 2x (G2)", false); clearPending();
         }
@@ -391,8 +411,7 @@ function onNewCandle(arr){
   const lastMultTxt = last.mult.toFixed(2)+"x";
 
   // ================= RETOMADAS DE GALES (NÃO USADO NESTA LÓGICA) =================
-  // A lógica de GALE agora é instantânea (cancela ou ativa), não usa mais G1_WAIT / G2_WAIT
-  // Esta seção foi mantida como placeholder, mas não deve mais ser ativada.
+  // A lógica de GALE agora é instantânea (re-analisa ou cancela), não usa mais G1_WAIT / G2_WAIT
   if(pending && (pending.stage==='G1_WAIT' || pending.stage==='G2_WAIT')){
      addFeed("err", "Gale em espera cancelado (lógica antiga)");
      clearPending();
