@@ -164,7 +164,6 @@ function macroConfirm(arr40, nowTs, fullArr){ // Adicionado fullArr
 const SOFT_PCT = 0.50;  // ≥50% = pague leve (pode operar se contexto permitir)
 const STRONG_PCT = 0.60; // ≥60% = pague forte (libera até com correção leve) // alinhado com tua prática
 const HARD_PAUSE_BLUE_RUN = 3; // ebook: após 3 azuis → parar e reavaliar (micro) // janela 8 velas: bloqueio extra com BBB≥2
-// const COOLDOWN_AFTER_100X_CANDLES = 10; // REMOVIDO POR SOLICITAÇÃO
 const TIME_WINDOWS_AFTER_PINK = [5,7,10,20]; // ±2 min
 const TIME_TOLERANCE_MIN = 2;
 
@@ -183,8 +182,6 @@ function inPinkTimeWindow(nowTs, arr){
   }
   return false;
 }
-
-// REMOVIDA A FUNÇÃO: function hasRecent100x(arr, k=COOLDOWN_AFTER_100X_CANDLES){...}
 
 function roseResetBooster(arr){
   // Booster: rosa recente (últimas 2) ou última não-azul muito alta
@@ -322,15 +319,15 @@ function onNewCandle(arr){
   predStatus.textContent = `Predominância (8 velas): ${(pred8.pct*100).toFixed(0)}%` + (pred8.strong?" · forte":"");
   blueRunPill.textContent = `Azuis seguidas: ${blueRun}`;
 
-  // Cooldown pós 100x (REMOVIDO. 'cooled' agora é sempre 'true')
-  const cooled = true; // Mantido como true para simplificar a lógica de pausa abaixo.
+  // Cooldown pós 100x (REMOVIDO por solicitação)
+  const cooled = true; 
 
-  // Bloqueios de contexto (Alinhado com a nova lista)
+  // Bloqueios de contexto
   const blockCorrections = bbbCount>=2; // Trava se tiver 2 ou mais sequências BBB (repetição)
   const weakPred = !pred8.ok; // < 50%
   const hardPauseBlueRun = blueRun >= HARD_PAUSE_BLUE_RUN; // Trava se tiver 3+ azuis na ponta
 
-  // Lógica de pausa (AGORA SEM O COOLDOWN 100X)
+  // Lógica de pausa
   const hardPaused = hardPauseBlueRun || blockCorrections || weakPred;
   engineStatus.textContent = hardPaused ? "aguardando" : "operando";
   
@@ -341,6 +338,7 @@ function onNewCandle(arr){
   if(pending && typeof pending.enterAtIdx === "number"){
     const justClosed = arr[arr.length-1];
     
+    // Verifica se a vela atual é a vela de entrada prevista
     if(justClosed.idx === pending.enterAtIdx){
       const win = justClosed.mult >= 2.0;
       
@@ -355,46 +353,107 @@ function onNewCandle(arr){
         addFeed("ok", label); topSlide("WIN 2x", true); clearPending();
       } else {
         
-        // [LÓGICA DE "GALE FORÇADO E INTELIGENTE"]
+        // [LÓGICA DE GALE FORÇADO, ATRASADO E COM BLOQUEIO DE RISCO]
         const nextStage = pending.stage + 1;
 
         if(nextStage <= 2){ // G1 (nextStage=1) ou G2 (nextStage=2)
           
-          // 1. Re-analisa o mercado (procura o melhor sinal atual - mesma lógica do G0)
-          const newSignal = findBestSignal(arr, pred8, arr40, colors);
+          let forceLoss = false;
           
-          let usedName, usedGate;
-          
-          if(newSignal){
-            // Se encontrar um sinal, usa a lógica mais assertiva
-            usedName = newSignal.strategy;
-            usedGate = newSignal.reason;
-          } else {
-            // Se não encontrar sinal, usa a estratégia original
-            usedName = pending.strategy;
-            usedGate = pending.reason;
+          // **REGRA: Bloqueio G2 se 2 Azuis (Só aplica se estiver indo para G2)**
+          if(nextStage === 2){
+             // justClosed é a vela de perda do G1 (que entrou atrasada).
+             // A vela anterior é a vela skip (arr[arr.length-2]).
+             // A vela antes do skip é a vela de perda do G0 (arr[arr.length-3]).
+             
+             // O usuário quer: "Nunca fazer o G2 na frente de dois azuis."
+             // Isso significa: Se a perda do G1 (justClosed) E a vela anterior (skip) forem azuis.
+             
+             const G1LossCandle = justClosed; 
+             const candleBeforeG1Loss = arr[arr.length-2]; 
+             // Checa se as duas velas MAIS RECENTES são azuis (vela G1 e vela Skip)
+             const isTwoBlues = G1LossCandle?.color === 'blue' && candleBeforeG1Loss?.color === 'blue';
+             
+             if(isTwoBlues){
+               forceLoss = true;
+             }
           }
           
-          // 2. FORÇA O AVANÇO (GALE É OBRIGATÓRIO)
-          pending.stage = nextStage; 
-          pending.enterAtIdx = justClosed.idx + 1; 
-          martingaleTag.style.display = "inline-block";
-          
-          // 3. ATUALIZA A INTERFACE/REGISTRO COM A MELHOR INFORMAÇÃO ENCONTRADA
-          pending.reason = usedGate;
-          pending.strategy = usedName;
+          if(forceLoss){
+             // G2 CANCELADO (Bloqueado por Alto Risco)
+             stats.losses++; stats.streak=0; syncStatsUI(); store.set(stats);
+             addFeed("err","LOSS 2x (G1 falhou, G2 REJEITADO por 2 Azuis seguidos)"); 
+             topSlide("G2 Bloqueado!", false); 
+             clearPending();
+          } else {
+             // **GALE FORÇADO E ATRASADO (Entry em 2 velas)**
 
-          setCardState({active:true, title:`Chance de 2x G${nextStage}`, sub:`entrar após (${justClosed.mult.toFixed(2)}x)`}); 
-          strategyTag.textContent = "Estratégia: " + usedName;
-          gateTag.textContent = "Gatilho: " + usedGate;
-          addFeed("warn",`Ativando G${nextStage} (Sinal atualizado: ${usedName})`);
+             // 1. Re-analisa o mercado (encontra o melhor sinal)
+             const newSignal = findBestSignal(arr, pred8, arr40, colors);
+             let usedName, usedGate;
+             if(newSignal){
+               usedName = newSignal.strategy;
+               usedGate = newSignal.reason;
+             } else {
+               usedName = pending.strategy; // Usa o original se não achar novo
+               usedGate = pending.reason;
+             }
+             
+             // Atraso de 1 vela: O próximo sinal (G1 ou G2) entra em 2 velas: 
+             // justClosed.idx + 1 (vela skip) + 1 (vela de entrada)
+             const newEntryIdx = justClosed.idx + 2; 
+
+             pending.stage = nextStage; 
+             pending.enterAtIdx = newEntryIdx; 
+             martingaleTag.style.display = "inline-block";
+             
+             // 3. ATUALIZA A INTERFACE/REGISTRO COM A MELHOR INFORMAÇÃO ENCONTRADA
+             pending.reason = usedGate;
+             pending.strategy = usedName;
+
+             setCardState({active:true, title:`Chance de 2x G${nextStage} (Aguardando)`, sub:`próx. entrada em 2 velas (Sinal Atualizado)`}); 
+             strategyTag.textContent = "Estratégia: " + usedName;
+             gateTag.textContent = "Gatilho: " + usedGate;
+             addFeed("warn",`Ativando G${nextStage} (Sinal atualizado, entrada em 2 velas: ${usedName})`);
+          }
           
         } else {
-          // G2 LOSS - Final
+          // G2 LOSS - Final (Não coberto pelo bloqueio de dois azuis)
           stats.losses++; stats.streak=0; syncStatsUI(); store.set(stats);
           addFeed("err","LOSS 2x (G2 falhou)"); topSlide("LOSS 2x (G2)", false); clearPending();
         }
       }
+    } else if (justClosed.idx > pending.enterAtIdx && pending.stage > 0) {
+        // [TRATAMENTO DE ATRASO]: Se a vela atual passou do índice de entrada do G1/G2, mas não houve WIN/LOSS, 
+        // significa que o sinal falhou. Isso não deve ocorrer com a lógica de +2, mas é uma segurança.
+        
+        // Força a perda e cancela (se G1) ou passa para o próximo estágio (se G0)
+        
+        if (pending.stage === 2) {
+            // Perda de G2 - Finaliza
+            stats.losses++; stats.streak=0; syncStatsUI(); store.set(stats);
+            addFeed("err","LOSS 2x (G2 falhou)"); topSlide("LOSS 2x (G2)", false); clearPending();
+        } else {
+             // Perda de G0 ou G1 (Se não houve WIN e já passou do índice)
+            // Recalcula o próximo Gale, mas mantém o estado para não perder o ciclo.
+            
+            const nextStage = pending.stage + 1;
+            const newEntryIdx = justClosed.idx + 1; // Apenas o próximo índice para o próximo estágio
+
+            pending.stage = nextStage;
+            pending.enterAtIdx = newEntryIdx;
+            martingaleTag.style.display = "inline-block";
+            
+            const newSignal = findBestSignal(arr, pred8, arr40, colors);
+            pending.reason = newSignal?.reason || pending.reason;
+            pending.strategy = newSignal?.strategy || pending.strategy;
+            
+            setCardState({active:true, title:`Chance de 2x G${nextStage} (Aguardando)`, sub:`entrada imediata - recuperando ciclo`}); 
+            strategyTag.textContent = "Estratégia: " + pending.strategy;
+            gateTag.textContent = "Gatilho: " + pending.reason;
+            addFeed("warn", `G${pending.stage} (Forçado) — reentrada imediata para G${nextStage}`);
+        }
+        
     }
   }
 
