@@ -389,7 +389,7 @@ function onNewCandle(arr){
             pending.enterAtIdx = null; // Não entra ainda
             const reason = !isXadrez ? "aguardando padrão xadrez (G2)" : "aguardando estabilidade (G2)";
             setCardState({active:false, awaiting:true, title:"Aguardando G2", sub: reason});
-            addFeed("warn", `G2 em espera: ${reason}`);
+            addFeed("warn", `G2 em espera`);
           }
         } else if(pending.stage===2){
           // LOSS SÓ OCORRE APÓS O G2
