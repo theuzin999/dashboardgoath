@@ -164,7 +164,7 @@ function macroConfirm(arr40, nowTs, fullArr){ // Adicionado fullArr
 const SOFT_PCT = 0.50;  // ≥50% = pague leve (pode operar se contexto permitir)
 const STRONG_PCT = 0.60; // ≥60% = pague forte (libera até com correção leve) // alinhado com tua prática
 const HARD_PAUSE_BLUE_RUN = 3; // ebook: após 3 azuis → parar e reavaliar (micro) // janela 8 velas: bloqueio extra com BBB≥2
-// const COOLDOWN_AFTER_100X_CANDLES = 10; // REMOVIDO CONFORME SOLICITADO
+// const COOLDOWN_AFTER_100X_CANDLES = 10; // REMOVIDO
 const TIME_WINDOWS_AFTER_PINK = [5,7,10,20]; // ±2 min
 const TIME_TOLERANCE_MIN = 2;
 
@@ -186,8 +186,6 @@ function inPinkTimeWindow(nowTs, arr){
 
 function hasRecent100x(arr, k){
   // FUNÇÃO DESATIVADA CONFORME SOLICITADO
-  // const win = arr.slice(-k);
-  // return win.some(r=> r.color==="pink" && r.mult>=100);
   return false; 
 }
 
@@ -252,10 +250,11 @@ function detectStrategies(colors, predPct){
   return null;
 }
 
-function ngramPositiveProb(colors, order){
+// [FUNÇÃO ATUALIZADA] - Aceita windowSize
+function ngramPositiveProb(colors, order, windowSize=120){
   if(colors.length <= order) return null;
   const POS = new Set(["purple","pink"]);
-  const window = colors.slice(-120);
+  const window = colors.slice(-windowSize); // Janela de histórico (17, 8 ou 120)
   const counts = new Map();
   for(let i=order;i<window.length;i++){
     const ctx = window.slice(i-order, i).join("|");
@@ -268,10 +267,31 @@ function ngramPositiveProb(colors, order){
   if(!stat) return null;
   return {p: stat.pos/stat.total, n: stat.total};
 }
-function modelSuggest(colors){
+
+// [NOVA FUNÇÃO] - Estratégia de Repetição (W17, W8)
+function detectRepetitionStrategy(colors){
+  // Check window size 17
   for(const k of [4,3,2]){
-    const res = ngramPositiveProb(colors, k);
-    if(res && res.n>=3 && res.p>=0.45){ // ↑ ligeiro aumento de confiança
+    const res = ngramPositiveProb(colors, k, 17); // Usa janela de 17
+    if(res && res.n >= 1 && res.p >= 0.75){ // Confiança alta (ex: 3 de 4, ou 1 de 1)
+      return {name:`rep_cores k=${k} (W17)`, gate:`Repetição (17 velas): P(pos|ctx)=${(res.p*100).toFixed(0)}% · n=${res.n}`}; 
+    }
+  }
+  // Check window size 8
+  for(const k of [3,2]){ // k=4 é muito grande para janela 8
+    const res = ngramPositiveProb(colors, k, 8); // Usa janela de 8
+    if(res && res.n >= 1 && res.p >= 1.0){ // Exige 100% de acerto na janela micro
+      return {name:`rep_cores k=${k} (W8)`, gate:`Repetição (8 velas): P(pos|ctx)=${(res.p*100).toFixed(0)}% · n=${res.n}`}; 
+    }
+  }
+  return null;
+}
+
+function modelSuggest(colors){
+  // Esta é a IA geral (janela 120)
+  for(const k of [4,3,2]){
+    const res = ngramPositiveProb(colors, k, 120); // Janela padrão longa
+    if(res && res.n>=3 && res.p>=0.45){ 
       return {name:`modelo n-grama k=${k}`, gate:`IA: P(positiva|ctx)=${(res.p*100).toFixed(0)}% · n=${res.n}`}; 
     }
   }
@@ -299,7 +319,7 @@ function onNewCandle(arr){
   blueRunPill.textContent = `Azuis seguidas: ${blueRun}`;
 
   // Cooldown pós 100x REMOVIDO
-  const cooled = true; // !hasRecent100x(arr, COOLDOWN_AFTER_100X_CANDLES);
+  const cooled = true; 
 
   // Bloqueios de contexto (Alinhado com a nova lista)
   const blockCorrections = bbbCount>=2; // Trava se tiver 2 ou mais sequências BBB (repetição)
@@ -307,10 +327,10 @@ function onNewCandle(arr){
   const hardPauseBlueRun = blueRun >= HARD_PAUSE_BLUE_RUN; // Trava se tiver 3+ azuis na ponta
 
   // Lógica de pausa (Cooldown 100x removido)
-  const hardPaused = hardPauseBlueRun || blockCorrections || weakPred; // || (!cooled);
+  const hardPaused = hardPauseBlueRun || blockCorrections || weakPred;
   engineStatus.textContent = hardPaused ? "aguardando" : "operando";
 
-  const awaitingStability = (blueRun>=2); // Conservador para retomar gales
+  //const awaitingStability = (blueRun>=2); // Conservador para retomar gales // [REMOVIDO, REGRA DO XADREZ SUBSTITUI]
 
   // ================= WIN/LOSS (fecha sinais anteriores) =================
   if(pending && typeof pending.enterAtIdx === "number"){
@@ -329,39 +349,35 @@ function onNewCandle(arr){
         const label = pending.stage===0 ? "WIN 2x" : `WIN 2x (G${pending.stage})`;
         addFeed("ok", label); topSlide("WIN 2x", true); clearPending();
       } else {
-        // [NOVA LÓGICA DE GALE - NÃO CANCELA, AGUARDA]
-        const newSuggestion = detectStrategies(colors, pred8.pct) || modelSuggest(colors);
+        // [NOVA LÓGICA DE GALE - REGRA DO XADREZ]
+        const newSuggestion = detectStrategies(colors, pred8.pct) || detectRepetitionStrategy(colors) || modelSuggest(colors);
         const newMacroOk = macroConfirm(arr40, nowTs, arr);
         const { originalSuggestion } = pending; // Pega o gatilho original
         
-        let patternStillExists = false;
-        if (originalSuggestion.name === "macro") {
-          patternStillExists = newMacroOk; // Se o G0 foi por macro, checa se macro ainda confirma
-        } else if (newSuggestion && newSuggestion.name === originalSuggestion.name) {
-          patternStillExists = true; // Se o G0 foi por regra, checa se a MESMA regra ainda aplica
-        }
-        
-        // Verifica estabilidade (sempre necessária)
-        const stableForGale = pred8.ok && !blockCorrections && !awaitingStability;
+        // [MUDANÇA] Regra do Xadrez: Só entra no gale se a vela de loss formar um padrão xadrez
+        const isXadrez = (newSuggestion?.name === "xadrez" || newSuggestion?.name === "pós-rosa xadrez");
 
         if(pending.stage===0){
-          if(patternStillExists && stableForGale){
-            // G1 ATIVADO (Padrão e estabilidade OK)
+          // Condição G1: Estabilidade E obrigatório ser padrão Xadrez
+          const stableForGale = pred8.ok && !blockCorrections && isXadrez;
+
+          if(stableForGale){
+            // G1 ATIVADO (Xadrez e estabilidade OK)
             pending.stage=1; pending.enterAtIdx=justClosed.idx+1; martingaleTag.style.display="inline-block";
-            setCardState({active:true, title:"Chance de 2x G1", sub:`entrar após (${justClosed.mult.toFixed(2)}x)`}); addFeed("warn",`Ativando G1 (padrão ${originalSuggestion.name} confirmado)`);
+            setCardState({active:true, title:"Chance de 2x G1", sub:`entrar após (${justClosed.mult.toFixed(2)}x)`}); addFeed("warn",`Ativando G1 (padrão Xadrez confirmado)`);
           } else {
             // [MUDANÇA] G1 EM ESPERA (Não cancela)
             pending.stage = 'G1_WAIT'; // Novo estado de espera
             pending.enterAtIdx = null; // Não entra ainda
-            const reason = !patternStillExists ? "aguardando padrão" : "aguardando estabilidade";
+            const reason = !isXadrez ? "aguardando padrão xadrez" : "aguardando estabilidade";
             setCardState({active:false, awaiting:true, title:"Aguardando G1", sub: reason});
             addFeed("warn", `G1 em espera: ${reason}`);
           }
         } else if(pending.stage===1){
-          // G2 é o último recurso (regra "pred forte OU macro")
-          const g2Allowed = (pred8.strong || newMacroOk) && !blockCorrections;
+          // Condição G2: Pred Forte OU Macro E obrigatório ser padrão Xadrez
+          const g2Allowed = (pred8.strong || newMacroOk) && !blockCorrections && isXadrez;
 
-          if((patternStillExists || newSuggestion) && g2Allowed){ // Se o padrão original ou um NOVO padrão ou macro+pred forte
+          if(g2Allowed){ 
              pending.stage=2; pending.enterAtIdx=justClosed.idx+1; martingaleTag.style.display="inline-block";
              setCardState({active:true, title:"Chance de 2x G2", sub:`entrar após (${justClosed.mult.toFixed(2)}x)`});
              strategyTag.textContent = "Estratégia: " + (newSuggestion ? newSuggestion.name : "macro/pred. forte");
@@ -371,7 +387,7 @@ function onNewCandle(arr){
             // [MUDANÇA] G2 EM ESPERA (Não cancela)
             pending.stage = 'G2_WAIT'; // Novo estado de espera
             pending.enterAtIdx = null; // Não entra ainda
-            const reason = !g2Allowed ? "aguardando estabilidade (G2)" : "aguardando padrão (G2)";
+            const reason = !isXadrez ? "aguardando padrão xadrez (G2)" : "aguardando estabilidade (G2)";
             setCardState({active:false, awaiting:true, title:"Aguardando G2", sub: reason});
             addFeed("warn", `G2 em espera: ${reason}`);
           }
@@ -402,21 +418,17 @@ function onNewCandle(arr){
   // Se estivermos em G1_WAIT ou G2_WAIT, reavaliamos a cada vela
   if(pending && (pending.stage==='G1_WAIT' || pending.stage==='G2_WAIT')){
      // Re-avaliação de padrões e estabilidade para G1/G2
-    const newSuggestion = detectStrategies(colors, pred8.pct) || modelSuggest(colors);
+    const newSuggestion = detectStrategies(colors, pred8.pct) || detectRepetitionStrategy(colors) || modelSuggest(colors);
     const newMacroOk = macroConfirm(arr40, nowTs, arr);
-    const { originalSuggestion } = pending;
     
-    let patternStillExists = false;
-    if (originalSuggestion.name === "macro") {
-      patternStillExists = newMacroOk;
-    } else if (newSuggestion && newSuggestion.name === originalSuggestion.name) {
-      patternStillExists = true;
-    }
+    // [MUDANÇA] Regra do Xadrez
+    const isXadrez = (newSuggestion?.name === "xadrez" || newSuggestion?.name === "pós-rosa xadrez");
 
     if(pending.stage==='G1_WAIT'){
-        const stableForGale = pred8.ok && !blockCorrections && !awaitingStability;
+        // Condição G1: Estabilidade E obrigatório ser padrão Xadrez
+        const stableForGale = pred8.ok && !blockCorrections && isXadrez;
         
-        if(patternStillExists && stableForGale){
+        if(stableForGale){
             // [MUDANÇA] ATIVANDO G1 (após espera)
             pending.stage=1; pending.enterAtIdx=last.idx+1; martingaleTag.style.display="inline-block";
             // Conforme solicitado: Card roxo (active) e texto da entrada
@@ -424,14 +436,15 @@ function onNewCandle(arr){
             addFeed("warn",`SINAL 2x (G1) — entrar após (${lastMultTxt})`);
         } else {
             // AINDA ESPERANDO G1
-            const reason = !patternStillExists ? "aguardando padrão" : "aguardando estabilidade";
+            const reason = !isXadrez ? "aguardando padrão xadrez" : "aguardando estabilidade";
             setCardState({active:false, awaiting:true, title:"Aguardando G1", sub: reason});
         }
     } 
     else if(pending.stage==='G2_WAIT'){
-        const g2Allowed = (pred8.strong || newMacroOk) && !blockCorrections;
+        // Condição G2: Pred Forte OU Macro E obrigatório ser padrão Xadrez
+        const g2Allowed = (pred8.strong || newMacroOk) && !blockCorrections && isXadrez;
 
-        if((patternStillExists || newSuggestion) && g2Allowed){
+        if(g2Allowed){
             // [MUDANÇA] ATIVANDO G2 (após espera)
             pending.stage=2; pending.enterAtIdx=last.idx+1; martingaleTag.style.display="inline-block";
             setCardState({active:true, title:"Chance de 2x G2", sub:`entrar após (${lastMultTxt})`});
@@ -440,7 +453,7 @@ function onNewCandle(arr){
             addFeed("warn",`SINAL 2x (G2) — entrar após (${lastMultTxt})`);
         } else {
             // AINDA ESPERANDO G2
-            const reason = !g2Allowed ? "aguardando estabilidade (G2)" : "aguardando padrão (G2)";
+            const reason = !isXadrez ? "aguardando padrão xadrez (G2)" : "aguardando estabilidade (G2)";
             setCardState({active:false, awaiting:true, title:"Aguardando G2", sub: reason});
         }
     }
@@ -450,7 +463,11 @@ function onNewCandle(arr){
 
   // ================= NOVO SINAL (G0) =================
   if(!pending){
-    let suggestion = detectStrategies(colors, pred8.pct) || modelSuggest(colors); 
+    // [MUDANÇA] Inclui a nova estratégia de repetição
+    let suggestion = detectStrategies(colors, pred8.pct) || 
+                     detectRepetitionStrategy(colors) || 
+                     modelSuggest(colors); 
+    
     const macroOk = macroConfirm(arr40, nowTs, arr); // Passa 'arr'
 
     // Regras de permissão G0
