@@ -116,7 +116,7 @@ function positivesRatio(list){
 function predominancePositive(list, N=8){ // leitura micro do MOMENTO (últimas 8 velas)
   const lastN = list.slice(-N);
   const pct = positivesRatio(lastN);
-  return {pct, ok:pct>=SOFT_PCT, strong:pct>=STRONG_PCT}; // strong é >= 0.60
+  return {pct, ok:pct>=SOFT_PCT, strong:pct>=STRONG_PCT}; // ok é >= 0.50
 }
 function consecutiveBlueCount(list){
   let c=0; for(let i=list.length-1;i>=0;i--){ if(list[i].color==="blue") c++; else break; } return c;
@@ -347,44 +347,41 @@ function onNewCandle(arr){
         const label = pending.stage===0 ? "WIN 2x" : `WIN 2x (G${pending.stage})`;
         addFeed("ok", label); topSlide("WIN 2x", true); clearPending();
       } else {
-        // [NOVA LÓGICA DE GALE - REGRA PRED >= 60%]
+        // [NOVA LÓGICA DE GALE - REGRA PRED >= 50%]
         const newSuggestion = detectStrategies(colors, pred8.pct) || detectRepetitionStrategy(colors) || modelSuggest(colors);
         const newMacroOk = macroConfirm(arr40, nowTs, arr);
         
-        // [MUDANÇA] Regra do Xadrez REMOVIDA
-        // const isXadrez = (newSuggestion?.name === "xadrez" || newSuggestion?.name === "pós-rosa xadrez");
-
         if(pending.stage===0){
-          // Condição G1: Estabilidade E obrigatório Pred >= 60%
-          const stableForGale = pred8.strong && !blockCorrections; // [MUDANÇA]
+          // Condição G1: Estabilidade E obrigatório Pred >= 50%
+          const stableForGale = pred8.ok && !blockCorrections; // [MUDANÇA]
 
           if(stableForGale){
-            // G1 ATIVADO (Pred >= 60% e estabilidade OK)
+            // G1 ATIVADO (Pred >= 50% e estabilidade OK)
             pending.stage=1; pending.enterAtIdx=justClosed.idx+1; martingaleTag.style.display="inline-block";
-            setCardState({active:true, title:"Chance de 2x G1", sub:`entrar após (${justClosed.mult.toFixed(2)}x)`}); addFeed("warn",`Ativando G1 (Pred. >= 60% confirmado)`);
+            setCardState({active:true, title:"Chance de 2x G1", sub:`entrar após (${justClosed.mult.toFixed(2)}x)`}); addFeed("warn",`Ativando G1 (Pred. >= 50% confirmado)`);
           } else {
             // [MUDANÇA] G1 EM ESPERA (Não cancela)
             pending.stage = 'G1_WAIT'; // Novo estado de espera
             pending.enterAtIdx = null; // Não entra ainda
-            const reason = !pred8.strong ? "aguardando pred. >= 60%" : "aguardando estabilidade"; // [MUDANÇA]
+            const reason = !pred8.ok ? "aguardando pred. >= 50%" : "aguardando estabilidade"; // [MUDANÇA]
             setCardState({active:false, awaiting:true, title:"Aguardando G1", sub: reason});
             addFeed("warn", `G1 em espera: ${reason}`);
           }
         } else if(pending.stage===1){
-          // Condição G2: Obrigatório Pred >= 60%
-          const g2Allowed = pred8.strong && !blockCorrections; // [MUDANÇA]
+          // Condição G2: Obrigatório Pred >= 50%
+          const g2Allowed = pred8.ok && !blockCorrections; // [MUDANÇA]
 
           if(g2Allowed){ 
              pending.stage=2; pending.enterAtIdx=justClosed.idx+1; martingaleTag.style.display="inline-block";
              setCardState({active:true, title:"Chance de 2x G2", sub:`entrar após (${justClosed.mult.toFixed(2)}x)`});
              strategyTag.textContent = "Estratégia: " + (newSuggestion ? newSuggestion.name : "macro/pred. forte");
-             gateTag.textContent = "Gatilho: " + (newSuggestion ? newSuggestion.gate : "confirmação pred. >= 60%");
+             gateTag.textContent = "Gatilho: " + (newSuggestion ? newSuggestion.gate : "confirmação pred. >= 50%"); // [MUDANÇA]
              addFeed("warn","SINAL 2x (G2) — último recurso");
           } else {
             // [MUDANÇA] G2 EM ESPERA (Não cancela)
             pending.stage = 'G2_WAIT'; // Novo estado de espera
             pending.enterAtIdx = null; // Não entra ainda
-            const reason = !pred8.strong ? "aguardando pred. >= 60% (G2)" : "aguardando estabilidade (G2)"; // [MUDANÇA]
+            const reason = !pred8.ok ? "aguardando pred. >= 50% (G2)" : "aguardando estabilidade (G2)"; // [MUDANÇA]
             setCardState({active:false, awaiting:true, title:"Aguardando G2", sub: reason});
             addFeed("warn", `G2 em espera: ${reason}`);
           }
@@ -418,12 +415,9 @@ function onNewCandle(arr){
     const newSuggestion = detectStrategies(colors, pred8.pct) || detectRepetitionStrategy(colors) || modelSuggest(colors);
     const newMacroOk = macroConfirm(arr40, nowTs, arr);
     
-    // [MUDANÇA] Regra do Xadrez REMOVIDA
-    // const isXadrez = (newSuggestion?.name === "xadrez" || newSuggestion?.name === "pós-rosa xadrez");
-
     if(pending.stage==='G1_WAIT'){
-        // Condição G1: Estabilidade E obrigatório Pred >= 60%
-        const stableForGale = pred8.strong && !blockCorrections; // [MUDANÇA]
+        // Condição G1: Estabilidade E obrigatório Pred >= 50%
+        const stableForGale = pred8.ok && !blockCorrections; // [MUDANÇA]
         
         if(stableForGale){
             // [MUDANÇA] ATIVANDO G1 (após espera)
@@ -433,24 +427,24 @@ function onNewCandle(arr){
             addFeed("warn",`SINAL 2x (G1) — entrar após (${lastMultTxt})`);
         } else {
             // AINDA ESPERANDO G1
-            const reason = !pred8.strong ? "aguardando pred. >= 60%" : "aguardando estabilidade"; // [MUDANÇA]
+            const reason = !pred8.ok ? "aguardando pred. >= 50%" : "aguardando estabilidade"; // [MUDANÇA]
             setCardState({active:false, awaiting:true, title:"Aguardando G1", sub: reason});
         }
     } 
     else if(pending.stage==='G2_WAIT'){
-        // Condição G2: Obrigatório Pred >= 60%
-        const g2Allowed = pred8.strong && !blockCorrections; // [MUDANÇA]
+        // Condição G2: Obrigatório Pred >= 50%
+        const g2Allowed = pred8.ok && !blockCorrections; // [MUDANÇA]
 
         if(g2Allowed){
             // [MUDANÇA] ATIVANDO G2 (após espera)
             pending.stage=2; pending.enterAtIdx=last.idx+1; martingaleTag.style.display="inline-block";
             setCardState({active:true, title:"Chance de 2x G2", sub:`entrar após (${lastMultTxt})`});
             strategyTag.textContent = "Estratégia: " + (newSuggestion ? newSuggestion.name : "macro/pred. forte");
-            gateTag.textContent = "Gatilho: " + (newSuggestion ? newSuggestion.gate : "confirmação pred. >= 60%");
+            gateTag.textContent = "Gatilho: " + (newSuggestion ? newSuggestion.gate : "confirmação pred. >= 50%"); // [MUDANÇA]
             addFeed("warn",`SINAL 2x (G2) — entrar após (${lastMultTxt})`);
         } else {
             // AINDA ESPERANDO G2
-            const reason = !pred8.strong ? "aguardando pred. >= 60% (G2)" : "aguardando estabilidade (G2)"; // [MUDANÇA]
+            const reason = !pred8.ok ? "aguardando pred. >= 50% (G2)" : "aguardando estabilidade (G2)"; // [MUDANÇA]
             setCardState({active:false, awaiting:true, title:"Aguardando G2", sub: reason});
         }
     }
@@ -533,11 +527,11 @@ function toArrayFromHistory(raw){
       onNewCandle(arr);
     },(error)=>{
       liveStatus.textContent = "Erro: "+error.message;
-      liveStatus.style.background="rgba(239,68,68,.15)"; liveStatus.style.color="#ffd1D1";
+      liveStatus.style.background="rgba(239,68,68,.15)"; liveStatus.style.color="#ffd1d1";
     });
   }catch(e){
     liveStatus.textContent="Falha ao iniciar Firebase";
-    liveStatus.style.background="rgba(239,68,68,.15)"; liveStatus.style.color="#ffd1D1";
+    liveStatus.style.background="rgba(239,68,68,.1E)"; liveStatus.style.color="#ffd1d1";
     console.error(e);
   }
 })();
