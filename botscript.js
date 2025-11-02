@@ -183,7 +183,8 @@ function check5LineBlock(arr, cols=5){
 
     // Bloqueia se a coluna atual tem mais azuis do que positivas
     if (blueCount > posCount) {
-        window.lastBlockReason = `BLOQUEIO LINHA 5: ${blueCount} Azuis / ${posCount} Positivas.`;
+        // NOVO TEXTO FIXO - Não floda mais no feed.
+        window.lastBlockReason = `Predominância de Azul, aguardando...`; 
         return true;
     }
     return false;
@@ -360,7 +361,7 @@ function onNewCandle(arr){
   const blueRun = consecutiveBlueCount(arr);
   const bbbCount = countBBBSequences(colors, 8); 
 
-  predStatus.textContent = `Predominância (8 velas): ${(pred8.pct*100).toFixed(0)}%` + (pred8.strong?" · forte":"");
+  predStatus.textContent = `Predominância: ${(pred8.pct*100).toFixed(0)}%` + (pred8.strong?" · forte":"");
   blueRunPill.textContent = `Azuis seguidas: ${blueRun}`;
 
   // ================= BLOQUEIOS E PAUSAS GERAIS =================
@@ -373,7 +374,7 @@ function onNewCandle(arr){
   engineStatus.textContent = hardPaused ? "aguardando" : "operando";
 
   if(hardPaused){
-    let sub = (line5Block ? lastBlockReason : blockCorrections?"correção BBB repetida (micro 8)": weakPred?"predom. <50% (micro 8)": hardPauseBlueRun ? "3+ azuis seguidas na ponta" : "aguarde uma possibilidade");
+    let sub = (line5Block ? lastBlockReason : blockCorrections?"correção BBB repetida (micro 8)": weakPred?"Aguardando Estabilização": hardPauseBlueRun ? "3+ azuis seguidas na ponta" : "aguarde uma possibilidade");
     setCardState({active:false, awaiting:true, title:"aguardando estabilidade", sub});
     const pauseMsg = sub;
     if (window.lastPauseMessage !== pauseMsg) { addFeed("warn", pauseMsg); window.lastPauseMessage = pauseMsg; }
