@@ -250,10 +250,11 @@ function getStrategyAndGate(colors, arr40, arr, predNPct, allowMacro = true){
   return null;
 }
 
-// ===================== Motor (COM "entrar após" NO G1/G2) ======================
+// ===================== Motor (G1/G2 SÓ COM NOVO GATILHO + corrGate <= 1) ======================
 let pending = null;
 let waitingForNewCorrections = 0;
 let currentCycleLoss = false;
+let lastG0Strategy = null; // armazena estratégia do G0
 
 function clearPending(){ 
   pending = null; 
@@ -267,7 +268,7 @@ function onNewCandle(arr){
 
   const colors = arr.map(r=>r.color);
   const last = arr[arr.length-1];
-  const lastMultTxt = last.mult.toFixed(2)+"x"; // <-- USADO EM TODOS OS GALES
+  const lastMultTxt = last.mult.toFixed(2)+"x";
 
   const colorsLastN = getLastNColors(arr, WINDOW_N);
   const predN = predominancePct(colorsLastN);
@@ -316,25 +317,23 @@ function onNewCandle(arr){
       addFeed("ok", `WIN 2x (G${pending.stage})`);
       topSlide("WIN 2x", true);
       clearPending();
+      lastG0Strategy = null;
       return;
     } else {
       // PERDEU
       if(pending.stage === 0){
         addFeed("err", "LOSS 2x (G0)");
         topSlide("LOSS 2x", false);
-
         currentCycleLoss = true;
 
-        // ATIVA G1 COM "entrar após"
-        pending.stage = 1;
-        pending.enterAtIdx = last.idx + 1;
-        pending.strategy = analysis?.name || "G1 Direto";
-        pending.afterMult = lastMultTxt; // <-- SALVA A VELA ANTERIOR
-        martingaleTag.style.display = "inline-block";
-        setCardState({active:true, title:"Chance de 2x G1", sub:`entrar após (${pending.afterMult})`});
-        strategyTag.textContent = "Estratégia: " + pending.strategy;
-        gateTag.textContent = "Gatilho: " + (analysis?.gate || "correção");
-        addFeed("warn", `SINAL 2x (G1) — entrar após (${pending.afterMult})`);
+        // Salva estratégia do G0
+        lastG0Strategy = pending.strategy;
+
+        // Muda para modo espera G1
+        pending.stage = 'G1_WAIT';
+        pending.enterAtIdx = null;
+        setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Procurando novo gatilho..."});
+        addFeed("warn", "Aguardando novo gatilho para G1");
         return;
       }
 
@@ -342,16 +341,11 @@ function onNewCandle(arr){
         addFeed("err", "LOSS 2x (G1)");
         topSlide("LOSS 2x (G1)", false);
 
-        // ATIVA G2 COM "entrar após"
-        pending.stage = 2;
-        pending.enterAtIdx = last.idx + 1;
-        pending.strategy = analysis?.name || "G2 Direto";
-        pending.afterMult = lastMultTxt; // <-- SALVA A VELA ANTERIOR
-        martingaleTag.style.display = "inline-block";
-        setCardState({active:true, title:"Chance de 2x G2", sub:`entrar após (${pending.afterMult})`});
-        strategyTag.textContent = "Estratégia: " + pending.strategy;
-        gateTag.textContent = "Gatilho: " + (analysis?.gate || "correção");
-        addFeed("warn", `SINAL 2x (G2) — entrar após (${pending.afterMult})`);
+        // Muda para modo espera G2
+        pending.stage = 'G2_WAIT';
+        pending.enterAtIdx = null;
+        setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Procurando novo gatilho..."});
+        addFeed("warn", "Aguardando novo gatilho para G2");
         return;
       }
 
@@ -366,6 +360,7 @@ function onNewCandle(arr){
         }
 
         clearPending();
+        lastG0Strategy = null;
         return;
       }
     }
@@ -395,7 +390,63 @@ function onNewCandle(arr){
     return;
   }
 
-  // ===== Novo Sinal G0 (inicia novo ciclo) =====
+  // ===== ESPERA G1: procura novo gatilho + estratégia diferente + corrGate <= 1 =====
+  if(pending?.stage === 'G1_WAIT'){
+    if(corrGate > 1){
+      setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:`Correção alta (${corrGate})`});
+      return;
+    }
+    if(!strongStrategyActive){
+      setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Sem gatilho forte"});
+      return;
+    }
+    if(analysis.name === lastG0Strategy){
+      setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Mesma estratégia do G0"});
+      return;
+    }
+
+    // GATILHO VÁLIDO → ativa G1
+    pending.stage = 1;
+    pending.enterAtIdx = last.idx + 1;
+    pending.strategy = analysis.name;
+    pending.afterMult = lastMultTxt;
+    martingaleTag.style.display = "inline-block";
+    setCardState({active:true, title:"Chance de 2x G1", sub:`entrar após (${pending.afterMult})`});
+    strategyTag.textContent = "Estratégia: " + pending.strategy;
+    gateTag.textContent = "Gatilho: " + analysis.gate;
+    addFeed("warn", `SINAL 2x (G1) — entrar após (${pending.afterMult})`);
+    return;
+  }
+
+  // ===== ESPERA G2: procura novo gatilho + estratégia diferente + corrGate <= 1 =====
+  if(pending?.stage === 'G2_WAIT'){
+    if(corrGate > 1){
+      setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:`Correção alta (${corrGate})`});
+      return;
+    }
+    if(!strongStrategyActive){
+      setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Sem gatilho forte"});
+      return;
+    }
+    if(analysis.name === lastG0Strategy || analysis.name === pending.strategy){
+      setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Mesma estratégia anterior"});
+      return;
+    }
+
+    // GATILHO VÁLIDO → ativa G2
+    pending.stage = 2;
+    pending.enterAtIdx = last.idx + 1;
+    pending.strategy = analysis.name;
+    pending.afterMult = lastMultTxt;
+    martingaleTag.style.display = "inline-block";
+    setCardState({active:true, title:"Chance de 2x G2", sub:`entrar após (${pending.afterMult})`});
+    strategyTag.textContent = "Estratégia: " + pending.strategy;
+    gateTag.textContent = "Gatilho: " + analysis.gate;
+    addFeed("warn", `SINAL 2x (G2) — entrar após (${pending.afterMult})`);
+    return;
+  }
+
+  // ===== Novo Sinal G0 =====
   if(!pending){
     if(!strongStrategyActive && !window.seguidinhaOn) return;
 
@@ -408,9 +459,10 @@ function onNewCandle(arr){
         stage:0, 
         enterAtIdx: last.idx + 1, 
         strategy: analysis?.name || "seguidinha",
-        afterMult: lastMultTxt // <-- SALVA PARA G0
+        afterMult: lastMultTxt
       };
       currentCycleLoss = true;
+      lastG0Strategy = pending.strategy;
 
       setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${pending.afterMult})`});
       strategyTag.textContent = "Estratégia: " + pending.strategy;
