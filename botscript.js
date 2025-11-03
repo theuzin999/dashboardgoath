@@ -112,8 +112,8 @@ function colorFrom(mult){ if(mult<2.0) return "blue"; if(mult<10.0) return "purp
 const isPos = (c) => c==="purple" || c==="pink";
 
 // ===== JANELAS PERSONALIZADAS =====
-const WINDOW_PRED = 12;
-const WINDOW_CORR = 8;
+const WINDOW_PRED = 6;
+const WINDOW_CORR = 7;
 
 function getLastNColors(arr, n){ return arr.slice(-n).map(r=>r.color); }
 
