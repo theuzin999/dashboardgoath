@@ -331,7 +331,7 @@ function modelSuggest(colors){
 let pending = null;
 function clearPending(){ pending=null; martingaleTag.style.display="none"; setCardState({active:false, awaiting:false}); }
 
-// [CORREÇÃO 1] Adicionado 'allowMacro = true'
+// [FUNÇÃO ATUALIZADA] Adicionado 'allowMacro' para controlar se o gatilho macro pode ser usado
 function getStrategyAndGate(colors, pred8, arr40, arr, allowMacro = true){
   let suggestion = detectStrategies(colors, pred8.pct) || 
                    detectRepetitionStrategy(colors) || 
@@ -339,7 +339,8 @@ function getStrategyAndGate(colors, pred8, arr40, arr, allowMacro = true){
   
   const macroOk = macroConfirm(arr40, arr[arr.length-1]?.ts || Date.now(), arr);
 
-  // [CORREÇÃO 1] Adicionado 'allowMacro &&'
+  // Se allowMacro é true (G0), o gatilho pode ser a macro.
+  // Se allowMacro é false (G1/G2), só aceita se um suggestion (padrão) foi encontrado.
   if(suggestion || (allowMacro && macroOk && pred8.ok)){
     const usedName = suggestion ? suggestion.name : "macro";
     const usedGate = suggestion ? suggestion.gate : "tempo/rosa/surf/coluna (40m)";
@@ -392,12 +393,13 @@ function onNewCandle(arr){
       // LÓGICA DE LOSS E TRANSIÇÃO PARA GALE/ESPERA
       
       // [CORREÇÃO 2] Adicionado 'false' para exigir padrão específico no GALE
+      // G1 e G2 SÓ PODEM SER ATIVADOS se um NOVO PADRÃO/ESTRATÉGIA for encontrado
       const nextSuggestion = getStrategyAndGate(colors, pred8, arr40, arr, false); 
       const predOk = pred8.ok;
       const newPatternFound = !!nextSuggestion; // Agora só é true se houver PADRÃO
 
       if(pending.stage===0){
-          const g1Allowed = predOk && newPatternFound; // Exige padrão
+          const g1Allowed = predOk && newPatternFound; // Exige predominância E novo padrão
 
           if(g1Allowed){
             pending.stage=1; pending.enterAtIdx=last.idx+1; martingaleTag.style.display="inline-block";
@@ -410,7 +412,7 @@ function onNewCandle(arr){
             addFeed("warn", `G1 em espera: ${reason}`);
           }
       } else if(pending.stage===1){
-          const g2Allowed = predOk && newPatternFound; // Exige padrão
+          const g2Allowed = predOk && newPatternFound; // Exige predominância E novo padrão
 
           if(g2Allowed){ 
              pending.stage=2; pending.enterAtIdx=last.idx+1; martingaleTag.style.display="inline-block";
@@ -442,6 +444,7 @@ function onNewCandle(arr){
   engineStatus.textContent = hardPaused ? "aguardando" : "operando";
 
   if(hardPaused){
+    // Se estivermos em G1/G2_WAIT, MANTEMOS o estado de espera e retornamos (não resetamos).
     if(pending && (pending.stage === 'G1_WAIT' || pending.stage === 'G2_WAIT')) return;
     
     let sub = (line5Block ? lastBlockReason : blockCorrections?"correção BBB repetida (micro 8)": weakPred?"Aguardando Estabilização": hardPauseBlueRun ? "3+ azuis seguidas na ponta" : "aguarde uma possibilidade");
@@ -469,7 +472,7 @@ function onNewCandle(arr){
     let transitioned = false; 
 
     if(pending.stage==='G1_WAIT'){
-        const g1Allowed = predOk && newPatternFound; // Exige padrão
+        const g1Allowed = predOk && newPatternFound; // Exige predominância E novo padrão
         if(g1Allowed){
             pending.stage=1; 
             pending.enterAtIdx=last.idx + 1; 
@@ -483,7 +486,7 @@ function onNewCandle(arr){
         }
     } 
     else if(pending.stage==='G2_WAIT'){
-        const g2Allowed = predOk && newPatternFound; // Exige padrão
+        const g2Allowed = predOk && newPatternFound; // Exige predominância E novo padrão
         if(g2Allowed){
             pending.stage=2; 
             pending.enterAtIdx=last.idx + 1; 
@@ -504,8 +507,7 @@ function onNewCandle(arr){
   
   // ================= NOVO SINAL (G0) =================
   if(!pending){
-    // A chamada do G0 (abaixo) está CORRETA. Ela usa o padrão (allowMacro=true)
-    // permitindo que o gatilho "macro" funcione para entradas G0.
+    // A chamada G0 usa allowMacro=true, permitindo que o gatilho "macro" funcione.
     const analysis = getStrategyAndGate(colors, pred8, arr40, arr);
     const entryAllowed = pred8.ok && !blockCorrections && ( (bbbCount===0) || (bbbCount===1 && pred8.strong) );
     
@@ -546,7 +548,7 @@ function toArrayFromHistory(raw){
     let ts=null;
     if(it?.date && it?.time){
       const d = new Date(`${it.date}T${it.time}`);
-      if(!Number.isFinite(d.getTime())) ts=d.getTime();
+      if(Number.isFinite(d.getTime())) ts=d.getTime(); // CORREÇÃO: se for NaN, não atribui ts
     }
     rows.push({ idx:i, mult, color, ts });
   }
