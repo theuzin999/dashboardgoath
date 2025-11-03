@@ -248,7 +248,7 @@ function ngramPositiveProb(colors, order, windowSize = 120) {
   }
   const ctxNow = colors.slice(-order).join("|");
   const stat = counts.get(ctxNow);
-  if (!)return null;
+  if (!stat || stat.total < 1) return null;
   return { p: stat.pos / stat.total, n: stat.total };
 }
 
@@ -435,37 +435,63 @@ function toArrayFromHistory(raw) {
     dbRef.on('value', (snapshot) => {
       const data = snapshot.val();
       const arr = toArrayFromHistory(data);
-      if (arr.length) onNewCandle(arr);
-      else engineStatus.textContent = "sem dados";
+      if (arr.length > 0) {
+        engineStatus.textContent = "operando";
+        onNewCandle(arr);
+      } else {
+        engineStatus.textContent = "aguardando dados...";
+      }
     }, (error) => {
       liveStatus.textContent = "Erro: " + error.message;
       liveStatus.style.background = "rgba(239,68,68,.15)";
       liveStatus.style.color = "#ffd1d1";
+      console.error("Firebase error:", error);
     });
   } catch (e) {
     liveStatus.textContent = "Falha ao iniciar Firebase";
     liveStatus.style.background = "rgba(239,68,68,.1E)";
     liveStatus.style.color = "#ffd1d1";
-    console.error(e);
+    console.error("Init error:", e);
   }
 })();
 
-// ===================== BLOQUEIO DEVTOOLS =======================
-(function () {
+// ===================== BLOQUEIO DO DEVTOOLS (RESTAURADO E MELHORADO) =======================
+(function() {
   const threshold = 160;
   let devtoolsOpen = false;
-  const check = () => {
-    if (window.innerWidth < threshold || window.innerHeight < threshold) {
-      if (!devtoolsOpen) { devtoolsOpen = true; window.location.replace("https://www.google.com"); }
-    } else devtoolsOpen = false;
-  };
-  window.addEventListener('resize', check);
-  check();
 
-  document.onkeydown = e => {
-    if (e.key === 'F12' || e.keyCode === 123) return false;
-    if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) return false;
-    return true;
+  const checkDevTools = () => {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    if (width < threshold || height < threshold) {
+      if (!devtoolsOpen) {
+        devtoolsOpen = true;
+        window.location.replace("https://www.google.com");
+      }
+    } else {
+      devtoolsOpen = false;
+    }
   };
-  document.oncontextmenu = () => false;
+
+  window.addEventListener('resize', checkDevTools);
+  checkDevTools();
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'F12' || e.keyCode === 123) e.preventDefault();
+    if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i')) e.preventDefault();
+    if (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j')) e.preventDefault();
+    if (e.ctrlKey && e.key === 'U') e.preventDefault();
+  });
+
+  document.addEventListener('contextmenu', function (e) {
+    e.preventDefault();
+  });
+
+  // Anti-debugger
+  (function() {
+    setInterval(() => {
+      console.clear();
+      debugger;
+    }, 100);
+  })();
 })();
