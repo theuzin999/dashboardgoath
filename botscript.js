@@ -112,8 +112,8 @@ function colorFrom(mult){ if(mult<2.0) return "blue"; if(mult<10.0) return "purp
 const isPos = (c) => c==="purple" || c==="pink";
 
 // ===== JANELAS PERSONALIZADAS =====
-const WINDOW_PRED = 12;  // ← Predominância (% roxo/rosa)
-const WINDOW_CORR = 8;   // ← Correção (max streak azul)
+const WINDOW_PRED = 12;
+const WINDOW_CORR = 8;
 
 function getLastNColors(arr, n){ return arr.slice(-n).map(r=>r.color); }
 
@@ -153,7 +153,6 @@ function consecutiveBlueCount(list){
   let c=0; for(let i=list.length-1;i>=0;i--){ if(list[i].color==="blue") c++; else break; } return c;
 }
 
-// XADREZ B-P-B → permite G1 mesmo com 2 azuis
 function isXadrezBPB(colors){
   const L = colors.length;
   return L >= 3 && colors[L-3] === "blue" && isPos(colors[L-2]) && colors[L-1] === "blue";
@@ -164,11 +163,10 @@ const SOFT_PCT = 0.50;
 const STRONG_PCT = 0.60; 
 
 // Variáveis de estado
-window.lastBlockReason = null;
-window.lastPauseMessage = null;
 window.seguidinhaOn = false; 
 window.prevCorrGate = null;
 let maxBlueStreakHistory = []; // [idx, streak]
+let waitingForNewCorrections = 0;
 
 // ===================== Estratégias =======================
 function detectStrategies(colors, predNPct){
@@ -249,9 +247,8 @@ function getStrategyAndGate(colors, arr40, arr, predNPct, allowMacro = true){
   return null;
 }
 
-// ===================== Motor (JANELAS SEPARADAS) ======================
+// ===================== Motor ======================
 let pending = null;
-let waitingForNewCorrections = 0;
 let currentCycleLoss = false;
 let lastG0Strategy = null;
 
@@ -269,7 +266,7 @@ function onNewCandle(arr){
   const last = arr[arr.length-1];
   const lastMultTxt = last.mult.toFixed(2)+"x";
 
-  // ===== LEITURA DAS JANELAS SEPARADAS =====
+  // ===== JANELAS =====
   const colorsPred = getLastNColors(arr, WINDOW_PRED);
   const colorsCorr = getLastNColors(arr, WINDOW_CORR);
 
@@ -286,6 +283,9 @@ function onNewCandle(arr){
 
   predStatus.textContent = `Predominância: ${(predN*100).toFixed(0)}% · Corr: ${corrN}`;
   blueRunPill.textContent = `Azuis seguidas: ${consecutiveBlueCount(arr)}` + (window.seguidinhaOn ? " · SEGUIDINHA ON" : "");
+
+  // ===== DEBUG LOG =====
+  console.log(`[CANDLE ${last.idx}] CorrGate: ${corrGate} | Pred: ${(predN*100).toFixed(0)}% | BlueRun: ${finalBlueRunNow(colors)} | Seguidinha: ${window.seguidinhaOn} | Estratégia: ${analysis?.name || '—'}`);
 
   // ===== RASTREIA MUDANÇAS DE CORREÇÃO =====
   const prevCorr = window.prevCorrGate;
@@ -320,35 +320,30 @@ function onNewCandle(arr){
     }
   }
 
-  // ===== SEGUIDINHA: sequência positiva com 0 ou 1 azul (mínimo 4 velas) =====
-  const lastNForSeguidinha = colors.slice(-Math.max(4, colors.length));
-  const blueCountInSeg = lastNForSeguidinha.filter(c => c === "blue").length;
-  const posCountInSeg = lastNForSeguidinha.length - blueCountInSeg;
-  const isSeguidinha = lastNForSeguidinha.length >= 4 && blueCountInSeg <= 1 && posCountInSeg >= 3;
+  // ===== SEGUIDINHA: 4+ velas com 0-1 azul =====
+  const minSeg = 4;
+  const lastN = colors.slice(-Math.max(minSeg, colors.length));
+  const blueInLastN = lastN.filter(c => c === "blue").length;
+  const isSeguidinha = lastN.length >= minSeg && blueInLastN <= 1;
 
-  if(isSeguidinha && !window.seguidinhaOn){
+  if (isSeguidinha && !window.seguidinhaOn) {
     window.seguidinhaOn = true;
-    addFeed("info", "Seguidinha ON: sequência positiva com 0-1 azul");
+    addFeed("info", `SEGUIDINHA ON: ${lastN.length} velas, ${blueInLastN} azul`);
   }
-  if(!isSeguidinha && window.seguidinhaOn && lastNForSeguidinha.length >= 6){
+  if (!isSeguidinha && window.seguidinhaOn && lastN.length >= 6) {
     window.seguidinhaOn = false;
-    addFeed("info", "Seguidinha OFF: padrão quebrado");
+    addFeed("info", "SEGUIDINHA OFF: padrão quebrado");
   }
 
-  // ===== Finalização de entrada =====
+  // ===== FINALIZAÇÃO DE ENTRADA =====
   if(pending && pending.enterAtIdx === last.idx){
     const win = last.mult >= 2.0;
-    
     if(win){
       currentCycleLoss = false;
-      stats.wins++; 
-      stats.streak++; 
-      stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
-      
+      stats.wins++; stats.streak++; stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
       if(pending.stage===0) stats.normalWins++;
       else if(pending.stage===1) stats.g1Wins++;
       else stats.g2Wins++;
-
       syncStatsUI(); store.set(stats);
       addFeed("ok", `WIN 2x (G${pending.stage})`);
       topSlide("WIN 2x", true);
@@ -357,57 +352,39 @@ function onNewCandle(arr){
       return;
     } else {
       if(pending.stage === 0){
-        addFeed("err", "LOSS 2x (G0)");
-        topSlide("LOSS 2x", false);
-        currentCycleLoss = true;
-        lastG0Strategy = pending.strategy;
-
-        pending.stage = 'G1_WAIT';
-        pending.enterAtIdx = null;
+        addFeed("err", "LOSS 2x (G0)"); topSlide("LOSS 2x", false);
+        currentCycleLoss = true; lastG0Strategy = pending.strategy;
+        pending.stage = 'G1_WAIT'; pending.enterAtIdx = null;
         setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Procurando novo gatilho..."});
         addFeed("warn", "Aguardando novo gatilho para G1");
         return;
       }
-
       if(pending.stage === 1){
-        addFeed("err", "LOSS 2x (G1)");
-        topSlide("LOSS 2x (G1)", false);
-
-        pending.stage = 'G2_WAIT';
-        pending.enterAtIdx = null;
+        addFeed("err", "LOSS 2x (G1)"); topSlide("LOSS 2x (G1)", false);
+        pending.stage = 'G2_WAIT'; pending.enterAtIdx = null;
         setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Procurando novo gatilho..."});
         addFeed("warn", "Aguardando novo gatilho para G2");
         return;
       }
-
       if(pending.stage === 2){
-        addFeed("err", "LOSS 2x (G2)");
-        topSlide("LOSS 2x (G2)", false);
-
-        if(currentCycleLoss){
-          stats.losses++;
-          stats.streak = 0;
-          syncStatsUI(); store.set(stats);
-        }
-
-        clearPending();
-        lastG0Strategy = null;
+        addFeed("err", "LOSS 2x (G2)"); topSlide("LOSS 2x (G2)", false);
+        if(currentCycleLoss){ stats.losses++; stats.streak = 0; syncStatsUI(); store.set(stats); }
+        clearPending(); lastG0Strategy = null;
         return;
       }
     }
   }
 
-  // ===== BLOQUEIO: 2 azuis seguidos em G1/G2 (exceto xadrez) =====
+  // ===== BLOQUEIO G1/G2: 2 azuis seguidos (exceto xadrez) =====
   const lastTwoBlue = colors.length >= 2 && colors[colors.length-1] === "blue" && colors[colors.length-2] === "blue";
   const isXadrez = isXadrezBPB(colors);
-
   if(lastTwoBlue && !isXadrez && pending?.stage >= 1){
     setCardState({active:false, awaiting:true, title:"BLOQUEADO", sub:"2 azuis seguidos (não é B-P-B)"});
     addFeed("warn", "G1/G2 bloqueado: 2 azuis seguidos");
     return;
   }
 
-  // ===== ESPERA G1: apenas gatilho forte + estratégia diferente =====
+  // ===== G1_WAIT =====
   if(pending?.stage === 'G1_WAIT'){
     if(!strongStrategyActive && !window.seguidinhaOn){
       setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Sem gatilho forte"});
@@ -417,11 +394,7 @@ function onNewCandle(arr){
       setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Mesma estratégia do G0"});
       return;
     }
-
-    pending.stage = 1;
-    pending.enterAtIdx = last.idx + 1;
-    pending.strategy = analysis?.name || "seguidinha";
-    pending.afterMult = lastMultTxt;
+    pending.stage = 1; pending.enterAtIdx = last.idx + 1; pending.strategy = analysis?.name || "seguidinha"; pending.afterMult = lastMultTxt;
     martingaleTag.style.display = "inline-block";
     setCardState({active:true, title:"Chance de 2x G1", sub:`entrar após (${pending.afterMult})`});
     strategyTag.textContent = "Estratégia: " + pending.strategy;
@@ -430,7 +403,7 @@ function onNewCandle(arr){
     return;
   }
 
-  // ===== ESPERA G2: apenas gatilho forte + estratégia diferente =====
+  // ===== G2_WAIT =====
   if(pending?.stage === 'G2_WAIT'){
     if(!strongStrategyActive && !window.seguidinhaOn){
       setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Sem gatilho forte"});
@@ -440,11 +413,7 @@ function onNewCandle(arr){
       setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Mesma estratégia anterior"});
       return;
     }
-
-    pending.stage = 2;
-    pending.enterAtIdx = last.idx + 1;
-    pending.strategy = analysis.name;
-    pending.afterMult = lastMultTxt;
+    pending.stage = 2; pending.enterAtIdx = last.idx + 1; pending.strategy = analysis.name; pending.afterMult = lastMultTxt;
     martingaleTag.style.display = "inline-block";
     setCardState({active:true, title:"Chance de 2x G2", sub:`entrar após (${pending.afterMult})`});
     strategyTag.textContent = "Estratégia: " + pending.strategy;
@@ -453,33 +422,32 @@ function onNewCandle(arr){
     return;
   }
 
-  // ===== Novo Sinal G0 (LIBERADO ATÉ corrGate = 2) =====
-  if(!pending){
-    const allowEntry = 
-      corrGate <= 2 || 
-      window.seguidinhaOn ||
-      (corrGate === 3 && predN >= 0.65 && strongStrategyActive);
+  // ===== NOVO SINAL G0: SEGUIDINHA = PRIORIDADE MÁXIMA =====
+  if (!pending) {
+    if (window.seguidinhaOn) {
+      pending = { stage: 0, enterAtIdx: last.idx + 1, strategy: "seguidinha", afterMult: lastMultTxt };
+      currentCycleLoss = true; lastG0Strategy = "seguidinha";
+      setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${pending.afterMult})`});
+      strategyTag.textContent = "Estratégia: seguidinha";
+      gateTag.textContent = "Gatilho: sequência positiva (0-1 azul)";
+      addFeed("warn", `SINAL 2x (G0) — SEGUIDINHA ON`);
+      return;
+    }
 
-    if(allowEntry){
-      pending = { 
-        stage:0, 
-        enterAtIdx: last.idx + 1, 
-        strategy: analysis?.name || (window.seguidinhaOn ? "seguidinha" : "correção"),
-        afterMult: lastMultTxt
-      };
-      currentCycleLoss = true;
-      lastG0Strategy = pending.strategy;
-
+    const allowEntry = corrGate <= 2 || (corrGate === 3 && predN >= 0.65 && strongStrategyActive);
+    if (allowEntry) {
+      pending = { stage: 0, enterAtIdx: last.idx + 1, strategy: analysis?.name || "correção", afterMult: lastMultTxt };
+      currentCycleLoss = true; lastG0Strategy = pending.strategy;
       setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${pending.afterMult})`});
       strategyTag.textContent = "Estratégia: " + pending.strategy;
       gateTag.textContent = "Gatilho: " + (analysis?.gate || "correção ≤2");
-      addFeed("warn",`SINAL 2x (G0) — entrar após (${pending.afterMult})`);
+      addFeed("warn", `SINAL 2x (G0) — entrar após (${pending.afterMult})`);
     } else {
       setCardState({active:false, awaiting:false, title:"SINAL BLOQUEADO", sub:"Corr≥3 sem força"});
     }
   }
 
-  engineStatus.textContent = window.seguidinhaOn ? "Seguidinha ON" : (waitingForNewCorrections > 0 ? "bloqueado (3+ azuis)" : "operando");
+  engineStatus.textContent = window.seguidinhaOn ? "SEGUIDINHA ON" : (waitingForNewCorrections > 0 ? "bloqueado (3+ azuis)" : "operando");
 }
 
 // ===================== Firebase =======================
@@ -527,7 +495,6 @@ function toArrayFromHistory(raw){
 (function() {
   const threshold = 160; 
   let devtoolsOpen = false;
-
   const checkDevTools = () => {
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -537,7 +504,6 @@ function toArrayFromHistory(raw){
   };
   window.addEventListener('resize', checkDevTools);
   checkDevTools();
-
   document.addEventListener('keydown', function (e) {
     if (e.key === 'F12' || e.keyCode === 123) e.preventDefault();
     if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i')) e.preventDefault();
