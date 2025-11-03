@@ -113,7 +113,7 @@ function positivesRatio(list){
   const pos = list.filter(c=>c.color==="purple"||c.color==="pink").length;
   return list.length ? pos/list.length : 0;
 }
-function predominancePositive(list, N=6){ // leitura micro do MOMENTO (últimas 8 velas)
+function predominancePositive(list, N=10){ // leitura micro do MOMENTO (últimas 8 velas)
   const lastN = list.slice(-N);
   const pct = positivesRatio(lastN);
   return {pct, ok:pct>=SOFT_PCT, strong:pct>=STRONG_PCT}; // ok é >= 0.50
@@ -121,7 +121,7 @@ function predominancePositive(list, N=6){ // leitura micro do MOMENTO (últimas 
 function consecutiveBlueCount(list){
   let c=0; for(let i=list.length-1;i>=0;i--){ if(list[i].color==="blue") c++; else break; } return c;
 }
-function countBBBSequences(colors, N=8){ // correção pesada: blocos com ≥3 azuis seguidas
+function countBBBSequences(colors, N=7){ // correção pesada: blocos com ≥3 azuis seguidas
   const window = colors.slice(-N);
   let cnt=0, run=0;
   for(let i=0;i<window.length;i++){
@@ -359,7 +359,7 @@ function onNewCandle(arr){
   const last = arr[arr.length-1];
   const lastMultTxt = last.mult.toFixed(2)+"x";
 
-  const pred8 = predominancePositive(arr, 6);
+  const pred8 = predominancePositive(arr, 7);
   const blueRun = consecutiveBlueCount(arr);
   const bbbCount = countBBBSequences(colors, 7); 
 
