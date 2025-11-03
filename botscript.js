@@ -166,7 +166,8 @@ const STRONG_PCT = 0.60;
 window.lastBlockReason = null;
 window.lastPauseMessage = null;
 window.seguidinhaOn = false; 
-window.correctionHistory = []; // rastreia mudanças de correção
+window.correctionHistory = [];
+window.prevCorrGate = null;
 
 // ===================== Estratégias =======================
 function detectStrategies(colors, predNPct){
@@ -177,27 +178,68 @@ function detectStrategies(colors, predNPct){
   if(isPos(a) && isPos(b) && isPos(c)){
     let run=0; for(let i=L-1;i>=0 && isPos(colors[i]); i--) run++;
     if(run>=4) return {name:`surfing-4+`, gate:`${run} positivas ⇒ P (2x)`};
-    if(run===3) return {name:`sequência ro pregunt 3`, gate:`3 positivas ⇒ P (2x)`};
+    if(run===3) return {name:`sequência roxas 3`, gate:`3 positivas ⇒ P (2x)`};
   }
 
   if(isXadrezBPB(colors)) return {name:"xadrez B-P-B", gate:"B-P-B ⇒ P (2x)"};
 
-  // ... outras estratégias mantidas (xadrez, pares, etc.) ...
-  // (mantidas por brevidade, mas funcionam igual)
+  // Predominância forte + azul na ponta
+  if(predNPct>=0.60 && c==="blue"){
+    return {name:"predominancia-forte", gate:`Pred ${(predNPct*100).toFixed(0)}% + Azul ⇒ P (2x)`};
+  }
 
   return null;
 }
 
-function ngramPositiveProb(colors, order, windowSize=120){ /* ... */ return null; }
-function detectRepetitionStrategy(colors){ /* ... */ return null; }
-function modelSuggest(colors){ /* ... */ return null; }
+function ngramPositiveProb(colors, order, windowSize=120){ 
+  if(colors.length <= order) return null;
+  const POS = new Set(["purple","pink"]);
+  const window = colors.slice(-windowSize);
+  const counts = new Map();
+  for(let i=order;i<window.length;i++){
+    const ctx = window.slice(i-order, i).join("|");
+    const next = window[i];
+    const obj = counts.get(ctx) || {total:0, pos:0};
+    obj.total += 1; if(POS.has(next)) obj.pos += 1; counts.set(ctx, obj);
+  }
+  const ctxNow = colors.slice(-order).join("|");
+  const stat = counts.get(ctxNow);
+  if(!stat) return null;
+  return {p: stat.pos/stat.total, n: stat.total};
+}
+
+function detectRepetitionStrategy(colors){ 
+  for(const k of [4,3,2]){
+    const res = ngramPositiveProb(colors, k, 12); 
+    if(res && res.n >= 1 && res.p >= 0.70){ 
+      return {name:`rep_cores k=${k} (W12)`, gate:`Repetição (12 velas): P(pos|ctx)=${(res.p*100).toFixed(0)}% · n=${res.n}`}; 
+    }
+  }
+  for(const k of [3,2]){
+    const res = ngramPositiveProb(colors, k, 8);
+    if(res && res.n >= 1 && res.p >= 0.90){ 
+      return {name:`rep_cores k=${k} (W8)`, gate:`Repetição (8 velas): P(pos|ctx)=${(res.p*100).toFixed(0)}% · n=${res.n}`}; 
+    }
+  }
+  return null;
+}
+
+function modelSuggest(colors){ 
+  for(const k of [4,3,2]){
+    const res = ngramPositiveProb(colors, k, 120); 
+    if(res && res.n>=2 && res.p>=0.40){ 
+      return {name:`modelo n-grama k=${k}`, gate:`IA: P(positiva|ctx)=${(res.p*100).toFixed(0)}% · n=${res.n}`}; 
+    }
+  }
+  return null;
+}
 
 function getStrategyAndGate(colors, arr40, arr, predNPct, allowMacro = true){
   let suggestion = detectStrategies(colors, predNPct) || 
                    detectRepetitionStrategy(colors) || 
                    modelSuggest(colors); 
   
-  const macroOk = false; // desativado por enquanto
+  const macroOk = false;
   const isStrongStrategy = !!suggestion; 
 
   if(isStrongStrategy || (allowMacro && macroOk && predNPct >= SOFT_PCT)){
@@ -208,9 +250,10 @@ function getStrategyAndGate(colors, arr40, arr, predNPct, allowMacro = true){
   return null;
 }
 
-// ===================== Motor (REGRAS RÍGIDAS) ======================
+// ===================== Motor (REGRA FINAL DE ERROS) ======================
 let pending = null;
-let waitingForNewCorrections = 0; // conta quantas novas correções precisamos
+let waitingForNewCorrections = 0;
+let currentCycleLoss = false; // controla se o ciclo atual é perda total
 
 function clearPending(){ 
   pending = null; 
@@ -258,24 +301,34 @@ function onNewCandle(arr){
   // ===== Finalização de entrada =====
   if(pending && pending.enterAtIdx === last.idx){
     const win = last.mult >= 2.0;
+    
     if(win){
-      stats.wins++; stats.streak++; stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
+      // GANHOU → ciclo não é perda
+      currentCycleLoss = false;
+
+      stats.wins++; 
+      stats.streak++; 
+      stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
+      
       if(pending.stage===0) stats.normalWins++;
       else if(pending.stage===1) stats.g1Wins++;
       else stats.g2Wins++;
+
       syncStatsUI(); store.set(stats);
       addFeed("ok", `WIN 2x (G${pending.stage})`);
       topSlide("WIN 2x", true);
       clearPending();
       return;
     } else {
-      // LOSS → avança para próximo gale
+      // PERDEU
       if(pending.stage === 0){
-        stats.losses++; stats.streak = 0; syncStatsUI(); store.set(stats);
         addFeed("err", "LOSS 2x (G0)");
         topSlide("LOSS 2x", false);
 
-        // NÃO LIMPA PENDING AINDA → VAI PARA G1
+        // Inicia novo ciclo → pode ser perda total
+        currentCycleLoss = true;
+
+        // Vai para G1
         pending.stage = 1;
         pending.enterAtIdx = last.idx + 1;
         pending.strategy = analysis?.name || "G1 Direto";
@@ -284,11 +337,12 @@ function onNewCandle(arr){
         addFeed("warn", "Ativando G1 após LOSS G0");
         return;
       }
+
       if(pending.stage === 1){
-        stats.losses++; stats.streak = 0; syncStatsUI(); store.set(stats);
         addFeed("err", "LOSS 2x (G1)");
         topSlide("LOSS 2x (G1)", false);
 
+        // Vai para G2
         pending.stage = 2;
         pending.enterAtIdx = last.idx + 1;
         pending.strategy = analysis?.name || "G2 Direto";
@@ -297,10 +351,18 @@ function onNewCandle(arr){
         addFeed("warn", "Ativando G2 após LOSS G1");
         return;
       }
+
       if(pending.stage === 2){
-        stats.losses++; stats.streak = 0; syncStatsUI(); store.set(stats);
         addFeed("err", "LOSS 2x (G2)");
         topSlide("LOSS 2x (G2)", false);
+
+        // Só conta como erro se NENHUM acertou
+        if(currentCycleLoss){
+          stats.losses++;
+          stats.streak = 0;
+          syncStatsUI(); store.set(stats);
+        }
+
         clearPending();
         return;
       }
@@ -321,7 +383,7 @@ function onNewCandle(arr){
     return;
   }
 
-  // ===== BLOQUEIO: 2 azuis seguidos (exceto xadrez B-P-B) =====
+   // ===== BLOQUEIO: 2 azuis seguidos (exceto xadrez B-P-B) =====
   const lastTwoBlue = colors.length >= 2 && colors[colors.length-1] === "blue" && colors[colors.length-2] === "blue";
   const isXadrez = isXadrezBPB(colors);
 
@@ -331,7 +393,7 @@ function onNewCandle(arr){
     return;
   }
 
-  // ===== Novo Sinal G0 =====
+  // ===== Novo Sinal G0 (inicia novo ciclo) =====
   if(!pending){
     if(!strongStrategyActive && !window.seguidinhaOn) return;
 
@@ -341,6 +403,8 @@ function onNewCandle(arr){
 
     if(entryAllowed){
       pending = { stage:0, enterAtIdx:last.idx+1, strategy: analysis?.name || "seguidinha" };
+      currentCycleLoss = true; // novo ciclo → pode ser perda
+
       setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${lastMultTxt})`});
       strategyTag.textContent = "Estratégia: " + pending.strategy;
       gateTag.textContent = "Gatilho: " + (analysis?.gate || "single correction");
@@ -398,6 +462,7 @@ function toArrayFromHistory(raw){
 (function() {
   const threshold = 160; 
   let devtoolsOpen = false;
+
   const checkDevTools = () => {
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -407,6 +472,7 @@ function toArrayFromHistory(raw){
   };
   window.addEventListener('resize', checkDevTools);
   checkDevTools();
+
   document.addEventListener('keydown', function (e) {
     if (e.key === 'F12' || e.keyCode === 123) e.preventDefault();
     if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i')) e.preventDefault();
