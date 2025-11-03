@@ -359,9 +359,9 @@ function onNewCandle(arr){
   const last = arr[arr.length-1];
   const lastMultTxt = last.mult.toFixed(2)+"x";
 
-  const pred8 = predominancePositive(arr, 8);
+  const pred8 = predominancePositive(arr, 6);
   const blueRun = consecutiveBlueCount(arr);
-  const bbbCount = countBBBSequences(colors, 8); 
+  const bbbCount = countBBBSequences(colors, 7); 
 
   predStatus.textContent = `Predominância: ${(pred8.pct*100).toFixed(0)}%` + (pred8.strong?" · forte":"");
   blueRunPill.textContent = `Azuis seguidas: ${blueRun}`;
