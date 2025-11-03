@@ -113,7 +113,7 @@ function positivesRatio(list){
   const pos = list.filter(c=>c.color==="purple"||c.color==="pink").length;
   return list.length ? pos/list.length : 0;
 }
-function predominancePositive(list, N=10){ // leitura micro do MOMENTO (últimas 8 velas)
+function predominancePositive(list, N=8){ // leitura micro do MOMENTO (últimas 8 velas)
   const lastN = list.slice(-N);
   const pct = positivesRatio(lastN);
   return {pct, ok:pct>=SOFT_PCT, strong:pct>=STRONG_PCT}; // ok é >= 0.50
@@ -121,7 +121,7 @@ function predominancePositive(list, N=10){ // leitura micro do MOMENTO (últimas
 function consecutiveBlueCount(list){
   let c=0; for(let i=list.length-1;i>=0;i--){ if(list[i].color==="blue") c++; else break; } return c;
 }
-function countBBBSequences(colors, N=7){ // correção pesada: blocos com ≥3 azuis seguidas
+function countBBBSequences(colors, N=12){ // correção pesada: blocos com ≥3 azuis seguidas
   const window = colors.slice(-N);
   let cnt=0, run=0;
   for(let i=0;i<window.length;i++){
@@ -192,7 +192,7 @@ function check5LineBlock(arr, cols=5){
 
 // ===================== Parâmetros (ajustados pelo Ebook) =======================
 const SOFT_PCT = 0.50;  // ≥50% = pague leve (G0) (pode operar se contexto permitir)
-const STRONG_PCT = 0.60; // ≥60% = pague forte (G1/G2) (libera até com correção leve)
+const STRONG_PCT = 0.50; // ≥60% = pague forte (G1/G2) (libera até com correção leve)
 const HARD_PAUSE_BLUE_RUN = 3; // ebook: após 3 azuis → parar e reavaliar (micro) // janela 8 velas: bloqueio extra com BBB≥2
 // const COOLDOWN_AFTER_100X_CANDLES = 10; // REMOVIDO
 const TIME_WINDOWS_AFTER_PINK = [5,7,10,20]; // ±2 min
