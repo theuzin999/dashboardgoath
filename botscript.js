@@ -1,3 +1,5 @@
+// ===================== V7 - REI INTELIGENTE: CORREÇÃO DIMINUINDO ENTRE POSITIVAS =====================
+
 // ===================== CONFIG FIREBASE ===========================
 const firebaseConfig = {
   apiKey: "AIzaSyB-35zQDrQbz8ohZUdqpFkayYdAUDrLw6g",
@@ -45,8 +47,9 @@ document.addEventListener("click", e => {
 
 function flashCard(){
   chanceCard.classList.add("chance-animate");
-  setTimeout(()=> chanceCard.classList.remove("chance-animate"), 260);
+  setTimeout(() => chanceCard.classList.remove("chance-animate"), 260);
 }
+
 function setCardState({active=false, awaiting=false, title="Chance de 2x", sub="identificando padrão"}){
   chanceTitle.textContent = title;
   chanceSub.textContent = sub;
@@ -55,102 +58,95 @@ function setCardState({active=false, awaiting=false, title="Chance de 2x", sub="
   else if(awaiting) chanceCard.classList.add("chance-awaiting");
   else if(title === "SINAL BLOQUEADO") chanceCard.classList.add("chance-blocked");
 }
+
 function topSlide(msg, ok=true){
   topslide.textContent = msg;
-  topslide.className = "topslide " + (ok?"ok":"err");
+  topslide.className = "topslide " + (ok ? "ok" : "err");
   topslide.classList.add("show");
-  setTimeout(()=> topslide.classList.remove("show"), 1000);
+  setTimeout(() => topslide.classList.remove("show"), 1000);
 }
-function addFeed(type,text){
-  const div = document.createElement("div"); div.className="item";
-  const left=document.createElement("div"); left.textContent=text;
-  const right=document.createElement("div"); right.className="chip "+(type==="ok"?"ok":type==="err"?"err":"warn");
-  right.textContent= type==="ok"?"WIN": type==="err"?"LOSS":"INFO";
+
+function addFeed(type, text){
+  const div = document.createElement("div"); div.className = "item";
+  const left = document.createElement("div"); left.textContent = text;
+  const right = document.createElement("div"); right.className = "chip " + (type==="ok"?"ok":type==="err"?"err":"warn");
+  right.textContent = type==="ok"?"WIN": type==="err"?"LOSS":"INFO";
   div.appendChild(left); div.appendChild(right); feed.prepend(div);
 }
 
 function renderHistory(list){
-  const historyGrid = document.getElementById("history");
-  historyGrid.innerHTML="";
+  const grid = document.getElementById("history");
+  grid.innerHTML = "";
   const last15 = list.slice(-15).reverse();
-  last15.forEach(r=>{
-    const box=document.createElement("div"); 
-    box.className="hbox "+r.color;
-    const top=document.createElement("div"); top.className="row"; top.style.justifyContent="space-between";
-    const val=document.createElement("div"); val.className="val"; val.textContent=r.mult.toFixed(2)+"x";
-    const dot=document.createElement("div"); dot.className= r.color==="blue"?"dot-blue":(r.color==="purple"?"dot-purple":"dot-pink");
-    const c=document.createElement("div"); c.className="c"; c.textContent=r.color;
+  last15.forEach(r => {
+    const box = document.createElement("div"); 
+    box.className = "hbox " + r.color;
+    const top = document.createElement("div"); top.className = "row"; top.style.justifyContent = "space-between";
+    const val = document.createElement("div"); val.className = "val"; val.textContent = r.mult.toFixed(2) + "x";
+    const dot = document.createElement("div"); dot.className = r.color==="blue"?"dot-blue":(r.color==="purple"?"dot-purple":"dot-pink");
+    const c = document.createElement("div"); c.className = "c"; c.textContent = r.color;
     top.appendChild(val); top.appendChild(dot); box.appendChild(top); box.appendChild(c);
-    historyGrid.appendChild(box);
+    grid.appendChild(box);
   });
 }
 
 // ===================== Persistência ======================
 const store = {
-  get(){ try{ return JSON.parse(localStorage.getItem("stats2x")||"{}"); }catch{return {}} },
+  get(){ try { return JSON.parse(localStorage.getItem("stats2x") || "{}"); } catch { return {}; } },
   set(d){ localStorage.setItem("stats2x", JSON.stringify(d)); }
 };
 let stats = Object.assign({wins:0,losses:0,streak:0,maxStreak:0,normalWins:0,g1Wins:0,g2Wins:0}, store.get());
 function syncStatsUI(){
-  winsEl.textContent=stats.wins; lossesEl.textContent=stats.losses; streakEl.textContent=stats.streak;
-  maxStreakEl.textContent=stats.maxStreak; normalWinsEl.textContent=stats.normalWins;
-  g1WinsEl.textContent=stats.g1Wins; g2WinsEl.textContent=stats.g2Wins;
+  winsEl.textContent = stats.wins; lossesEl.textContent = stats.losses; streakEl.textContent = stats.streak;
+  maxStreakEl.textContent = stats.maxStreak; normalWinsEl.textContent = stats.normalWins;
+  g1WinsEl.textContent = stats.g1Wins; g2WinsEl.textContent = stats.g2Wins;
 }
 syncStatsUI();
 
 clearStatsBtn.onclick = () => {
   if(confirm("Tem certeza que deseja limpar todas as estatísticas salvas? Esta ação é irreversível.")){
     stats = {wins:0,losses:0,streak:0,maxStreak:0,normalWins:0,g1Wins:0,g2Wins:0};
-    store.set(stats);
-    syncStatsUI();
-    topSlide("Estatísticas limpas!", true);
+    store.set(stats); syncStatsUI(); topSlide("Estatísticas limpas!", true);
   }
 };
 
 // ===================== Utils =======================
-function colorFrom(mult){ if(mult<2.0) return "blue"; if(mult<10.0) return "purple"; return "pink"; }
-const isPos = (c) => c==="purple" || c==="pink";
+function colorFrom(mult){ return mult < 2.0 ? "blue" : mult < 10.0 ? "purple" : "pink"; }
+const isPos = c => c === "purple" || c === "pink";
 
-// ===== JANELAS PERSONALIZADAS =====
+// ===== JANELAS =====
 const WINDOW_PRED = 6;
 const WINDOW_CORR = 7;
 
-function getLastNColors(arr, n){ return arr.slice(-n).map(r=>r.color); }
+function getLastNColors(arr, n){ return arr.slice(-n).map(r => r.color); }
 
-function predominancePct(colorsLastN){
-  const pos = colorsLastN.filter(c => c==="purple" || c==="pink").length;
-  return colorsLastN.length ? pos/colorsLastN.length : 0;
+function predominancePct(colors){ 
+  const pos = colors.filter(c => isPos(c)).length;
+  return colors.length ? pos / colors.length : 0;
 }
 
-function getMaxBlueStreakN(colorsLastN){
+function getMaxBlueStreakN(colors){
   let max = 0, run = 0;
-  for(const c of colorsLastN){
-    if(c==="blue"){ run++; if(run>max) max=run; }
+  for(const c of colors){
+    if(c === "blue"){ run++; if(run > max) max = run; }
     else run = 0;
   }
   return max;
 }
 
-function lastKBlueStreakRecency(colorsLastN, k=3){
-  let run=0;
-  for(let i=colorsLastN.length-1;i>=0;i--){
-    if(colorsLastN[i]==="blue"){ run++; if(run>=k) return colorsLastN.length-1-i; }
-    else run=0;
-  }
-  return Infinity;
-}
-
-function twoPosNow(colors){
-  const L = colors.length;
-  return L>=2 && (colors[L-1]!=="blue") && (colors[L-2]!=="blue");
-}
-
 function finalBlueRunNow(colors){
-  let r=0; for(let i=colors.length-1;i>=0 && colors[i]==="blue"; i--) r++; return r;
+  let r = 0;
+  for(let i = colors.length - 1; i >= 0 && colors[i] === "blue"; i--) r++;
+  return r;
 }
 
 function consecutiveBlueCount(list){
-  let c=0; for(let i=list.length-1;i>=0;i--){ if(list[i].color==="blue") c++; else break; } return c;
+  let c = 0;
+  for(let i = list.length - 1; i >= 0; i--){
+    if(list[i].color === "blue") c++;
+    else break;
+  }
+  return c;
 }
 
 function isXadrezBPB(colors){
@@ -159,90 +155,90 @@ function isXadrezBPB(colors){
 }
 
 // ===================== Parâmetros =======================
-const SOFT_PCT = 0.50; 
-const STRONG_PCT = 0.60; 
+const SOFT_PCT = 0.50;
+const STRONG_PCT = 0.60;
 
-// Variáveis de estado
-window.seguidinhaOn = false; 
+// ===================== Estado =======================
+window.seguidinhaOn = false;
 window.prevCorrGate = null;
-let maxBlueStreakHistory = []; // [idx, streak]
+let maxBlueStreakHistory = [];
 let waitingForNewCorrections = 0;
+let lastValidCorrection = null; // ← CORREÇÃO ANTERIOR VÁLIDA
 
 // ===================== Estratégias =======================
 function detectStrategies(colors, predNPct){
-  const L=colors.length; if(L<3) return null;
-  const a=colors[L-3], b=colors[L-2], c=colors[L-1];
-  const isPos = x => x!=="blue";
+  const L = colors.length; if(L < 3) return null;
+  const a = colors[L-3], b = colors[L-2], c = colors[L-1];
+  const isPos = x => x !== "blue";
 
   if(isPos(a) && isPos(b) && isPos(c)){
-    let run=0; for(let i=L-1;i>=0 && isPos(colors[i]); i--) run++;
-    if(run>=4) return {name:`surfing-4+`, gate:`${run} positivas ⇒ P (2x)`};
-    if(run===3) return {name:`sequência roxas 3`, gate:`3 positivas ⇒ P (2x)`};
+    let run = 0;
+    for(let i = L-1; i >= 0 && isPos(colors[i]); i--) run++;
+    if(run >= 4) return {name: `surfing-4+`, gate: `${run} positivas ⇒ P (2x)`};
+    if(run === 3) return {name: `sequência roxas 3`, gate: `3 positivas ⇒ P (2x)`};
   }
 
-  if(isXadrezBPB(colors)) return {name:"xadrez B-P-B", gate:"B-P-B ⇒ P (2x)"};
+  if(isXadrezBPB(colors)) return {name: "xadrez B-P-B", gate: "B-P-B ⇒ P (2x)"};
 
-  if(predNPct>=0.60 && c==="blue"){
-    return {name:"predominancia-forte", gate:`Pred ${(predNPct*100).toFixed(0)}% + Azul ⇒ P (2x)`};
+  if(predNPct >= 0.60 && c === "blue"){
+    return {name: "predominancia-forte", gate: `Pred ${(predNPct*100).toFixed(0)}% + Azul ⇒ P (2x)`};
   }
 
   return null;
 }
 
-function ngramPositiveProb(colors, order, windowSize=120){ 
+function ngramPositiveProb(colors, order, windowSize = 120){
   if(colors.length <= order) return null;
-  const POS = new Set(["purple","pink"]);
+  const POS = new Set(["purple", "pink"]);
   const window = colors.slice(-windowSize);
   const counts = new Map();
-  for(let i=order;i<window.length;i++){
+  for(let i = order; i < window.length; i++){
     const ctx = window.slice(i-order, i).join("|");
     const next = window[i];
-    const obj = counts.get(ctx) || {total:0, pos:0};
-    obj.total += 1; if(POS.has(next)) obj.pos += 1; counts.set(ctx, obj);
+    const obj = counts.get(ctx) || {total: 0, pos: 0};
+    obj.total += 1; if(POS.has(next)) obj.pos += 1;
+    counts.set(ctx, obj);
   }
   const ctxNow = colors.slice(-order).join("|");
   const stat = counts.get(ctxNow);
   if(!stat) return null;
-  return {p: stat.pos/stat.total, n: stat.total};
+  return {p: stat.pos / stat.total, n: stat.total};
 }
 
-function detectRepetitionStrategy(colors){ 
+function detectRepetitionStrategy(colors){
   for(const k of [4,3,2]){
-    const res = ngramPositiveProb(colors, k, 12); 
-    if(res && res.n >= 1 && res.p >= 0.70){ 
-      return {name:`rep_cores k=${k} (W12)`, gate:`Repetição (12 velas): P(pos|ctx)=${(res.p*100).toFixed(0)}% · n=${res.n}`}; 
+    const res = ngramPositiveProb(colors, k, 12);
+    if(res && res.n >= 1 && res.p >= 0.70){
+      return {name: `rep_cores k=${k} (W12)`, gate: `Repetição (12 velas): P(pos|ctx)=${(res.p*100).toFixed(0)}% · n=${res.n}`};
     }
   }
   for(const k of [3,2]){
     const res = ngramPositiveProb(colors, k, 8);
-    if(res && res.n >= 1 && res.p >= 0.90){ 
-      return {name:`rep_cores k=${k} (W8)`, gate:`Repetição (8 velas): P(pos|ctx)=${(res.p*100).toFixed(0)}% · n=${res.n}`}; 
+    if(res && res.n >= 1 && res.p >= 0.90){
+      return {name: `rep_cores k=${k} (W8)`, gate: `Repetição (8 velas): P(pos|ctx)=${(res.p*100).toFixed(0)}% · n=${res.n}`};
     }
   }
   return null;
 }
 
-function modelSuggest(colors){ 
+function modelSuggest(colors){
   for(const k of [4,3,2]){
-    const res = ngramPositiveProb(colors, k, 120); 
-    if(res && res.n>=2 && res.p>=0.40){ 
-      return {name:`modelo n-grama k=${k}`, gate:`IA: P(positiva|ctx)=${(res.p*100).toFixed(0)}% · n=${res.n}`}; 
+    const res = ngramPositiveProb(colors, k, 120);
+    if(res && res.n >= 2 && res.p >= 0.40){
+      return {name: `modelo n-grama k=${k}`, gate: `IA: P(positiva|ctx)=${(res.p*100).toFixed(0)}% · n=${res.n}`};
     }
   }
   return null;
 }
 
 function getStrategyAndGate(colors, arr40, arr, predNPct, allowMacro = true){
-  let suggestion = detectStrategies(colors, predNPct) || 
-                   detectRepetitionStrategy(colors) || 
-                   modelSuggest(colors); 
-  
-  const isStrongStrategy = !!suggestion; 
+  const suggestion = detectStrategies(colors, predNPct) || detectRepetitionStrategy(colors) || modelSuggest(colors);
+  const isStrongStrategy = !!suggestion;
 
   if(isStrongStrategy || (allowMacro && predNPct >= SOFT_PCT)){
-    const usedName = isStrongStrategy ? suggestion.name : "macro";
-    const usedGate = isStrongStrategy ? suggestion.gate : "tempo/rosa/surf/coluna (40m)";
-    return { name: usedName, gate: usedGate, suggestion, isStrongStrategy };
+    const name = isStrongStrategy ? suggestion.name : "macro";
+    const gate = isStrongStrategy ? suggestion.gate : "tempo/rosa/surf/coluna (40m)";
+    return { name, gate, suggestion, isStrongStrategy };
   }
   return null;
 }
@@ -252,31 +248,26 @@ let pending = null;
 let currentCycleLoss = false;
 let lastG0Strategy = null;
 
-function clearPending(){ 
-  pending = null; 
-  martingaleTag.style.display = "none"; 
-  setCardState({active:false, awaiting:false}); 
+function clearPending(){
+  pending = null;
+  martingaleTag.style.display = "none";
+  setCardState({active: false, awaiting: false});
 }
 
 function onNewCandle(arr){
   if(arr.length < Math.min(WINDOW_PRED, WINDOW_CORR)) return;
   renderHistory(arr);
 
-  const colors = arr.map(r=>r.color);
-  const last = arr[arr.length-1];
-  const lastMultTxt = last.mult.toFixed(2)+"x";
+  const colors = arr.map(r => r.color);
+  const last = arr[arr.length - 1];
+  const lastMultTxt = last.mult.toFixed(2) + "x";
 
-  // ===== JANELAS =====
   const colorsPred = getLastNColors(arr, WINDOW_PRED);
   const colorsCorr = getLastNColors(arr, WINDOW_CORR);
 
   const predN = predominancePct(colorsPred);
   const corrN = getMaxBlueStreakN(colorsCorr);
-
-  const recTripla = lastKBlueStreakRecency(colorsCorr, 3);
-  const twoPos = twoPosNow(colors);
   let corrGate = corrN;
-  if(corrN===3 && recTripla>=5 && (twoPos || predN>=0.60) && finalBlueRunNow(colors)<=1) corrGate = 2;
 
   const analysis = getStrategyAndGate(colors, [], arr, predN, false);
   const strongStrategyActive = !!analysis;
@@ -284,12 +275,9 @@ function onNewCandle(arr){
   predStatus.textContent = `Predominância: ${(predN*100).toFixed(0)}% · Corr: ${corrN}`;
   blueRunPill.textContent = `Azuis seguidas: ${consecutiveBlueCount(arr)}` + (window.seguidinhaOn ? " · SEGUIDINHA ON" : "");
 
-  // ===== DEBUG LOG =====
-  console.log(`[CANDLE ${last.idx}] CorrGate: ${corrGate} | Pred: ${(predN*100).toFixed(0)}% | BlueRun: ${finalBlueRunNow(colors)} | Seguidinha: ${window.seguidinhaOn} | Estratégia: ${analysis?.name || '—'}`);
+  console.log(`[CANDLE ${last.idx}] Corr: ${corrN} | Pred: ${(predN*100).toFixed(0)}% | BlueRun: ${finalBlueRunNow(colors)} | Seg: ${window.seguidinhaOn}`);
 
-  // ===== RASTREIA MUDANÇAS DE CORREÇÃO =====
-  const prevCorr = window.prevCorrGate;
-  if(prevCorr !== undefined && corrGate !== prevCorr){
+  if(window.prevCorrGate !== undefined && corrGate !== window.prevCorrGate){
     maxBlueStreakHistory.push({idx: last.idx, streak: corrGate});
     if(maxBlueStreakHistory.length > 50) maxBlueStreakHistory.shift();
   }
@@ -301,36 +289,50 @@ function onNewCandle(arr){
   if (currentBlueRun >= 3) {
     if (waitingForNewCorrections === 0) {
       waitingForNewCorrections = 1;
-      setCardState({active:false, awaiting:true, title:"SINAL BLOQUEADO", sub:"3+ azuis seguidos → aguardando 1 nova"});
-      addFeed("warn", "Bloqueio: 3+ azuis. Aguardando 1 nova correção ≤2.");
-      engineStatus.textContent = "bloqueado (3+ azuis)";
+      lastValidCorrection = null;
+      setCardState({active: false, awaiting: true, title: "SINAL BLOQUEADO", sub: "3+ azuis → aguardando correção menor"});
+      addFeed("warn", "BLOQUEIO TOTAL: 3+ azuis seguidos");
+      engineStatus.textContent = "BLOQUEADO (3+ azuis)";
     }
     return;
   }
 
-  // ===== DESBLOQUEIO: 1 nova correção ≤2 =====
+  // ===== DESBLOQUEIO: CORREÇÃO DIMINUINDO ENTRE POSITIVAS =====
   if (waitingForNewCorrections > 0) {
-    const lastChange = maxBlueStreakHistory[maxBlueStreakHistory.length - 1];
-    if (lastChange && lastChange.streak <= 2) {
-      waitingForNewCorrections = 0;
-      addFeed("info", "Desbloqueado: nova correção ≤2 confirmada.");
-    } else {
-      setCardState({active:false, awaiting:true, title:"SINAL BLOQUEADO", sub:"Aguardando 1 nova correção ≤2"});
+    const currentCorrection = getMaxBlueStreakN(colorsCorr);
+
+    if (lastValidCorrection === null) {
+      if (currentCorrection < 3) {
+        lastValidCorrection = currentCorrection;
+        addFeed("info", `1ª correção detectada: ${currentCorrection} azul(eis) entre positivas`);
+        setCardState({active: false, awaiting: true, title: "SINAL BLOQUEADO", sub: `Aguardando correção < ${currentCorrection}`});
+      }
       return;
     }
+
+    if (currentCorrection < lastValidCorrection) {
+      waitingForNewCorrections = 0;
+      addFeed("info", `DESBLOQUEADO: correção caiu de ${lastValidCorrection} → ${currentCorrection}`);
+      lastValidCorrection = null;
+      engineStatus.textContent = window.seguidinhaOn ? "SEGUIDINHA ON" : "operando";
+    } else if (currentCorrection > lastValidCorrection) {
+      lastValidCorrection = currentCorrection;
+      addFeed("warn", `Correção aumentou: ${lastValidCorrection} → ${currentCorrection}. Continua bloqueado.`);
+      setCardState({active: false, awaiting: true, title: "SINAL BLOQUEADO", sub: `Aguardando correção < ${currentCorrection}`});
+    }
+    return;
   }
 
-  // ===== SEGUIDINHA: 4+ velas com 0-1 azul =====
-  const minSeg = 4;
-  const lastN = colors.slice(-Math.max(minSeg, colors.length));
+  // ===== SEGUIDINHA: 4+ com 0-1 azul =====
+  const lastN = colors.slice(-Math.max(4, colors.length));
   const blueInLastN = lastN.filter(c => c === "blue").length;
-  const isSeguidinha = lastN.length >= minSeg && blueInLastN <= 1;
+  const isSeguidinha = lastN.length >= 4 && blueInLastN <= 1;
 
-  if (isSeguidinha && !window.seguidinhaOn) {
+  if(isSeguidinha && !window.seguidinhaOn){
     window.seguidinhaOn = true;
     addFeed("info", `SEGUIDINHA ON: ${lastN.length} velas, ${blueInLastN} azul`);
   }
-  if (!isSeguidinha && window.seguidinhaOn && lastN.length >= 6) {
+  if(!isSeguidinha && window.seguidinhaOn && lastN.length >= 6){
     window.seguidinhaOn = false;
     addFeed("info", "SEGUIDINHA OFF: padrão quebrado");
   }
@@ -341,29 +343,28 @@ function onNewCandle(arr){
     if(win){
       currentCycleLoss = false;
       stats.wins++; stats.streak++; stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
-      if(pending.stage===0) stats.normalWins++;
-      else if(pending.stage===1) stats.g1Wins++;
+      if(pending.stage === 0) stats.normalWins++;
+      else if(pending.stage === 1) stats.g1Wins++;
       else stats.g2Wins++;
       syncStatsUI(); store.set(stats);
       addFeed("ok", `WIN 2x (G${pending.stage})`);
       topSlide("WIN 2x", true);
-      clearPending();
-      lastG0Strategy = null;
+      clearPending(); lastG0Strategy = null;
       return;
     } else {
       if(pending.stage === 0){
         addFeed("err", "LOSS 2x (G0)"); topSlide("LOSS 2x", false);
         currentCycleLoss = true; lastG0Strategy = pending.strategy;
         pending.stage = 'G1_WAIT'; pending.enterAtIdx = null;
-        setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Procurando novo gatilho..."});
-        addFeed("warn", "Aguardando novo gatilho para G1");
+        setCardState({active: false, awaiting: true, title: "Aguardando G1", sub: "Procurando novo gatilho..."});
+        addFeed("warn", "Aguardando G1");
         return;
       }
       if(pending.stage === 1){
         addFeed("err", "LOSS 2x (G1)"); topSlide("LOSS 2x (G1)", false);
         pending.stage = 'G2_WAIT'; pending.enterAtIdx = null;
-        setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Procurando novo gatilho..."});
-        addFeed("warn", "Aguardando novo gatilho para G2");
+        setCardState({active: false, awaiting: true, title: "Aguardando G2", sub: "Procurando novo gatilho..."});
+        addFeed("warn", "Aguardando G2");
         return;
       }
       if(pending.stage === 2){
@@ -375,50 +376,50 @@ function onNewCandle(arr){
     }
   }
 
-  // ===== G1_WAIT =====
+  // ===== G1_WAIT: SEM BLOQUEIO DE 2 AZUIS =====
   if(pending?.stage === 'G1_WAIT'){
     if(!strongStrategyActive && !window.seguidinhaOn){
-      setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Sem gatilho forte"});
+      setCardState({active: false, awaiting: true, title: "Aguardando G1", sub: "Sem gatilho forte"});
       return;
     }
     if(analysis && analysis.name === lastG0Strategy){
-      setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Mesma estratégia do G0"});
+      setCardState({active: false, awaiting: true, title: "Aguardando G1", sub: "Mesma estratégia do G0"});
       return;
     }
     pending.stage = 1; pending.enterAtIdx = last.idx + 1; pending.strategy = analysis?.name || "seguidinha"; pending.afterMult = lastMultTxt;
     martingaleTag.style.display = "inline-block";
-    setCardState({active:true, title:"Chance de 2x G1", sub:`entrar após (${pending.afterMult})`});
+    setCardState({active: true, title: "Chance de 2x G1", sub: `entrar após (${pending.afterMult})`});
     strategyTag.textContent = "Estratégia: " + pending.strategy;
     gateTag.textContent = "Gatilho: " + (analysis?.gate || "seguidinha");
     addFeed("warn", `SINAL 2x (G1) — entrar após (${pending.afterMult})`);
     return;
   }
 
-  // ===== G2_WAIT =====
+  // ===== G2_WAIT: SEM BLOQUEIO DE 2 AZUIS =====
   if(pending?.stage === 'G2_WAIT'){
     if(!strongStrategyActive && !window.seguidinhaOn){
-      setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Sem gatilho forte"});
+      setCardState({active: false, awaiting: true, title: "Aguardando G2", sub: "Sem gatilho forte"});
       return;
     }
     if(analysis && (analysis.name === lastG0Strategy || analysis.name === pending.strategy)){
-      setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Mesma estratégia anterior"});
+      setCardState({active: false, awaiting: true, title: "Aguardando G2", sub: "Mesma estratégia anterior"});
       return;
     }
     pending.stage = 2; pending.enterAtIdx = last.idx + 1; pending.strategy = analysis.name; pending.afterMult = lastMultTxt;
     martingaleTag.style.display = "inline-block";
-    setCardState({active:true, title:"Chance de 2x G2", sub:`entrar após (${pending.afterMult})`});
+    setCardState({active: true, title: "Chance de 2x G2", sub: `entrar após (${pending.afterMult})`});
     strategyTag.textContent = "Estratégia: " + pending.strategy;
     gateTag.textContent = "Gatilho: " + analysis.gate;
     addFeed("warn", `SINAL 2x (G2) — entrar após (${pending.afterMult})`);
     return;
   }
 
-  // ===== NOVO SINAL G0: SEGUIDINHA = PRIORIDADE MÁXIMA =====
-  if (!pending) {
-    if (window.seguidinhaOn) {
+  // ===== NOVO SINAL G0: SEGUIDINHA = PRIORIDADE =====
+  if(!pending){
+    if(window.seguidinhaOn){
       pending = { stage: 0, enterAtIdx: last.idx + 1, strategy: "seguidinha", afterMult: lastMultTxt };
       currentCycleLoss = true; lastG0Strategy = "seguidinha";
-      setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${pending.afterMult})`});
+      setCardState({active: true, title: "Chance de 2x", sub: `entrar após (${pending.afterMult})`});
       strategyTag.textContent = "Estratégia: seguidinha";
       gateTag.textContent = "Gatilho: sequência positiva (0-1 azul)";
       addFeed("warn", `SINAL 2x (G0) — SEGUIDINHA ON`);
@@ -426,36 +427,31 @@ function onNewCandle(arr){
     }
 
     const allowEntry = corrGate <= 2 || (corrGate === 3 && predN >= 0.65 && strongStrategyActive);
-    if (allowEntry) {
+    if(allowEntry){
       pending = { stage: 0, enterAtIdx: last.idx + 1, strategy: analysis?.name || "correção", afterMult: lastMultTxt };
       currentCycleLoss = true; lastG0Strategy = pending.strategy;
-      setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${pending.afterMult})`});
+      setCardState({active: true, title: "Chance de 2x", sub: `entrar após (${pending.afterMult})`});
       strategyTag.textContent = "Estratégia: " + pending.strategy;
       gateTag.textContent = "Gatilho: " + (analysis?.gate || "correção ≤2");
       addFeed("warn", `SINAL 2x (G0) — entrar após (${pending.afterMult})`);
     } else {
-      setCardState({active:false, awaiting:false, title:"SINAL BLOQUEADO", sub:"Corr≥3 sem força"});
+      setCardState({active: false, awaiting: false, title: "SINAL BLOQUEADO", sub: "Corr≥3 sem força"});
     }
   }
 
-  engineStatus.textContent = window.seguidinhaOn ? "SEGUIDINHA ON" : (waitingForNewCorrections > 0 ? "bloqueado (3+ azuis)" : "operando");
+  engineStatus.textContent = window.seguidinhaOn ? "SEGUIDINHA ON" : (waitingForNewCorrections > 0 ? "BLOQUEADO (aguardando diminuição)" : "operando");
 }
 
 // ===================== Firebase =======================
 function toArrayFromHistory(raw){
   const rows = [];
   const vals = Object.values(raw || {});
-  for(let i=0;i<vals.length;i++){
+  for(let i = 0; i < vals.length; i++){
     const it = vals[i];
     const mult = parseFloat(it?.multiplier);
     if(!Number.isFinite(mult)) continue;
-    const color = (it?.color==="blue"||it?.color==="purple"||it?.color==="pink") ? it.color : colorFrom(mult);
-    let ts=null;
-    if(it?.date && it?.time){
-      const d = new Date(`${it.date}T${it.time}`);
-      if(Number.isFinite(d.getTime())) ts=d.getTime();
-    }
-    rows.push({ idx:i, mult, color, ts });
+    const color = (it?.color === "blue" || it?.color === "purple" || it?.color === "pink") ? it.color : colorFrom(mult);
+    rows.push({ idx: i, mult, color });
   }
   return rows;
 }
@@ -464,41 +460,39 @@ function toArrayFromHistory(raw){
   try{
     const app = firebase.initializeApp(firebaseConfig);
     liveStatus.textContent = "Conectado";
-    liveStatus.style.background="rgba(34,197,94,.15)"; liveStatus.style.color="#b9f5c7"; liveStatus.style.borderColor="rgba(34,197,94,.35)";
+    liveStatus.style.background = "rgba(34,197,94,.15)"; liveStatus.style.color = "#b9f5c7"; liveStatus.style.borderColor = "rgba(34,197,94,.35)";
     const dbRef = app.database().ref("history/");
-    dbRef.on('value',(snapshot)=>{
+    dbRef.on('value', (snapshot) => {
       const data = snapshot.val();
       const arr = toArrayFromHistory(data);
-      if(!arr.length){ engineStatus.textContent="sem dados"; return; }
+      if(!arr.length){ engineStatus.textContent = "sem dados"; return; }
       onNewCandle(arr);
-    },(error)=>{
-      liveStatus.textContent = "Erro: "+error.message;
-      liveStatus.style.background="rgba(239,68,68,.15)"; liveStatus.style.color="#ffd1d1";
+    }, (error) => {
+      liveStatus.textContent = "Erro: " + error.message;
+      liveStatus.style.background = "rgba(239,68,68,.15)"; liveStatus.style.color = "#ffd1d1";
     });
-  }catch(e){
-    liveStatus.textContent="Falha ao iniciar Firebase";
-    liveStatus.style.background="rgba(239,68,68,.1E)"; liveStatus.style.color="#ffd1d1";
+  } catch(e){
+    liveStatus.textContent = "Falha ao iniciar Firebase";
+    liveStatus.style.background = "rgba(239,68,68,.1E)"; liveStatus.style.color = "#ffd1d1";
     console.error(e);
   }
 })();
 
 // ===================== BLOQUEIO DEVTOOLS =======================
 (function() {
-  const threshold = 160; 
+  const threshold = 160;
   let devtoolsOpen = false;
   const checkDevTools = () => {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    if (width < threshold || height < threshold) {
+    if (window.innerWidth < threshold || window.innerHeight < threshold) {
       if (!devtoolsOpen) { devtoolsOpen = true; window.location.replace("https://www.google.com"); }
     } else { devtoolsOpen = false; }
   };
   window.addEventListener('resize', checkDevTools);
   checkDevTools();
-  document.addEventListener('keydown', function (e) {
+  document.addEventListener('keydown', e => {
     if (e.key === 'F12' || e.keyCode === 123) e.preventDefault();
     if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i')) e.preventDefault();
     if (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j')) e.preventDefault();
   });
-  document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  document.addEventListener('contextmenu', e => e.preventDefault());
 })();
