@@ -409,7 +409,7 @@ function onNewCandle(arr){
             pending.stage = 'G1_WAIT'; pending.enterAtIdx = null; 
             const reason = !predStrong ? "aguardando pred. >= 60%" : "aguardando novo padrão/estratégia"; // <<< Mensagem atualizada
             setCardState({active:false, awaiting:true, title:"Aguardando G1", sub: reason});
-            addFeed("warn", `G1 em espera: ${reason}`);
+            addFeed("warn", `G1 em espera..`);
           }
       } else if(pending.stage===1){
           const g2Allowed = predStrong && newPatternFound; // Exige predominância FORTE (60%+) E novo padrão
@@ -419,12 +419,12 @@ function onNewCandle(arr){
              setCardState({active:true, title:"Chance de 2x G2", sub:`Gatilho: ${nextSuggestion.name}`});
              strategyTag.textContent = "Estratégia: " + nextSuggestion.name;
              gateTag.textContent = "Gatilho: " + nextSuggestion.gate;
-             addFeed("warn","SINAL 2x (G2) — último recurso");
+             addFeed("warn","SINAL 2x (G2)");
           } else {
             pending.stage = 'G2_WAIT'; pending.enterAtIdx = null; 
             const reason = !predStrong ? "aguardando pred. >= 60% (G2)" : "aguardando novo padrão/estratégia (G2)"; // <<< Mensagem atualizada
             setCardState({active:false, awaiting:true, title:"Aguardando G2", sub: reason});
-            addFeed("warn", `G2 em espera: ${reason}`);
+            addFeed("warn", `G2 em espera..`);
           }
       } else if(pending.stage===2){
           stats.losses++; stats.streak=0; syncStatsUI(); store.set(stats);
