@@ -167,8 +167,8 @@ const STRONG_PCT = 0.60;
 window.lastBlockReason = null;
 window.lastPauseMessage = null;
 window.seguidinhaOn = false; 
-window.correctionHistory = [];
 window.prevCorrGate = null;
+let maxBlueStreakHistory = []; // [idx, streak]
 
 // ===================== Estratégias =======================
 function detectStrategies(colors, predNPct){
@@ -184,7 +184,6 @@ function detectStrategies(colors, predNPct){
 
   if(isXadrezBPB(colors)) return {name:"xadrez B-P-B", gate:"B-P-B ⇒ P (2x)"};
 
-  // Predominância forte + azul na ponta
   if(predNPct>=0.60 && c==="blue"){
     return {name:"predominancia-forte", gate:`Pred ${(predNPct*100).toFixed(0)}% + Azul ⇒ P (2x)`};
   }
@@ -240,10 +239,9 @@ function getStrategyAndGate(colors, arr40, arr, predNPct, allowMacro = true){
                    detectRepetitionStrategy(colors) || 
                    modelSuggest(colors); 
   
-  const macroOk = false;
   const isStrongStrategy = !!suggestion; 
 
-  if(isStrongStrategy || (allowMacro && macroOk && predNPct >= SOFT_PCT)){
+  if(isStrongStrategy || (allowMacro && predNPct >= SOFT_PCT)){
     const usedName = isStrongStrategy ? suggestion.name : "macro";
     const usedGate = isStrongStrategy ? suggestion.gate : "tempo/rosa/surf/coluna (40m)";
     return { name: usedName, gate: usedGate, suggestion, isStrongStrategy };
@@ -256,9 +254,6 @@ let pending = null;
 let waitingForNewCorrections = 0;
 let currentCycleLoss = false;
 let lastG0Strategy = null;
-
-// ===== CONTROLE DE BLOQUEIO POR CORREÇÃO =====
-let maxBlueStreakHistory = []; // armazena [idx, streak] de cada mudança
 
 function clearPending(){ 
   pending = null; 
@@ -292,31 +287,36 @@ function onNewCandle(arr){
   predStatus.textContent = `Predominância: ${(predN*100).toFixed(0)}% · Corr: ${corrN}`;
   blueRunPill.textContent = `Azuis seguidas: ${consecutiveBlueCount(arr)}` + (window.seguidinhaOn ? " · SEGUIDINHA ON" : "");
 
-  // ===== Rastreia MUDANÇAS de correção (só quando muda de valor) =====
+  // ===== RASTREIA MUDANÇAS DE CORREÇÃO =====
   const prevCorr = window.prevCorrGate;
-  if(prevCorr !== undefined && corrGate !== prevCorr && corrGate <= 2){
+  if(prevCorr !== undefined && corrGate !== prevCorr){
     maxBlueStreakHistory.push({idx: last.idx, streak: corrGate});
     if(maxBlueStreakHistory.length > 50) maxBlueStreakHistory.shift();
   }
   window.prevCorrGate = corrGate;
 
-  // ===== ATUALIZA BLOQUEIO POR CORREÇÃO =====
   const currentBlueRun = finalBlueRunNow(colors);
-  if(currentBlueRun >= 3){
-    if(waitingForNewCorrections === 0){
-      waitingForNewCorrections = 2;
-      setCardState({active:false, awaiting:true, title:"SINAL BLOQUEADO", sub:"3+ correções → aguardando 2 novas"});
-      addFeed("warn", "Bloqueio: 3+ correções. Aguardando 2 novas.");
-      engineStatus.textContent = "bloqueado (3+ corr)";
+
+  // ===== BLOQUEIO: 3+ AZUIS SEGUIDOS =====
+  if (currentBlueRun >= 3) {
+    if (waitingForNewCorrections === 0) {
+      waitingForNewCorrections = 1;
+      setCardState({active:false, awaiting:true, title:"SINAL BLOQUEADO", sub:"3+ azuis seguidos → aguardando 1 nova"});
+      addFeed("warn", "Bloqueio: 3+ azuis. Aguardando 1 nova correção ≤2.");
+      engineStatus.textContent = "bloqueado (3+ azuis)";
     }
+    return;
   }
 
-  // Desbloqueia com 2 novas sequências de correção ≤2
-  if(waitingForNewCorrections > 0){
-    const recentChanges = maxBlueStreakHistory.filter(c => c.streak <= 2);
-    if(recentChanges.length >= 2){
+  // ===== DESBLOQUEIO: 1 nova correção ≤2 =====
+  if (waitingForNewCorrections > 0) {
+    const lastChange = maxBlueStreakHistory[maxBlueStreakHistory.length - 1];
+    if (lastChange && lastChange.streak <= 2) {
       waitingForNewCorrections = 0;
-      addFeed("info", "Desbloqueado: 2 novas correções ≤2 confirmadas.");
+      addFeed("info", "Desbloqueado: nova correção ≤2 confirmada.");
+    } else {
+      setCardState({active:false, awaiting:true, title:"SINAL BLOQUEADO", sub:"Aguardando 1 nova correção ≤2"});
+      return;
     }
   }
 
@@ -356,7 +356,6 @@ function onNewCandle(arr){
       lastG0Strategy = null;
       return;
     } else {
-      // PERDEU
       if(pending.stage === 0){
         addFeed("err", "LOSS 2x (G0)");
         topSlide("LOSS 2x", false);
@@ -398,13 +397,7 @@ function onNewCandle(arr){
     }
   }
 
-  // ===== BLOQUEIO: 3+ correções (mas SEGUIDINHA libera) =====
-  if(waitingForNewCorrections > 0 && !window.seguidinhaOn){
-    setCardState({active:false, awaiting:true, title:"SINAL BLOQUEADO", sub:`Aguardando ${waitingForNewCorrections} nova(s) correção(ões)`});
-    return;
-  }
-
-  // ===== BLOQUEIO: 2 azuis seguidos (exceto xadrez B-P-B) =====
+  // ===== BLOQUEIO: 2 azuis seguidos em G1/G2 (exceto xadrez) =====
   const lastTwoBlue = colors.length >= 2 && colors[colors.length-1] === "blue" && colors[colors.length-2] === "blue";
   const isXadrez = isXadrezBPB(colors);
 
@@ -414,12 +407,8 @@ function onNewCandle(arr){
     return;
   }
 
-  // ===== ESPERA G1: novo gatilho + estratégia diferente + corrGate <= 1 =====
+  // ===== ESPERA G1: apenas gatilho forte + estratégia diferente =====
   if(pending?.stage === 'G1_WAIT'){
-    if(corrGate > 1 && !window.seguidinhaOn){
-      setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:`Correção alta (${corrGate})`});
-      return;
-    }
     if(!strongStrategyActive && !window.seguidinhaOn){
       setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Sem gatilho forte"});
       return;
@@ -441,12 +430,8 @@ function onNewCandle(arr){
     return;
   }
 
-  // ===== ESPERA G2: novo gatilho + estratégia diferente + corrGate <= 1 =====
+  // ===== ESPERA G2: apenas gatilho forte + estratégia diferente =====
   if(pending?.stage === 'G2_WAIT'){
-    if(corrGate > 1 && !window.seguidinhaOn){
-      setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:`Correção alta (${corrGate})`});
-      return;
-    }
     if(!strongStrategyActive && !window.seguidinhaOn){
       setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Sem gatilho forte"});
       return;
@@ -468,11 +453,12 @@ function onNewCandle(arr){
     return;
   }
 
-  // ===== Novo Sinal G0 =====
+  // ===== Novo Sinal G0 (LIBERADO ATÉ corrGate = 2) =====
   if(!pending){
-    const allowEntry = (corrGate <= 1) || 
-                       (corrGate === 2 && (predN >= 0.60 || strongStrategyActive || window.seguidinhaOn)) ||
-                       window.seguidinhaOn;
+    const allowEntry = 
+      corrGate <= 2 || 
+      window.seguidinhaOn ||
+      (corrGate === 3 && predN >= 0.65 && strongStrategyActive);
 
     if(allowEntry){
       pending = { 
@@ -486,14 +472,14 @@ function onNewCandle(arr){
 
       setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${pending.afterMult})`});
       strategyTag.textContent = "Estratégia: " + pending.strategy;
-      gateTag.textContent = "Gatilho: " + (analysis?.gate || "single correction");
+      gateTag.textContent = "Gatilho: " + (analysis?.gate || "correção ≤2");
       addFeed("warn",`SINAL 2x (G0) — entrar após (${pending.afterMult})`);
     } else {
-      setCardState({active:false, awaiting:false, title:"SINAL BLOQUEADO", sub:"Corr=2 sem critério forte"});
+      setCardState({active:false, awaiting:false, title:"SINAL BLOQUEADO", sub:"Corr≥3 sem força"});
     }
   }
 
-  engineStatus.textContent = window.seguidinhaOn ? "Seguidinha ON" : (waitingForNewCorrections > 0 ? "bloqueado (3+ corr)" : "operando");
+  engineStatus.textContent = window.seguidinhaOn ? "Seguidinha ON" : (waitingForNewCorrections > 0 ? "bloqueado (3+ azuis)" : "operando");
 }
 
 // ===================== Firebase =======================
