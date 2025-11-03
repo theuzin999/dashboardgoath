@@ -115,8 +115,8 @@ function colorFrom(mult){ return mult < 2.0 ? "blue" : mult < 10.0 ? "purple" : 
 const isPos = c => c === "purple" || c === "pink";
 
 // ===== JANELAS =====
-const WINDOW_PRED = 6;
-const WINDOW_CORR = 7;
+const WINDOW_PRED = 5;
+const WINDOW_CORR = 6;
 
 function getLastNColors(arr, n){ return arr.slice(-n).map(r => r.color); }
 
