@@ -196,6 +196,7 @@ function macroConfirm(arr40, nowTs, fullArr){
          hasSurfWithin(arr40) ||
          pinkInEdgeColumn(fullArr, 5);
 }
+// check5LineBlock foi mantida mas será ignorada na lógica principal para atender ao pedido
 function check5LineBlock(arr, cols=5){
     const L = arr.length;
     if (L === 0) return false;
@@ -294,9 +295,9 @@ function ngramPositiveProb(colors, order, windowSize=120){
 function detectRepetitionStrategy(colors){ 
   // Check window size 12
   for(const k of [4,3,2]){
-    const res = ngramPositiveProb(colors, k, 12); // <-- Alterado de 20 para 12
+    const res = ngramPositiveProb(colors, k, 12); 
     if(res && res.n >= 1 && res.p >= 0.70){ 
-      return {name:`rep_cores k=${k} (W12)`, gate:`Repetição (12 velas): P(pos|ctx)=${(res.p*100).toFixed(0)}% · n=${res.n}`}; // <-- Alterado o texto
+      return {name:`rep_cores k=${k} (W12)`, gate:`Repetição (12 velas): P(pos|ctx)=${(res.p*100).toFixed(0)}% · n=${res.n}`}; 
     }
   }
   // Check window size 8
@@ -347,7 +348,7 @@ function clearPending(){
 }
 
 function onNewCandle(arr){
-  if(arr.length<12) return; // <-- ALTERADO: de 20 para 12
+  if(arr.length<12) return; 
   renderHistory(arr);
 
   const nowTs = arr[arr.length-1]?.ts || Date.now();
@@ -357,7 +358,7 @@ function onNewCandle(arr){
   const lastMultTxt = last.mult.toFixed(2)+"x";
   
   // LEITURAS OBRIGATÓRIAS (12 velas)
-  const colorsLastN = getLastNColors(arr, 12); // <-- ALTERADO: de 20 para 12
+  const colorsLastN = getLastNColors(arr, 12); 
   const predN = predominancePct(colorsLastN); // % de positivas nas últimas N velas
   
   // CORREÇÃO OFICIAL: MAIOR STREAK DE AZUIS NAS N
@@ -369,11 +370,14 @@ function onNewCandle(arr){
   const analysis = getStrategyAndGate(colors, arr40, arr, predN, true);
   const strongStrategyActive = analysis && analysis.isStrongStrategy; 
 
-  predStatus.textContent = `Predominância (12): ${(predN*100).toFixed(0)}% · Max Streak: ${corrN}`; // <-- ALTERADO: de (20) para (12)
+  // Variáveis importantes para o novo BLOQUEIO
+  const maxStreakLastThree = getLastThreeCorrectionsMaxStreak(colors);
+  const hadTripleCorrectionInHistory = maxStreakLastThree >= 3; // Define se houve tripla correção "lá atrás"
+
+  predStatus.textContent = `Predominância (12): ${(predN*100).toFixed(0)}% · Max Streak: ${corrN}`; 
   blueRunPill.textContent = `Azuis seguidas: ${blueRun}` + (window.seguidinhaOn ? " · SEGUIDINHA ON" : "");
   
   // ================= LÓGICA DE SEGUIDINHA AGRESSIVA (Regra 3 - MAIS REFINADA) =================
-  const maxStreakLastThree = getLastThreeCorrectionsMaxStreak(colors);
   const singleCorrectionDominant = (corrN === 1);
   const canDoSeguidinhaByHistory = maxStreakLastThree <= 2; // True se TODAS as últimas 3 correções foram <= 2
 
@@ -418,7 +422,7 @@ function onNewCandle(arr){
         let g1Action = 'LOSS'; 
         let reason;
 
-        // Regra 3 (Seguidinha) / Regra 4 (G1)
+        // Mantendo a lógica de GALE/WAIT/LOSS do G1 por ser parte do Gerenciamento de Risco
         if(window.seguidinhaOn && corrN <= 1){
             g1Action = 'GALE'; reason = `Seguidinha ON (Correção ≤ 1).`;
         } else if(corrN <= 1){
@@ -452,10 +456,10 @@ function onNewCandle(arr){
         let g2Action = 'LOSS'; 
         let reason;
         
+        // Mantendo a lógica de GALE/WAIT/LOSS do G2 por ser parte do Gerenciamento de Risco
         if(corrN <= 1){
           g2Action = 'GALE'; reason = `Correção Oficial (${corrN}) OK.`;
         } else if(corrN === 2){
-          // NUNCA PODE MANDAR G2 GALE DIRETO COM corrN=2 (Regra do usuário).
           if(predNStrong || nextStrongStrategy){
               g2Action = 'WAIT'; reason = "Corr. 2: Bloqueio G2 Direto. Aguardando reavaliação (Pred. Strong ou Estratégia Forte).";
           } else {
@@ -494,25 +498,12 @@ function onNewCandle(arr){
     return;
   }
   
-  // ================= BLOQUEIOS E PAUSAS GERAIS =================
-  const line5Block = check5LineBlock(arr); 
-  // Bloqueio Principal: Se a maior correção (Max Streak) for > 3, bloqueia G0
-  const heavyCorrection = corrN > 3; 
+  // ================= BLOQUEIOS E PAUSAS GERAIS (REMOVIDOS, SÓ MANTÉM STATUS) =================
+  const hardPaused = false; // Removido todos os critérios de bloqueio geral
+  engineStatus.textContent = window.seguidinhaOn ? "Seguidinha ON" : "operando";
 
-  const hardPaused = heavyCorrection || line5Block;
-  engineStatus.textContent = hardPaused ? "aguardando" : (window.seguidinhaOn ? "Seguidinha ON" : "operando");
-
-  if(hardPaused){
+  if(hardPaused){ // Este bloco não será executado
     if(pending && (pending.stage === 'G1_WAIT' || pending.stage === 'G2_WAIT')) return;
-    
-    let sub = heavyCorrection ? `Correção alta: Max Streak ${corrN} (>3) nas últimas 12` : // <-- ALTERADO: de 20 para 12
-              line5Block ? lastBlockReason : "aguarde uma possibilidade";
-              
-    setCardState({active:false, awaiting:true, title:"aguardando estabilidade", sub});
-    const pauseMsg = sub;
-    // Prevenção de spam
-    if (window.lastPauseMessage !== pauseMsg) { addFeed("warn", pauseMsg); window.lastPauseMessage = pauseMsg; }
-    
     return;
   }
   window.lastPauseMessage = null; 
@@ -560,7 +551,6 @@ function onNewCandle(arr){
         if(corrN <= 1){
           g2Allowed = true; reason = `Correção melhorou para ${corrN}.`;
         } else if(corrN === 2){
-            // Se estiver em WAIT, e o max streak é 2, deve permanecer em WAIT (não pode ir para GALE)
             g2Allowed = false; reason = "Corr. 2: Bloqueio G2 Direto. Mantendo espera.";
         } else if(corrN === 3){
           g2Allowed = predNStrong || nextStrongStrategy;
@@ -590,23 +580,26 @@ function onNewCandle(arr){
     return;
   }
   
-  // ================= NOVO SINAL (G0) (Regra 2) =================
+  // ================= NOVO SINAL (G0) (REGRAS DE BLOQUEIO ANTIGAS REMOVIDAS) =================
   if(!pending){
-    if(!analysis) return; 
+    if(!analysis) return; // Precisa de uma estratégia
 
-    let entryAllowed = false;
-    let entryReason = "identificando padrão";
+    let entryAllowed = true;
+    let entryReason = `Correção Oficial (${corrN}) OK.`;
 
-    if(corrN <= 1){
-        entryAllowed = true; entryReason = `Correção Oficial (${corrN}) OK.`;
-    } else if(corrN === 2){
-        entryAllowed = predNStrong || strongStrategyActive;
-        entryReason = entryAllowed ? `Corr. 2, mas Pred. Strong (${(predN*100).toFixed(0)}%) ou Estratégia Forte.` : "Corr. 2, aguardando critério forte.";
-    } else if(corrN === 3){
-        entryAllowed = false; entryReason = "Corr. 3, aguardando reavaliação.";
-    } else {
-        entryAllowed = false; entryReason = "Corr. Oficial muito alta.";
-    }
+    // NOVO BLOQUEIO ESPECÍFICO (Se Corr. 2, checa o histórico da tripla correção)
+    if (corrN === 2) { 
+        if (hadTripleCorrectionInHistory) {
+            // Condição de BLOQUEIO: Corr. Oficial em 2 E Histórico de Correção Max >= 3
+            entryAllowed = false; 
+            entryReason = `BLOQUEIO ESPECÍFICO: Corr. 2 E Histórico Max (${maxStreakLastThree}) >= 3.`;
+        } else {
+            // Condição de PERMISSÃO: Corr. Oficial em 2 E Histórico de Correção Max < 3
+            entryAllowed = true;
+            entryReason = `Permitido: Corr. 2 e Histórico Max (${maxStreakLastThree}) < 3.`;
+        }
+    } 
+    // Em todos os outros casos (corrN=1, corrN>=3), a entrada é permitida se houver 'analysis'.
     
     if(entryAllowed){
       
@@ -619,14 +612,14 @@ function onNewCandle(arr){
 
       setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${lastMultTxt})`});
       strategyTag.textContent = "Estratégia: " + analysis.name + (window.seguidinhaOn ? " · SEGUIDINHA" : (predNStrong?" · cenário forte":""));
-      gateTag.textContent = "Gatilho: " + analysis.gate;
+      gateTag.textContent = "Gatilho: " + entryReason;
       addFeed("warn", `SINAL 2x (${analysis.name}) — entrar após (${lastMultTxt})`);
       return;
     } else {
-      let subText = `Bloqueio G0: ${entryReason}`;
-      setCardState({active:false, awaiting:false, title:"SINAL BLOQUEADO", sub: subText});
-      strategyTag.textContent = "Estratégia: —";
-      gateTag.textContent = "Gatilho: —";
+      // Falha no BLOQUEIO ESPECÍFICO, mas sem gerar mensagem de "SINAL BLOQUEADO" na UI.
+      strategyTag.textContent = "BLOQUEADO PELA REGRA ESPECÍFICA";
+      gateTag.textContent = entryReason;
+      setCardState({active:false, awaiting:false, title:"Aguardando", sub: "Bloqueio Específico Corr. 2"});
     }
   }
 }
