@@ -195,7 +195,7 @@ const TIME_TOLERANCE_MIN = 2;
 window.lastBlockReason = null;
 window.lastPauseMessage = null;
 window.seguidinhaOn = false; 
-window.tripleCorrectionWatch = false; 
+window.tripleCorrectionWatch = false; // Estado de vigilância da Tripla Correção
 
 // ===================== Estratégias baseadas no Ebook (mantidas) =======================
 function inPinkTimeWindow(nowTs, arr){ 
@@ -340,10 +340,11 @@ function onNewCandle(arr){
   // CORREÇÃO OFICIAL: MAIOR STREAK DE AZUIS NAS 20
   const corr20 = getMaxBlueStreak20(colorsLast20); 
 
-  const redTriplo = hasConsecutiveBlues(colorsLast20, 3); // true se BBB
-  const pred20Strong = pred20 >= STRONG_PCT; // 60%
+  // A tripla correção (BBB) só é relevante se for a CORREÇÃO ATUAL
+  const blueRun = consecutiveBlueCount(arr); // Seguidas de AGORA
+  const currentBlueRunIsTriple = blueRun >= 3; 
   
-  const blueRun = consecutiveBlueCount(arr); // Mantido para UI
+  const pred20Strong = pred20 >= STRONG_PCT; // 60%
   
   const analysis = getStrategyAndGate(colors, arr40, arr, pred20, true);
   const strongStrategyActive = analysis && analysis.isStrongStrategy; 
@@ -351,29 +352,33 @@ function onNewCandle(arr){
   predStatus.textContent = `Predominância (20): ${(pred20*100).toFixed(0)}% · Max Streak: ${corr20}`;
   blueRunPill.textContent = `Azuis seguidas: ${blueRun}` + (window.seguidinhaOn ? " · SEGUIDINHA ON" : "");
   
-  // ================= LÓGICA DE SEGUIDINHA AGRESSIVA (Regra 3 - SIMPLIFICADA) =================
+  // ================= LÓGICA DE SEGUIDINHA AGRESSIVA (Regra 3 - REVISADA) =================
   
-  // Desativação: Apenas se houver Tripla Correção (BBB)
-  if (redTriplo) {
+  // Desativação (Ativação do WATCH): Se a sequência atual de azuis for >= 3
+  if (currentBlueRunIsTriple) {
     window.seguidinhaOn = false;
-    if(redTriplo) {
+    if(!window.tripleCorrectionWatch) { // Evita spam de 'info'
       window.tripleCorrectionWatch = true; 
-      addFeed("info", "Tripla correção detectada (BBB), Seguidinha desativada. Aguardando 2 confirmações.");
+      addFeed("info", `Tripla correção detectada (${blueRun} azuis atuais), Seguidinha desativada. Aguardando 2 confirmações.`);
     }
   } 
   
-  // Ativação: Apenas se o Max Streak for 1
+  // Ativação: Apenas se o Max Streak for 1 E a vigilância estiver OFF/resetada
   const singleCorrectionDominant = (corr20 === 1); 
+  
   if (singleCorrectionDominant) {
     if(!window.tripleCorrectionWatch) {
       if (!window.seguidinhaOn) addFeed("info", "Seguidinha ativada: Single Correction Dominante (Corr. 1).");
       window.seguidinhaOn = true;
     } else if (isPositiveColor(last.color) && arr.length >= 2 && isPositiveColor(arr[arr.length-2].color)) {
-      // 2 confirmações consecutivas de positiva após tripla
-      window.tripleCorrectionWatch = false;
+      // 2 confirmações consecutivas de positiva (fim de correção) após watch
+      window.tripleCorrectionWatch = false; // RESET DO WATCH
       if (!window.seguidinhaOn) addFeed("info", "Seguidinha ativada: 2 confirmações pós-tripla OK.");
       window.seguidinhaOn = true;
     }
+  } else {
+      // Se a correção não é 1, a Seguidinha deve ser desativada
+      window.seguidinhaOn = false;
   }
 
 
@@ -440,7 +445,7 @@ function onNewCandle(arr){
         if(corr20 <= 1){
           g2Action = 'GALE'; reason = `Correção Oficial (${corr20}) OK.`;
         } else if(corr20 === 2){
-          // NUNCA PODE MANDAR G2 GALE DIRETO COM corr20=2.
+          // NUNCA PODE MANDAR G2 GALE DIRETO COM corr20=2 (Regra do usuário).
           if(pred20Strong || nextStrongStrategy){
               g2Action = 'WAIT'; reason = "Corr. 2: Bloqueio G2 Direto. Aguardando reavaliação (Pred. Strong ou Estratégia Forte).";
           } else {
