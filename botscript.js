@@ -193,7 +193,6 @@ function check5LineBlock(arr, cols=5){
 // ===================== Parâmetros (ajustados pelo Ebook) =======================
 const SOFT_PCT = 0.50;  // ≥50% = pague leve (pode operar se contexto permitir)
 const STRONG_PCT = 0.60; // ≥60% = pague forte (libera até com correção leve) // alinhado com tua prática
-const GALE_PCT = 0.60; // NOVO: ≥60% = Predominância exigida para entrar no G1/G2
 const HARD_PAUSE_BLUE_RUN = 3; // ebook: após 3 azuis → parar e reavaliar (micro) // janela 8 velas: bloqueio extra com BBB≥2
 // const COOLDOWN_AFTER_100X_CANDLES = 10; // REMOVIDO
 const TIME_WINDOWS_AFTER_PINK = [5,7,10,20]; // ±2 min
