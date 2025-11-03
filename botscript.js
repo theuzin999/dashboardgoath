@@ -43,44 +43,43 @@ document.addEventListener("click", e => {
   if (!streakSidebar.contains(e.target) && !$("#streakMoreBtn").contains(e.target)) streakSidebar.classList.remove("open");
 });
 
-function flashCard() {
+function flashCard(){
   chanceCard.classList.add("chance-animate");
-  setTimeout(() => chanceCard.classList.remove("chance-animate"), 260);
+  setTimeout(()=> chanceCard.classList.remove("chance-animate"), 260);
 }
-
-function setCardState({ active = false, awaiting = false, title = "Chance de 2x", sub = "identificando padrão" }) {
+function setCardState({active=false, awaiting=false, title="Chance de 2x", sub="identificando padrão"}){
   chanceTitle.textContent = title;
   chanceSub.textContent = sub;
-  chanceCard.classList.remove("chance-active", "chance-awaiting", "chance-blocked");
-  if (active) { chanceCard.classList.add("chance-active"); flashCard(); }
-  else if (awaiting) chanceCard.classList.add("chance-awaiting");
+  chanceCard.classList.remove("chance-active","chance-awaiting", "chance-blocked");
+  if(active) { chanceCard.classList.add("chance-active"); flashCard(); }
+  else if(awaiting) chanceCard.classList.add("chance-awaiting");
+  else if(title === "SINAL BLOQUEADO") chanceCard.classList.add("chance-blocked");
 }
-
-function topSlide(msg, ok = true) {
+function topSlide(msg, ok=true){
   topslide.textContent = msg;
-  topslide.className = "topslide " + (ok ? "ok" : "err");
+  topslide.className = "topslide " + (ok?"ok":"err");
   topslide.classList.add("show");
-  setTimeout(() => topslide.classList.remove("show"), 1000);
+  setTimeout(()=> topslide.classList.remove("show"), 1000);
 }
-
-function addFeed(type, text) {
-  const div = document.createElement("div"); div.className = "item";
-  const left = document.createElement("div"); left.textContent = text;
-  const right = document.createElement("div"); right.className = "chip " + (type === "ok" ? "ok" : type === "err" ? "err" : "warn");
-  right.textContent = type === "ok" ? "WIN" : type === "err" ? "LOSS" : "INFO";
+function addFeed(type,text){
+  const div = document.createElement("div"); div.className="item";
+  const left=document.createElement("div"); left.textContent=text;
+  const right=document.createElement("div"); right.className="chip "+(type==="ok"?"ok":type==="err"?"err":"warn");
+  right.textContent= type==="ok"?"WIN": type==="err"?"LOSS":"INFO";
   div.appendChild(left); div.appendChild(right); feed.prepend(div);
 }
 
-function renderHistory(list) {
-  historyGrid.innerHTML = "";
+function renderHistory(list){
+  const historyGrid = document.getElementById("history");
+  historyGrid.innerHTML="";
   const last15 = list.slice(-15).reverse();
-  last15.forEach(r => {
-    const box = document.createElement("div");
-    box.className = "hbox " + r.color;
-    const top = document.createElement("div"); top.className = "row"; top.style.justifyContent = "space-between";
-    const val = document.createElement("div"); val.className = "val"; val.textContent = r.mult.toFixed(2) + "x";
-    const dot = document.createElement("div"); dot.className = r.color === "blue" ? "dot-blue" : (r.color === "purple" ? "dot-purple" : "dot-pink");
-    const c = document.createElement("div"); c.className = "c"; c.textContent = r.color;
+  last15.forEach(r=>{
+    const box=document.createElement("div"); 
+    box.className="hbox "+r.color;
+    const top=document.createElement("div"); top.className="row"; top.style.justifyContent="space-between";
+    const val=document.createElement("div"); val.className="val"; val.textContent=r.mult.toFixed(2)+"x";
+    const dot=document.createElement("div"); dot.className= r.color==="blue"?"dot-blue":(r.color==="purple"?"dot-purple":"dot-pink");
+    const c=document.createElement("div"); c.className="c"; c.textContent=r.color;
     top.appendChild(val); top.appendChild(dot); box.appendChild(top); box.appendChild(c);
     historyGrid.appendChild(box);
   });
@@ -88,391 +87,517 @@ function renderHistory(list) {
 
 // ===================== Persistência ======================
 const store = {
-  get() { try { return JSON.parse(localStorage.getItem("stats2x") || "{}"); } catch { return {}; } },
-  set(d) { localStorage.setItem("stats2x", JSON.stringify(d)); }
+  get(){ try{ return JSON.parse(localStorage.getItem("stats2x")||"{}"); }catch{return {}} },
+  set(d){ localStorage.setItem("stats2x", JSON.stringify(d)); }
 };
-let stats = Object.assign({ wins: 0, losses: 0, streak: 0, maxStreak: 0, normalWins: 0, g1Wins: 0, g2Wins: 0 }, store.get());
-function syncStatsUI() {
-  winsEl.textContent = stats.wins; lossesEl.textContent = stats.losses; streakEl.textContent = stats.streak;
-  maxStreakEl.textContent = stats.maxStreak; normalWinsEl.textContent = stats.normalWins;
-  g1WinsEl.textContent = stats.g1Wins; g2WinsEl.textContent = stats.g2Wins;
+let stats = Object.assign({wins:0,losses:0,streak:0,maxStreak:0,normalWins:0,g1Wins:0,g2Wins:0}, store.get());
+function syncStatsUI(){
+  winsEl.textContent=stats.wins; lossesEl.textContent=stats.losses; streakEl.textContent=stats.streak;
+  maxStreakEl.textContent=stats.maxStreak; normalWinsEl.textContent=stats.normalWins;
+  g1WinsEl.textContent=stats.g1Wins; g2WinsEl.textContent=stats.g2Wins;
 }
 syncStatsUI();
 
 clearStatsBtn.onclick = () => {
-  if (confirm("Tem certeza que deseja limpar todas as estatísticas salvas? Esta ação é irreversível.")) {
-    stats = { wins: 0, losses: 0, streak: 0, maxStreak: 0, normalWins: 0, g1Wins: 0, g2Wins: 0 };
-    store.set(stats); syncStatsUI(); topSlide("Estatísticas limpas!", true);
+  if(confirm("Tem certeza que deseja limpar todas as estatísticas salvas? Esta ação é irreversível.")){
+    stats = {wins:0,losses:0,streak:0,maxStreak:0,normalWins:0,g1Wins:0,g2Wins:0};
+    store.set(stats);
+    syncStatsUI();
+    topSlide("Estatísticas limpas!", true);
   }
 };
 
 // ===================== Utils =======================
-function colorFrom(mult) { return mult < 2.0 ? "blue" : mult < 10.0 ? "purple" : "pink"; }
-
-function positivesRatio(list) {
-  const pos = list.filter(c => c.color === "purple" || c.color === "pink").length;
-  return list.length ? pos / list.length : 0;
+function colorFrom(mult){ if(mult<2.0) return "blue"; if(mult<10.0) return "purple"; return "pink"; }
+function positivesRatio(list){
+  const pos = list.filter(c=>c.color==="purple"||c.color==="pink").length;
+  return list.length ? pos/list.length : 0;
 }
-
-function predominancePositive(list, N = 8) {
+function predominancePositive(list, N=8){ // leitura micro do MOMENTO (últimas 8 velas)
   const lastN = list.slice(-N);
   const pct = positivesRatio(lastN);
-  return { pct, ok: pct >= 0.50, strong: pct >= 0.60 };
+  return {pct, ok:pct>=SOFT_PCT, strong:pct>=STRONG_PCT}; // ok é >= 0.50
 }
-
-function consecutiveBlueCount(list) {
-  let c = 0;
-  for (let i = list.length - 1; i >= 0; i--) {
-    if (list[i].color === "blue") c++;
-    else break;
-  }
-  return c;
+function consecutiveBlueCount(list){
+  let c=0; for(let i=list.length-1;i>=0;i--){ if(list[i].color==="blue") c++; else break; } return c;
 }
-
-function countBBBSequences(colors, N = 8) {
+function countBBBSequences(colors, N=8){ // correção pesada: blocos com ≥3 azuis seguidas
   const window = colors.slice(-N);
-  let cnt = 0, run = 0;
-  for (let i = 0; i < window.length; i++) {
-    if (window[i] === "blue") { run++; if (run === 3) cnt++; }
-    else run = 0;
+  let cnt=0, run=0;
+  for(let i=0;i<window.length;i++){
+    if(window[i]==="blue"){ run++; if(run===3) cnt++; }
+    else run=0;
   }
-  return cnt;
+  return cnt; // se ≥2 na janela → bloqueio
+}
+function lastPink(arr){ for(let i=arr.length-1;i>=0;i--){ if(arr[i].color==="pink") return arr[i]; } return null; }
+function lastPurpleOrPink(arr){ for(let i=arr.length-1;i>=0;i--){ if(arr[i].color!=="blue") return arr[i]; } return null; }
+function minutesSince(tsNow, ts){ return (tsNow - ts)/60000; }
+function macroWindow40m(arr, nowTs){
+  const from = nowTs - (40*60*1000);
+  return arr.filter(r=> typeof r.ts==="number" && r.ts>=from && r.ts<=nowTs);
+}
+function hasSurfWithin(arr){
+  let run=0; for(const r of arr){ if(r.color!=="blue"){ run++; if(run>=3) return true; } else run=0; } return false;
 }
 
-function lastPink(arr) {
-  for (let i = arr.length - 1; i >= 0; i--) {
-    if (arr[i].color === "pink") return arr[i];
-  }
-  return null;
-}
-
-function macroWindow40m(arr, nowTs) {
-  const from = nowTs - (40 * 60 * 1000);
-  return arr.filter(r => typeof r.ts === "number" && r.ts >= from && r.ts <= nowTs);
-}
-
-function hasSurfWithin(arr) {
-  let run = 0;
-  for (const r of arr) {
-    if (r.color !== "blue") { run++; if (run >= 3) return true; }
-    else run = 0;
-  }
-  return false;
-}
-
-function pinkInEdgeColumn(arr, cols = 5) {
+// [NOVA FUNÇÃO] - Verifica se a última rosa caiu em uma coluna de borda (1 ou 5)
+function pinkInEdgeColumn(arr, cols=5){
   const lp = lastPink(arr);
-  if (!lp || lp.idx === undefined) return false;
-  const col = lp.idx % cols;
-  return col === 0 || col === (cols - 1);
+  // Requer que o 'idx' esteja presente no histórico
+  if(!lp || lp.idx === undefined) return false;
+  
+  const pinkColIndex = (lp.idx) % cols;
+  return (pinkColIndex === 0 || pinkColIndex === (cols - 1));
 }
 
-function macroConfirm(arr40, nowTs, fullArr) {
-  return inPinkTimeWindow(nowTs, arr40) ||
-         roseResetBooster(arr40) ||
+// [FUNÇÃO ATUALIZADA] - Inclui o filtro de coluna de borda
+function macroConfirm(arr40, nowTs, fullArr){ // Adicionado fullArr
+  // confirma por TEMPO ou ROSA reset ou SURF ativo ou ROSA NA BORDA
+  return inPinkTimeWindow(nowTs, arr40) || 
+         roseResetBooster(arr40) || 
          hasSurfWithin(arr40) ||
-         pinkInEdgeColumn(fullArr, 5);
+         pinkInEdgeColumn(fullArr, 5); // Adicionado novo filtro
 }
 
-function inPinkTimeWindow(nowTs, arr) {
+// [NOVA FUNÇÃO] - Bloqueio por Predominância Azul na Linha de 5 (Coluna)
+function check5LineBlock(arr, cols=5){
+    const L = arr.length;
+    if (L === 0) return false;
+
+    const currentIdx = L - 1;
+    const currentLineStartIdx = currentIdx - (currentIdx % cols);
+    const line = arr.slice(currentLineStartIdx, currentLineStartIdx + cols);
+
+    let blueCount = 0;
+    let posCount = 0;
+
+    // A linha pode ter menos de 5 velas se estiver no final do histórico
+    for (const candle of line) {
+        if (candle.color === "blue") {
+            blueCount++;
+        } else {
+            posCount++;
+        }
+    }
+
+    // Bloqueia se a coluna atual tem mais azuis do que positivas
+    if (blueCount > posCount) {
+        // NOVO TEXTO FIXO - Não floda mais no feed.
+        window.lastBlockReason = `Predominância de Azul, aguardando...`; 
+        return true;
+    }
+    return false;
+}
+
+// ===================== Parâmetros (ajustados pelo Ebook) =======================
+const SOFT_PCT = 0.50;  // ≥50% = pague leve (pode operar se contexto permitir)
+const STRONG_PCT = 0.60; // ≥60% = pague forte (libera até com correção leve) // alinhado com tua prática
+const HARD_PAUSE_BLUE_RUN = 3; // ebook: após 3 azuis → parar e reavaliar (micro) // janela 8 velas: bloqueio extra com BBB≥2
+// const COOLDOWN_AFTER_100X_CANDLES = 10; // REMOVIDO
+const TIME_WINDOWS_AFTER_PINK = [5,7,10,20]; // ±2 min
+const TIME_TOLERANCE_MIN = 2;
+
+// Variáveis de comunicação de bloqueio/pausa
+window.lastBlockReason = null;
+window.lastPauseMessage = null;
+
+// ===================== Estratégias baseadas no Ebook =======================
+function inPinkTimeWindow(nowTs, arr){
   const lp = lastPink(arr);
-  if (!lp || !lp.ts) return false;
-  const diff = Math.abs((nowTs - lp.ts) / 60000);
-  return [5, 7, 10, 20].some(w => Math.abs(diff - w) <= 2);
-}
-
-function roseResetBooster(arr) {
-  const last = arr[arr.length - 1];
-  const prev = arr[arr.length - 2];
-  if (last?.color === "pink" || prev?.color === "pink") return true;
-  for (let i = arr.length - 1; i >= 0; i--) {
-    if (arr[i].color !== "blue") return arr[i].mult >= 5;
+  if(!lp || !lp.ts) return false;
+  const diff = Math.abs(minutesSince(nowTs, lp.ts));
+  // calcula proximidade do próximo alvo (mod 60 simples por leitura de relógio)
+  for(const w of TIME_WINDOWS_AFTER_PINK){
+    if(Math.abs(diff - w) <= TIME_TOLERANCE_MIN) return true;
   }
   return false;
 }
 
-function check5LineBlock(arr, cols = 5) {
-  const L = arr.length;
-  if (L === 0) return false;
-  const currentIdx = L - 1;
-  const start = currentIdx - (currentIdx % cols);
-  const line = arr.slice(start, start + cols);
-  let blue = 0, pos = 0;
-  for (const c of line) {
-    if (c.color === "blue") blue++;
-    else pos++;
-  }
-  if (blue > pos) {
-    window.lastBlockReason = "Predominância de Azul na linha";
-    return true;
-  }
-  return false;
+function hasRecent100x(arr, k){
+  // FUNÇÃO DESATIVADA CONFORME SOLICITADO
+  return false; 
 }
 
-// ===================== Estratégias =======================
-function detectStrategies(colors, predPct) {
-  const L = colors.length; if (L < 3) return null;
-  const isPos = c => c === "purple" || c === "pink";
-  const a = colors[L - 3], b = colors[L - 2], c = colors[L - 1];
+function roseResetBooster(arr){
+  // Booster: rosa recente (últimas 2) ou última não-azul muito alta
+  const last = arr[arr.length-1];
+  const prev = arr[arr.length-2];
+  if(last && last.color==="pink") return true;
+  if(prev && prev.color==="pink") return true;
+  const lup = lastPurpleOrPink(arr);
+  return !!(lup && lup.mult>=5); // velas altas atraem altas
+}
 
-  if (L >= 3 && isPos(a) && isPos(b) && isPos(c)) {
-    let run = 0;
-    for (let i = L - 1; i >= 0; i--) { if (isPos(colors[i])) run++; else break; }
-    if (run >= 4) return { name: "surfing-4+", gate: `Sequência de ${run} positivas` };
-    if (run === 3) return { name: "sequência 3", gate: "3 positivas seguidas" };
+// [FUNÇÃO DE DETECÇÃO DE PADRÕES]
+function detectStrategies(colors, predPct){ 
+  const L=colors.length; if(L<3) return null;
+  const isPos = (c) => c==="purple" || c==="pink";
+  const a=colors[L-3], b=colors[L-2], c=colors[L-1];
+
+  // Regra de Bloqueio 
+  if(L >= 8 && colors[L-2] === "blue" && colors[L-4] === "blue"){ 
+    let posRunLen = 0; for(let i=L-3; i>=0; i--){ if(isPos(colors[i])) posRunLen++; else break; }
+    if(posRunLen >= 2 && posRunLen <= 4){ 
+      let prevBlueRunLen = 0; let startIdx = L - 3 - posRunLen;
+      for(let i=startIdx; i>=0; i--){ if(colors[i] === "blue") prevBlueRunLen++; else break; }
+      if(prevBlueRunLen >= 3 && prevBlueRunLen <= 4){
+        // window.lastBlockReason = `BLOQUEIO: ${prevBlueRunLen}B - ${posRunLen}P - 2B na ponta.`; // Bloqueio movido para o check geral
+        return null;
+      }
+    }
   }
 
-  if (predPct >= 0.60 && c === "blue") {
-    return { name: "predominancia-forte", gate: `Pred ${(predPct * 100).toFixed(0)}% + Azul` };
+  // SURF: 3+ positivas
+  if(L >= 3 && isPos(a) && isPos(b) && isPos(c)){
+    let posRunLen = 0; for(let i=L-1;i>=0;i--){ if(isPos(colors[i])) posRunLen++; else break; }
+    if(posRunLen >= 4) return {name:"surfing-4+", gate:`Sequência de ${posRunLen} positivas ⇒ P (2x)`};
+    if(posRunLen === 3) return {name:"sequência roxas 3", gate:"3 positivas ⇒ P (2x)"};
   }
 
-  if (a === "blue" && b === "purple" && c === "blue") return { name: "xadrez", gate: "B-P-B" };
-  if (b === "pink" && c === "blue") return { name: "pós-rosa", gate: "Rosa → Azul" };
-  if (L >= 4 && colors.slice(-4).join("") === "bluebluebluepurple") return { name: "triplacor", gate: "BBB-P" };
-  if (a === "blue" && b === "blue" && c === "purple") return { name: "triplacor parcial", gate: "BB-P" };
+  // SURF ALTERNADO: 3P-1B-3P
+  if(L >= 7){
+    const last7 = colors.slice(-7);
+    if(isPos(last7[0]) && isPos(last7[1]) && isPos(last7[2]) && 
+       last7[3]==="blue" && 
+       isPos(last7[4]) && isPos(last7[5]) && isPos(last7[6])){
+      return {name:"surf-alternado", gate:"3P-1B-3P ⇒ P (2x)"};
+    }
+  }
+
+  // Predominância forte + azul na ponta (fim de correção)
+  if(predPct >= STRONG_PCT && c === "blue"){
+    return {name:"predominancia-forte", gate:`Pred ${(predPct*100).toFixed(0)}% + Azul ⇒ P (2x)`};
+  }
+
+  // Xadrez simples
+  if(a==="blue" && b==="purple" && c==="blue") return {name:"xadrez", gate:"B-P-B ⇒ P (2x)"};
+  if(b==="pink" && c==="blue") return {name:"pós-rosa xadrez", gate:"Rosa→Azul ⇒ P (2x)"};
+  if(L>=4 && colors.slice(-4).join("-")==="blue-blue-blue-purple") return {name:"triplacor", gate:"BBB-P ⇒ 2x"};
+  if(a==="blue" && b==="blue" && c==="purple") return {name:"triplacor parcial", gate:"BB-P ⇒ repetir 2x"};
 
   return null;
 }
 
-function ngramPositiveProb(colors, order, windowSize = 120) {
-  if (colors.length <= order) return null;
-  const POS = new Set(["purple", "pink"]);
-  const window = colors.slice(-windowSize);
+// [FUNÇÃO ATUALIZADA] - Aceita windowSize
+function ngramPositiveProb(colors, order, windowSize=120){
+  if(colors.length <= order) return null;
+  const POS = new Set(["purple","pink"]);
+  const window = colors.slice(-windowSize); // Janela de histórico (17, 8 ou 120)
   const counts = new Map();
-  for (let i = order; i < window.length; i++) {
-    const ctx = window.slice(i - order, i).join("|");
+  for(let i=order;i<window.length;i++){
+    const ctx = window.slice(i-order, i).join("|");
     const next = window[i];
-    const obj = counts.get(ctx) || { total: 0, pos: 0 };
-    obj.total++; if (POS.has(next)) obj.pos++;
-    counts.set(ctx, obj);
+    const obj = counts.get(ctx) || {total:0, pos:0};
+    obj.total += 1; if(POS.has(next)) obj.pos += 1; counts.set(ctx, obj);
   }
   const ctxNow = colors.slice(-order).join("|");
   const stat = counts.get(ctxNow);
-  if (!stat || stat.total < 1) return null;
-  return { p: stat.pos / stat.total, n: stat.total };
+  if(!stat) return null;
+  return {p: stat.pos/stat.total, n: stat.total};
 }
 
-function detectRepetitionStrategy(colors) {
-  for (const k of [4, 3, 2]) {
-    const res = ngramPositiveProb(colors, k, 17);
-    if (res && res.n >= 1 && res.p >= 0.75) {
-      return { name: `rep k=${k}`, gate: `Rep W17: ${(res.p * 100).toFixed(0)}%` };
+// [FUNÇÃO REPETIÇÃO] - Estratégia de Repetição (W17, W8)
+function detectRepetitionStrategy(colors){
+  // Check window size 17
+  for(const k of [4,3,2]){
+    const res = ngramPositiveProb(colors, k, 17); // Usa janela de 17
+    if(res && res.n >= 1 && res.p >= 0.75){ // Confiança alta (ex: 3 de 4, ou 1 de 1)
+      return {name:`rep_cores k=${k} (W17)`, gate:`Repetição (17 velas): P(pos|ctx)=${(res.p*100).toFixed(0)}% · n=${res.n}`}; 
     }
   }
-  for (const k of [3, 2]) {
-    const res = ngramPositiveProb(colors, k, 8);
-    if (res && res.n >= 1 && res.p >= 1.0) {
-      return { name: `rep micro k=${k}`, gate: `Rep W8: 100%` };
-    }
-  }
-  return null;
-}
-
-function modelSuggest(colors) {
-  for (const k of [4, 3, 2]) {
-    const res = ngramPositiveProb(colors, k, 120);
-    if (res && res.n >= 3 && res.p >= 0.45) {
-      return { name: `IA k=${k}`, gate: `IA: ${(res.p * 100).toFixed(0)}% (n=${res.n})` };
+  // Check window size 8
+  for(const k of [3,2]){ // k=4 é muito grande para janela 8
+    const res = ngramPositiveProb(colors, k, 8); // Usa janela de 8
+    if(res && res.n >= 1 && res.p >= 1.0){ // Exige 100% de acerto na janela micro
+      return {name:`rep_cores k=${k} (W8)`, gate:`Repetição (8 velas): P(pos|ctx)=${(res.p*100).toFixed(0)}% · n=${res.n}`}; 
     }
   }
   return null;
 }
 
-// ===================== FUNÇÃO CENTRAL DE ENTRADA =======================
-function canEnterSignal(arr, nowTs) {
-  const arr40 = macroWindow40m(arr, nowTs);
-  const colors = arr.map(r => r.color);
-  const pred8 = predominancePositive(arr, 8);
-  const bbbCount = countBBBSequences(colors, 8);
-  const lineBlock = check5LineBlock(arr);
-
-  if (lineBlock || bbbCount >= 2 || !pred8.ok) return null;
-  if (bbbCount === 1 && !pred8.strong) return null;
-
-  const macroOk = macroConfirm(arr40, nowTs, arr);
-  const strategy = detectStrategies(colors, pred8.pct) ||
-                   detectRepetitionStrategy(colors) ||
-                   modelSuggest(colors);
-
-  if (strategy || (macroOk && pred8.ok)) {
-    return {
-      name: strategy ? strategy.name : "macro",
-      gate: strategy ? strategy.gate : "tempo/rosa/surf",
-      fast: pred8.strong && !!strategy
-    };
+function modelSuggest(colors){
+  // Esta é a IA geral (janela 120)
+  for(const k of [4,3,2]){
+    const res = ngramPositiveProb(colors, k, 120); // Janela padrão longa
+    if(res && res.n>=3 && res.p>=0.45){ 
+      return {name:`modelo n-grama k=${k}`, gate:`IA: P(positiva|ctx)=${(res.p*100).toFixed(0)}% · n=${res.n}`}; 
+    }
   }
   return null;
 }
 
 // ===================== Motor =======================
 let pending = null;
+function clearPending(){ pending=null; martingaleTag.style.display="none"; setCardState({active:false, awaiting:false}); }
 
-function clearPending() {
-  pending = null;
-  martingaleTag.style.display = "none";
-  setCardState({ active: false, awaiting: false, title: "Chance de 2x", sub: "identificando padrão" });
-  strategyTag.textContent = "Estratégia: —";
-  gateTag.textContent = "Gatilho: —";
+function getStrategyAndGate(colors, pred8, arr40, arr){
+  let suggestion = detectStrategies(colors, pred8.pct) || 
+                   detectRepetitionStrategy(colors) || 
+                   modelSuggest(colors); 
+  
+  const macroOk = macroConfirm(arr40, arr[arr.length-1]?.ts || Date.now(), arr);
+
+  if(suggestion || (macroOk && pred8.ok)){
+    const usedName = suggestion ? suggestion.name : "macro";
+    const usedGate = suggestion ? suggestion.gate : "tempo/rosa/surf/coluna (40m)";
+    return { name: usedName, gate: usedGate, suggestion };
+  }
+  return null;
 }
 
-function onNewCandle(arr) {
-  if (arr.length < 2) return;
+// [FUNÇÃO DO MOTOR TOTALMENTE ATUALIZADA]
+function onNewCandle(arr){
+  if(arr.length<2) return;
   renderHistory(arr);
 
-  const nowTs = arr[arr.length - 1]?.ts || Date.now();
-  const last = arr[arr.length - 1];
-  const lastMultTxt = last.mult.toFixed(2) + "x";
-  const colors = arr.map(r => r.color);
+  const nowTs = arr[arr.length-1]?.ts || Date.now();
+  const arr40 = macroWindow40m(arr, nowTs);
+  const colors = arr.map(r=>r.color);
+  const last = arr[arr.length-1];
+  const lastMultTxt = last.mult.toFixed(2)+"x";
+
   const pred8 = predominancePositive(arr, 8);
   const blueRun = consecutiveBlueCount(arr);
-  const bbbCount = countBBBSequences(colors, 8);
+  const bbbCount = countBBBSequences(colors, 8); 
 
-  predStatus.textContent = `Pred: ${(pred8.pct * 100).toFixed(0)}%` + (pred8.strong ? " · forte" : "");
-  blueRunPill.textContent = `Azuis: ${blueRun}`;
+  predStatus.textContent = `Predominância: ${(pred8.pct*100).toFixed(0)}%` + (pred8.strong?" · forte":"");
+  blueRunPill.textContent = `Azuis seguidas: ${blueRun}`;
 
-  // BLOQUEIOS
-  const hardBlock = check5LineBlock(arr) || bbbCount >= 2 || !pred8.ok || blueRun >= 3;
-  engineStatus.textContent = hardBlock ? "pausado" : "ativo";
-
-  if (hardBlock) {
-    setCardState({ awaiting: true, title: "Aguardando...", sub: window.lastBlockReason || "estabilização" });
-    if (pending && pending.stage >= 0) clearPending();
-    return;
-  }
-
-  // FECHOU VELA DO SINAL?
-  if (pending && pending.enterAtIdx === last.idx) {
+  // [CORREÇÃO 1: Bloco MOVIDO para cima]
+  // ================= PROCESSAMENTO DE FIM DE SINAL (WIN/LOSS/GALE) =================
+  // Este bloco AGORA roda ANTES do hardPaused, garantindo que um G0 Loss seja processado.
+  if(pending && typeof pending.enterAtIdx === "number" && last.idx === pending.enterAtIdx){
     const win = last.mult >= 2.0;
-
-    if (win) {
-      stats.wins++;
-      stats.streak++;
-      stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
-      if (pending.stage === 0) stats.normalWins++;
-      else if (pending.stage === 1) stats.g1Wins++;
-      else if (pending.stage === 2) stats.g2Wins++;
+    
+    if(win){
+      // LÓGICA DE WIN (sem alteração)
+      stats.wins++; stats.streak++; stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
+      if(pending.stage===0) stats.normalWins++;
+      else if(pending.stage===1) stats.g1Wins++;
+      else if(pending.stage===2) stats.g2Wins++;
       syncStatsUI(); store.set(stats);
+      const label = pending.stage===0 ? "WIN 2x" : `WIN 2x (G${pending.stage})`;
+      addFeed("ok", label); topSlide("WIN 2x", true); 
+      
+      if (last.color === 'pink' && !pred8.ok) { 
+         pending = { stage: 'POST_PINK_WAIT', enterAtIdx: last.idx + 1, reason: 'Pós-Rosa (WIN, Pred < 50%)' };
+         setCardState({ active: false, awaiting: true, title: "Aguardando", sub: "Pós-Rosa, reanalisando próxima vela (Pred < 50%)" });
+         addFeed("warn", "WIN (Rosa) - Aguardando 1 vela para reanalisar (Pred < 50%)");
+         return; 
+      }
 
-      addFeed("ok", `WIN 2x (G${pending.stage})`);
-      topSlide("WIN 2x", true);
-      clearPending();
-      return;
+      clearPending(); 
     } else {
-      // LOSS → PRÓXIMO GALE
-      const nextSignal = canEnterSignal(arr, nowTs);
-      const nextG = pending.stage + 1;
+      // LÓGICA DE LOSS E TRANSIÇÃO PARA GALE/ESPERA
+      const nextSuggestion = getStrategyAndGate(colors, pred8, arr40, arr);
+      const predOk = pred8.ok; // >= 50%
+      const newPatternFound = !!nextSuggestion;
 
-      if (nextG <= 2 && nextSignal) {
-        pending.stage = nextG;
-        pending.enterAtIdx = last.idx + 1;
-        martingaleTag.style.display = "inline-block";
+      if(pending.stage===0){
+          const g1Allowed = predOk && newPatternFound;
 
-        setCardState({
-          active: true,
-          title: `Chance de 2x G${nextG}`,
-          sub: `Gatilho: ${nextSignal.name}`
-        });
-        strategyTag.textContent = "Estratégia: " + nextSignal.name;
-        gateTag.textContent = "Gatilho: " + nextSignal.gate;
+          if(g1Allowed){
+            pending.stage=1; pending.enterAtIdx=last.idx+1; martingaleTag.style.display="inline-block";
+            setCardState({active:true, title:"Chance de 2x G1", sub:`Gatilho: ${nextSuggestion.name}`}); 
+            addFeed("warn",`Ativando G1 (Gatilho: ${nextSuggestion.name})`);
+          } else {
+            // [AQUI ESTÁ A LÓGICA CORRETA]
+            // Mesmo que hardPaused=true, este bloco agora executa,
+            // definindo o estado para G1_WAIT e mostrando o card "Aguardando G1".
+            pending.stage = 'G1_WAIT'; pending.enterAtIdx = null; 
+            const reason = !predOk ? "aguardando pred. >= 50%" : "aguardando novo padrão/estratégia"; 
+            setCardState({active:false, awaiting:true, title:"Aguardando G1", sub: reason});
+            addFeed("warn", `G1 em espera: ${reason}`);
+          }
+      } else if(pending.stage===1){
+          const g2Allowed = predOk && newPatternFound; 
 
-        addFeed("warn", `LOSS → G${nextG} ATIVADO (${nextSignal.name})`);
-        topSlide(`Analisando G${nextG}...`, true);
-      } else {
-        stats.losses++; stats.streak = 0;
-        syncStatsUI(); store.set(stats);
-        addFeed("err", `LOSS FINAL (G${pending.stage})`);
-        topSlide("LOSS 2x", false);
-        clearPending();
+          if(g2Allowed){ 
+             pending.stage=2; pending.enterAtIdx=last.idx+1; martingaleTag.style.display="inline-block";
+             setCardState({active:true, title:"Chance de 2x G2", sub:`Gatilho: ${nextSuggestion.name}`});
+             strategyTag.textContent = "Estratégia: " + nextSuggestion.name;
+             gateTag.textContent = "Gatilho: " + nextSuggestion.gate;
+             addFeed("warn","SINAL 2x (G2) — último recurso");
+          } else {
+            pending.stage = 'G2_WAIT'; pending.enterAtIdx = null; 
+            const reason = !predOk ? "aguardando pred. >= 50% (G2)" : "aguardando novo padrão/estratégia (G2)"; 
+            setCardState({active:false, awaiting:true, title:"Aguardando G2", sub: reason});
+            addFeed("warn", `G2 em espera: ${reason}`);
+          }
+      } else if(pending.stage===2){
+          stats.losses++; stats.streak=0; syncStatsUI(); store.set(stats);
+          addFeed("err","LOSS 2x (G2 falhou)"); topSlide("LOSS 2x (G2)", false); clearPending();
       }
     }
+    return; // Encerra o processamento da vela se houve fechamento de sinal
+  }
+  
+  // ================= BLOQUEIOS E PAUSAS GERAIS =================
+  const line5Block = check5LineBlock(arr); // Nova regra: Bloqueio por Linha de 5
+  const blockCorrections = bbbCount>=2; 
+  const weakPred = !pred8.ok; // < 50%
+  const hardPauseBlueRun = blueRun >= HARD_PAUSE_BLUE_RUN;
+
+  const hardPaused = hardPauseBlueRun || blockCorrections || weakPred || line5Block;
+  engineStatus.textContent = hardPaused ? "aguardando" : "operando";
+
+  if(hardPaused){
+    // [CORREÇÃO 2A: MOVIDO PARA CIMA]
+    // Se já estamos em G1_WAIT/G2_WAIT, não sobrescreva o card "Aguardando G1"
+    // com "aguardando estabilidade". Apenas saia.
+    if(pending && (pending.stage === 'G1_WAIT' || pending.stage === 'G2_WAIT')) return;
+    
+    // Se não for G1/G2_WAIT, mostre o card de pausa geral
+    let sub = (line5Block ? lastBlockReason : blockCorrections?"correção BBB repetida (micro 8)": weakPred?"Aguardando Estabilização": hardPauseBlueRun ? "3+ azuis seguidas na ponta" : "aguarde uma possibilidade");
+    setCardState({active:false, awaiting:true, title:"aguardando estabilidade", sub});
+    const pauseMsg = sub;
+    if (window.lastPauseMessage !== pauseMsg) { addFeed("warn", pauseMsg); window.lastPauseMessage = pauseMsg; }
+    
+    // [CORREÇÃO 2B: REMOVIDO]
+    // if(pending && pending.stage === 0) clearPending(); // Esta linha era o BUG. Foi removida.
+    
     return;
   }
+  window.lastPauseMessage = null; 
 
-  // ENTRADA NORMAL (G0)
-  if (!pending) {
-    const signal = canEnterSignal(arr, nowTs);
-    if (signal) {
-      pending = { stage: 0, enterAtIdx: last.idx + 1, name: signal.name };
-      setCardState({ active: true, title: "Chance de 2x", sub: `entrar após (${lastMultTxt})` });
-      strategyTag.textContent = "Estratégia: " + signal.name + (signal.fast ? " · FAST" : "");
-      gateTag.textContent = "Gatilho: " + signal.gate;
-      addFeed("warn", `SINAL 2x (${signal.name}) — entrar após (${lastMultTxt})`);
-    } else {
+  // ================= PROCESSAMENTO DE ESPERA (GALE/PÓS-ROSA) =================
+  if(pending && pending.stage==='POST_PINK_WAIT'){
+      clearPending();
+      addFeed("info", "Pós-Rosa (Pred < 50%) concluído. Reanalisando.");
       setCardState({ active: false, awaiting: false, title: "Chance de 2x", sub: "identificando padrão" });
-      strategyTag.textContent = "Estratégia: —"; gateTag.textContent = "Gatilho: —";
+  }
+
+  if(pending && (pending.stage==='G1_WAIT' || pending.stage==='G2_WAIT')){
+     const nextSuggestion = getStrategyAndGate(colors, pred8, arr40, arr);
+     const predOk = pred8.ok;
+     const newPatternFound = !!nextSuggestion;
+    
+    let transitioned = false; 
+
+    if(pending.stage==='G1_WAIT'){
+        const g1Allowed = predOk && newPatternFound;
+        if(g1Allowed){
+            pending.stage=1; 
+            // [CORREÇÃO 3A] - Entrar na PRÓXIMA vela
+            pending.enterAtIdx=last.idx + 1; 
+            martingaleTag.style.display="inline-block";
+            setCardState({active:true, title:"Chance de 2x G1", sub:`Gatilho: ${nextSuggestion.name}`}); 
+            // [CORREÇÃO 3B] - Mensagem "entrar após"
+            addFeed("warn",`SINAL 2x (G1) — entrar após (${lastMultTxt})`);
+            transitioned = true; 
+        } else {
+            const reason = !predOk ? "aguardando pred. >= 50%" : "aguardando novo padrão/estratégia";
+            setCardState({active:false, awaiting:true, title:"Aguardando G1", sub: reason});
+        }
+    } 
+    else if(pending.stage==='G2_WAIT'){
+        const g2Allowed = predOk && newPatternFound;
+        if(g2Allowed){
+            pending.stage=2; 
+            // [CORREÇÃO 3A] - Entrar na PRÓXIMA vela
+            pending.enterAtIdx=last.idx + 1; 
+            martingaleTag.style.display="inline-block";
+            setCardState({active:true, title:"Chance de 2x G2", sub:`Gatilho: ${nextSuggestion.name}`});
+            strategyTag.textContent = "Estratégia: " + nextSuggestion.name;
+            gateTag.textContent = "Gatilho: " + nextSuggestion.gate;
+            // [CORREÇÃO 3B] - Mensagem "entrar após"
+            addFeed("warn",`SINAL 2x (G2) — entrar após (${lastMultTxt})`);
+            transitioned = true; 
+        } else {
+            const reason = !predOk ? "aguardando pred. >= 50% (G2)" : "aguardando novo padrão/estratégia (G2)";
+            setCardState({active:false, awaiting:true, title:"Aguardando G2", sub: reason});
+        }
+    }
+    
+    // [CORREÇÃO 4] - Deve retornar SEMPRE que estiver em G1/G2_WAIT,
+    // para não tentar criar um G0.
+    return;
+  }
+  
+  // ================= NOVO SINAL (G0) =================
+  if(!pending){
+    const analysis = getStrategyAndGate(colors, pred8, arr40, arr);
+    const entryAllowed = pred8.ok && !blockCorrections && ( (bbbCount===0) || (bbbCount===1 && pred8.strong) );
+    
+    const fastLane = pred8.strong && !!analysis;
+
+    if(entryAllowed && analysis){
+      
+      pending = { 
+        stage: 0, 
+        enterAtIdx: last.idx+1, 
+        reason: analysis.gate, 
+        strategy: analysis.name,
+      };
+
+      setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${lastMultTxt})`});
+      strategyTag.textContent = "Estratégia: " + analysis.name + (fastLane ? " · FAST LANE" : (pred8.strong?" · cenário forte":""));
+      gateTag.textContent = "Gatilho: " + analysis.gate;
+      addFeed("warn", `SINAL 2x (${analysis.name}) — entrar após (${lastMultTxt})`);
+      return;
+    } else {
+      setCardState({active:false, awaiting:false, title:"Chance de 2x", sub:"identificando padrão"});
+      strategyTag.textContent = "Estratégia: —";
+      gateTag.textContent = "Gatilho: —";
     }
   }
 }
 
+
 // ===================== Firebase =======================
-function toArrayFromHistory(raw) {
+function toArrayFromHistory(raw){
   const rows = [];
   const vals = Object.values(raw || {});
-  for (let i = 0; i < vals.length; i++) {
+  for(let i=0;i<vals.length;i++){
     const it = vals[i];
     const mult = parseFloat(it?.multiplier);
-    if (!Number.isFinite(mult)) continue;
-    const color = ["blue", "purple", "pink"].includes(it?.color) ? it.color : colorFrom(mult);
-    let ts = null;
-    if (it?.date && it?.time) {
+    if(!Number.isFinite(mult)) continue;
+    const color = (it?.color==="blue"||it?.color==="purple"||it?.color==="pink") ? it.color : colorFrom(mult);
+    let ts=null;
+    if(it?.date && it?.time){
       const d = new Date(`${it.date}T${it.time}`);
-      if (!isNaN(d)) ts = d.getTime();
+      if(!Number.isFinite(d.getTime())) ts=d.getTime();
     }
-    rows.push({ idx: i, mult, color, ts });
+    rows.push({ idx:i, mult, color, ts });
   }
   return rows;
 }
 
-(function init() {
-  try {
+(function init(){
+  try{
     const app = firebase.initializeApp(firebaseConfig);
     liveStatus.textContent = "Conectado";
-    liveStatus.style.background = "rgba(34,197,94,.15)";
-    liveStatus.style.color = "#b9f5c7";
-    liveStatus.style.borderColor = "rgba(34,197,94,.35)";
-
+    liveStatus.style.background="rgba(34,197,94,.15)"; liveStatus.style.color="#b9f5c7"; liveStatus.style.borderColor="rgba(34,197,94,.35)";
     const dbRef = app.database().ref("history/");
-    dbRef.on('value', (snapshot) => {
+    dbRef.on('value',(snapshot)=>{
       const data = snapshot.val();
       const arr = toArrayFromHistory(data);
-      if (arr.length > 0) {
-        engineStatus.textContent = "operando";
-        onNewCandle(arr);
-      } else {
-        engineStatus.textContent = "aguardando dados...";
-      }
-    }, (error) => {
-      liveStatus.textContent = "Erro: " + error.message;
-      liveStatus.style.background = "rgba(239,68,68,.15)";
-      liveStatus.style.color = "#ffd1d1";
-      console.error("Firebase error:", error);
+      if(!arr.length){ engineStatus.textContent="sem dados"; return; }
+      onNewCandle(arr);
+    },(error)=>{
+      liveStatus.textContent = "Erro: "+error.message;
+      liveStatus.style.background="rgba(239,68,68,.15)"; liveStatus.style.color="#ffd1d1";
     });
-  } catch (e) {
-    liveStatus.textContent = "Falha ao iniciar Firebase";
-    liveStatus.style.background = "rgba(239,68,68,.1E)";
-    liveStatus.style.color = "#ffd1d1";
-    console.error("Init error:", e);
+  }catch(e){
+    liveStatus.textContent="Falha ao iniciar Firebase";
+    liveStatus.style.background="rgba(239,68,68,.1E)"; liveStatus.style.color="#ffd1d1";
+    console.error(e);
   }
 })();
 
-// ===================== BLOQUEIO DO DEVTOOLS (RESTAURADO E MELHORADO) =======================
+// ===================== BLOQUEIO DO DEVTOOLS =======================
 (function() {
-  const threshold = 160;
+  const threshold = 160; // Limiar de pixels para detectar a abertura
   let devtoolsOpen = false;
 
   const checkDevTools = () => {
     const width = window.innerWidth;
     const height = window.innerHeight;
     if (width < threshold || height < threshold) {
-      if (!devtoolsOpen) {
-        devtoolsOpen = true;
-        window.location.replace("https://www.google.com");
-      }
-    } else {
-      devtoolsOpen = false;
-    }
+      if (!devtoolsOpen) { devtoolsOpen = true; window.location.replace("https://www.google.com"); }
+    } else { devtoolsOpen = false; }
   };
-
   window.addEventListener('resize', checkDevTools);
   checkDevTools();
 
@@ -480,18 +605,6 @@ function toArrayFromHistory(raw) {
     if (e.key === 'F12' || e.keyCode === 123) e.preventDefault();
     if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i')) e.preventDefault();
     if (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j')) e.preventDefault();
-    if (e.ctrlKey && e.key === 'U') e.preventDefault();
   });
-
-  document.addEventListener('contextmenu', function (e) {
-    e.preventDefault();
-  });
-
-  // Anti-debugger
-  (function() {
-    setInterval(() => {
-      console.clear();
-      debugger;
-    }, 100);
-  })();
+  document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 })();
