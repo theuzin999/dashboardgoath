@@ -258,30 +258,6 @@ function clearPending(){
   setCardState({active:false, awaiting:false}); 
 }
 
-// ===================== Firebase =======================
-function toArrayFromHistory(raw){
-  const rows = [];
-  const vals = Object.values(raw || {});
-  for(let i=0;i<vals.length;i++){
-    const it = vals[i];
-    const mult = parseFloat(it?.multiplier);
-    if(!Number.isFinite(mult)) continue;
-    const color = (it?.color==="blue"||it?.color==="purple"||it?.color==="pink") ? it.color : colorFrom(mult);
-    let ts=null;
-    if(it?.date && it?.time){
-      const d = new Date(`${it.date}T${it.time}`);
-      if(Number.isFinite(d.getTime())) ts=d.getTime();
-    }
-    rows.push({ idx:i, mult, color, ts });
-  }
-  return rows;
-}
-
-let maxBlueStreakHistory = []; // [idx, streak]
-let waitingForNewCorrections = 0;
-window.seguidinhaOn = false;
-window.prevCorrGate = null;
-
 function onNewCandle(arr){
   if(arr.length < Math.min(WINDOW_PRED, WINDOW_CORR)) return;
   renderHistory(arr);
@@ -315,7 +291,7 @@ function onNewCandle(arr){
   const prevCorr = window.prevCorrGate;
   if(prevCorr !== undefined && corrGate !== prevCorr){
     maxBlueStreakHistory.push({idx: last.idx, streak: corrGate});
-    if(maxBlueStreakHistory.length > 20) maxBlueStreakHistory.shift(); // Reduzido para 20 para evitar acumulo
+    if(maxBlueStreakHistory.length > 20) maxBlueStreakHistory.shift();
   }
   window.prevCorrGate = corrGate;
 
@@ -338,9 +314,9 @@ function onNewCandle(arr){
     if (lastChange && lastChange.streak <= 2) {
       waitingForNewCorrections = 0;
       addFeed("info", "Desbloqueado: nova correção ≤2 confirmada.");
-      clearPending();  // Limpa qualquer pending velho
-      engineStatus.textContent = "operando";  // Force update
-      setCardState({active:false, awaiting:false});  // Reset card
+      clearPending();
+      engineStatus.textContent = "operando";
+      setCardState({active:false, awaiting:false});
     } else {
       setCardState({active:false, awaiting:true, title:"SINAL BLOQUEADO", sub:"Aguardando 1 nova correção ≤2"});
       return;
@@ -395,11 +371,11 @@ function onNewCandle(arr){
       }
       if(pending.stage === 2){
         addFeed("err", "LOSS 2x (G2)"); topSlide("LOSS 2x (G2)", false);
-        stats.losses++;  // Sempre incremente
+        stats.losses++;
         stats.streak = 0;
         syncStatsUI(); store.set(stats);
         clearPending(); lastG0Strategy = null;
-        currentCycleLoss = false;  // Reset
+        currentCycleLoss = false;
         return;
       }
     }
@@ -468,7 +444,7 @@ function onNewCandle(arr){
     }
   }
 
-  // Forçar reavaliação após desbloqueio ou estados limpos
+  // Forçar reavaliação após desbloqueio
   if (waitingForNewCorrections === 0 && !pending) {
     const analysis = getStrategyAndGate(colors, [], arr, predN, false);
     if (analysis) {
@@ -487,6 +463,25 @@ function onNewCandle(arr){
   engineStatus.textContent = window.seguidinhaOn ? "SEGUIDINHA ON" : (waitingForNewCorrections > 0 ? "bloqueado (3+ azuis)" : "operando");
 }
 
+// ===================== Firebase =======================
+function toArrayFromHistory(raw){
+  const rows = [];
+  const vals = Object.values(raw || {});
+  for(let i=0;i<vals.length;i++){
+    const it = vals[i];
+    const mult = parseFloat(it?.multiplier);
+    if(!Number.isFinite(mult)) continue;
+    const color = (it?.color==="blue"||it?.color==="purple"||it?.color==="pink") ? it.color : colorFrom(mult);
+    let ts=null;
+    if(it?.date && it?.time){
+      const d = new Date(`${it.date}T${it.time}`);
+      if(Number.isFinite(d.getTime())) ts=d.getTime();
+    }
+    rows.push({ idx:i, mult, color, ts });
+  }
+  return rows;
+}
+
 (function init(){
   try{
     const app = firebase.initializeApp(firebaseConfig);
@@ -501,10 +496,10 @@ function onNewCandle(arr){
     },(error)=>{
       liveStatus.textContent = "Erro: "+error.message;
       liveStatus.style.background="rgba(239,68,68,.15)"; liveStatus.style.color="#ffd1d1";
-      setTimeout(init, 5000);  // Reconectar após erro
+      setTimeout(init, 5000); // Reconectar
     });
 
-    // Reset periódico de estados
+    // Reset periódico
     setInterval(() => {
       if (waitingForNewCorrections > 0 || !pending && engineStatus.textContent.includes("bloqueado")) {
         waitingForNewCorrections = 0;
@@ -512,13 +507,13 @@ function onNewCandle(arr){
         window.seguidinhaOn = false;
         maxBlueStreakHistory = [];
         window.prevCorrGate = null;
-        addFeed("info", "Reset automático de estados após inatividade.");
+        addFeed("info", "Reset automático após inatividade.");
         engineStatus.textContent = "operando";
       }
-    }, 1800000);  // A cada 30 minutos
+    }, 1800000); // 30 min
   }catch(e){
     liveStatus.textContent="Falha ao iniciar Firebase";
-    liveStatus.style.background="rgba(239,68,68,.1E)"; liveStatus.style.color="#ffd1d1";
+    liveStatus.style.background="rgba(239,68,68,.15)"; liveStatus.style.color="#ffd1d1";
     console.error(e);
   }
 })();
