@@ -111,8 +111,9 @@ clearStatsBtn.onclick = () => {
 function colorFrom(mult){ if(mult<2.0) return "blue"; if(mult<10.0) return "purple"; return "pink"; }
 const isPos = (c) => c==="purple" || c==="pink";
 
-// ===== Window param =====
-const WINDOW_N = 6;
+// ===== JANELAS PERSONALIZADAS =====
+const WINDOW_PRED = 12;  // ← Predominância (% roxo/rosa)
+const WINDOW_CORR = 8;   // ← Correção (max streak azul)
 
 function getLastNColors(arr, n){ return arr.slice(-n).map(r=>r.color); }
 
@@ -250,7 +251,7 @@ function getStrategyAndGate(colors, arr40, arr, predNPct, allowMacro = true){
   return null;
 }
 
-// ===================== Motor (CORREÇÃO + SEGUIDINHA PERFEITA) ======================
+// ===================== Motor (JANELAS SEPARADAS) ======================
 let pending = null;
 let waitingForNewCorrections = 0;
 let currentCycleLoss = false;
@@ -266,18 +267,21 @@ function clearPending(){
 }
 
 function onNewCandle(arr){
-  if(arr.length < WINDOW_N) return;
+  if(arr.length < Math.min(WINDOW_PRED, WINDOW_CORR)) return;
   renderHistory(arr);
 
   const colors = arr.map(r=>r.color);
   const last = arr[arr.length-1];
   const lastMultTxt = last.mult.toFixed(2)+"x";
 
-  const colorsLastN = getLastNColors(arr, WINDOW_N);
-  const predN = predominancePct(colorsLastN);
-  const corrN = getMaxBlueStreakN(colorsLastN);
+  // ===== LEITURA DAS JANELAS SEPARADAS =====
+  const colorsPred = getLastNColors(arr, WINDOW_PRED);
+  const colorsCorr = getLastNColors(arr, WINDOW_CORR);
 
-  const recTripla = lastKBlueStreakRecency(colorsLastN, 3);
+  const predN = predominancePct(colorsPred);
+  const corrN = getMaxBlueStreakN(colorsCorr);
+
+  const recTripla = lastKBlueStreakRecency(colorsCorr, 3);
   const twoPos = twoPosNow(colors);
   let corrGate = corrN;
   if(corrN===3 && recTripla>=5 && (twoPos || predN>=0.60) && finalBlueRunNow(colors)<=1) corrGate = 2;
@@ -285,14 +289,13 @@ function onNewCandle(arr){
   const analysis = getStrategyAndGate(colors, [], arr, predN, false);
   const strongStrategyActive = !!analysis;
 
-  predStatus.textContent = `Predominância (${WINDOW_N}): ${(predN*100).toFixed(0)}% · Max Streak: ${corrN}`;
+  predStatus.textContent = `Pred (${WINDOW_PRED}): ${(predN*100).toFixed(0)}% · Corr (${WINDOW_CORR}): ${corrN}`;
   blueRunPill.textContent = `Azuis seguidas: ${consecutiveBlueCount(arr)}` + (window.seguidinhaOn ? " · SEGUIDINHA ON" : "");
 
   // ===== Rastreia MUDANÇAS de correção (só quando muda de valor) =====
   const prevCorr = window.prevCorrGate;
   if(prevCorr !== undefined && corrGate !== prevCorr && corrGate <= 2){
     maxBlueStreakHistory.push({idx: last.idx, streak: corrGate});
-    // Remove entradas antigas (máx 50)
     if(maxBlueStreakHistory.length > 50) maxBlueStreakHistory.shift();
   }
   window.prevCorrGate = corrGate;
@@ -492,6 +495,7 @@ function onNewCandle(arr){
 
   engineStatus.textContent = window.seguidinhaOn ? "Seguidinha ON" : (waitingForNewCorrections > 0 ? "bloqueado (3+ corr)" : "operando");
 }
+
 // ===================== Firebase =======================
 function toArrayFromHistory(raw){
   const rows = [];
