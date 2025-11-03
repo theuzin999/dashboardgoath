@@ -134,7 +134,7 @@ function getMaxBlueStreakN(colorsLastN){
   return max;
 }
 
-// Recência da última sequência k de azuis (0=acabou agora; ∞=não houve)
+// Recência da última sequência k de azuis (0=acabou agora; Infinity=não houve)
 function lastKBlueStreakRecency(colorsLastN, k=3){
   let run=0;
   for(let i=colorsLastN.length-1;i>=0;i--){
@@ -451,18 +451,31 @@ function onNewCandle(arr){
       addFeed("ok", pending.stage===0? "WIN 2x" : `WIN 2x (G${pending.stage})`);
       topSlide("WIN 2x", true); clearPending(); return;
     } else {
+      // ===== NOVO: Nunca G1/G2 na frente de dois azuis seguidos =====
+      const lastTwoAreBlue = colors.length >= 2 && colors[colors.length-1] === "blue" && colors[colors.length-2] === "blue";
+      
+      // ===== NOVO: G1 e G2 precisam de novo padrão (não o mesmo do G0) =====
+      const g0StrategyName = pending.strategy;
       const nextAnalysis = getStrategyAndGate(colors, arr40, arr, predN, false);
       const nextStrong = !!nextAnalysis;
+      const newPatternForGale = nextStrong && nextAnalysis.name !== g0StrategyName;
 
       if(pending.stage===0){
         let act='LOSS', reason="";
+        if(lastTwoAreBlue){
+          act='LOSS'; reason="Bloqueio: 2 azuis seguidos na frente do G1.";
+          stats.losses++; stats.streak=0; syncStatsUI(); store.set(stats);
+          addFeed("err","LOSS 2x (G0)"); topSlide("LOSS 2x", false); clearPending();
+          return;
+        }
         if(window.seguidinhaOn && corrGate<=1){ act='GALE'; reason="Seguidinha ON (≤1 correção)."; }
         else if(corrGate<=1){ act='GALE'; reason="Correção ≤1."; }
         else if(corrGate===2){ act = (predN>=0.60 || nextStrong) ? 'GALE':'WAIT';
                                reason = act==='GALE' ? "Corr=2 com Pred≥60% ou estratégia." : "Corr=2 aguardando Pred/estratégia."; }
         else if(corrGate===3){ act='WAIT'; reason="Corr=3 aguardando 1 vela."; }
         if(act==='GALE'){
-          pending.stage=1; pending.enterAtIdx=last.idx+1; martingaleTag.style.display="inline-block";
+          pending.stage=1; pending.enterAtIdx=last.idx+1; pending.strategy = nextAnalysis?.name || "G1 Direto";
+          martingaleTag.style.display="inline-block";
           setCardState({active:true, title:"Chance de 2x G1", sub:`Gatilho: ${nextAnalysis?.name || 'G1 Direto'}`});
           addFeed("warn",`Ativando G1 — ${reason}`);
         } else if(act==='WAIT'){
@@ -474,14 +487,26 @@ function onNewCandle(arr){
           addFeed("err","LOSS 2x (G0)"); topSlide("LOSS 2x", false); clearPending();
         }
       } else if(pending.stage===1){
+        if(lastTwoAreBlue){
+          stats.losses++; stats.streak=0; syncStatsUI(); store.set(stats);
+          addFeed("err","LOSS 2x (G1)"); topSlide("LOSS 2x (G1)", false); clearPending();
+          return;
+        }
+        if(!newPatternForGale){
+          pending.stage='G2_WAIT'; pending.enterAtIdx=null;
+          setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Aguardando novo padrão (não o mesmo do G0)."});
+          addFeed("warn","G2 em espera: precisa de novo padrão.");
+          return;
+        }
         let act='LOSS', reason="";
         if(corrGate<=2){ act='GALE'; reason="Correção ≤2."; }
         else if(corrGate===3){ act = (predN>=0.60 || nextStrong)?'GALE':'WAIT';
                                reason = act==='GALE' ? "Corr=3 com Pred≥60%/estratégia." : "Corr=3 aguardando Pred/estratégia."; }
         else if(corrGate===4){ act='WAIT'; reason="Corr=4 aguardando 1 vela."; }
         if(act==='GALE'){
-          pending.stage=2; pending.enterAtIdx=last.idx+1; martingaleTag.style.display="inline-block";
-          setCardState({active:true, title:"Chance de 2x G2", sub:`Gatilho: ${nextAnalysis?.name || 'G2 Direto'}`});
+          pending.stage=2; pending.enterAtIdx=last.idx+1; pending.strategy = nextAnalysis.name;
+          martingaleTag.style.display="inline-block";
+          setCardState({active:true, title:"Chance de 2x G2", sub:`Gatilho: ${nextAnalysis.name}`});
           addFeed("warn","SINAL 2x (G2)");
         } else if(act==='WAIT'){
           pending.stage='G2_WAIT'; pending.enterAtIdx=null;
@@ -517,6 +542,7 @@ function onNewCandle(arr){
   if(pending && (pending.stage==='G1_WAIT' || pending.stage==='G2_WAIT')){
     const nextAnalysis = getStrategyAndGate(colors, arr40, arr, predN, false);
     const nextStrong = !!nextAnalysis;
+    const newPatternForGale = nextStrong && nextAnalysis.name !== pending.strategy;
 
     if(pending.stage==='G1_WAIT'){
       let ok=false, reason="";
@@ -524,7 +550,8 @@ function onNewCandle(arr){
       else if(corrGate===2){ ok = (predN>=0.60 || nextStrong); reason = ok? "Pred≥60%/estratégia." : "Aguardando Pred/estratégia."; }
       else if(corrGate>=3){ ok=false; reason="Ainda alto, mantendo espera."; }
       if(ok){
-        pending.stage=1; pending.enterAtIdx=last.idx+1; martingaleTag.style.display="inline-block";
+        pending.stage=1; pending.enterAtIdx=last.idx+1; pending.strategy = nextAnalysis?.name || "G1 Direto";
+        martingaleTag.style.display="inline-block";
         setCardState({active:true, title:"Chance de 2x G1", sub:`Gatilho: ${nextAnalysis?.name || 'G1 Direto'}`});
         addFeed("warn",`SINAL 2x (G1) — entrar após (${lastMultTxt})`);
       } else {
@@ -534,13 +561,18 @@ function onNewCandle(arr){
     }
 
     if(pending.stage==='G2_WAIT'){
+      if(!newPatternForGale){
+        setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Aguardando novo padrão."});
+        return;
+      }
       let ok=false, reason="";
       if(corrGate<=2){ ok=true; reason=`Correção melhorou para ${corrGate}.`; }
       else if(corrGate===3){ ok = (predN>=0.60 || nextStrong); reason = ok? "Pred≥60%/estratégia." : "Aguardando Pred/estratégia."; }
       else if(corrGate>=4){ ok=false; reason="Ainda alto, mantendo espera."; }
       if(ok){
-        pending.stage=2; pending.enterAtIdx=last.idx+1; martingaleTag.style.display="inline-block";
-        setCardState({active:true, title:"Chance de 2x G2", sub:`Gatilho: ${nextAnalysis?.name || 'G2 Direto'}`});
+        pending.stage=2; pending.enterAtIdx=last.idx+1; pending.strategy = nextAnalysis.name;
+        martingaleTag.style.display="inline-block";
+        setCardState({active:true, title:"Chance de 2x G2", sub:`Gatilho: ${nextAnalysis.name}`});
         addFeed("warn",`SINAL 2x (G2) — entrar após (${lastMultTxt})`);
       } else {
         setCardState({active:false, awaiting:true, title:"Aguardando G2", sub: reason});
