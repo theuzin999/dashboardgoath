@@ -132,6 +132,38 @@ function getMaxBlueStreak20(colorsLast20){
   return Math.max(maxStreak, currentStreak); // Considera o streak que termina no final do array
 }
 
+// [NOVO HELPER REFINADO] Retorna o MAX streak de azuis das ÚLTIMAS 3 correções/eventos de azul.
+function getLastThreeCorrectionsMaxStreak(colors){
+    const correctionStreaks = [];
+    let streakLength = 0;
+    
+    // Itera para trás para encontrar os eventos de correção mais recentes
+    for (let i = colors.length - 1; i >= 0; i--) {
+        if (colors[i] === "blue") {
+            streakLength++;
+        } else {
+            // Fim de uma sequência de azul (evento de correção)
+            if (streakLength > 0) {
+                correctionStreaks.push(streakLength);
+                if (correctionStreaks.length >= 3) break; // Só precisamos das últimas 3
+            }
+            streakLength = 0;
+        }
+    }
+    // Se a lista termina em azul, a sequência atual é o evento de correção mais recente
+    if (streakLength > 0 && correctionStreaks.length < 3) {
+        correctionStreaks.push(streakLength);
+    }
+
+    if (correctionStreaks.length < 3) {
+        // Não há histórico suficiente para avaliar 3 correções, permite-se (retorna 0 para passar no <=2)
+        return 0; 
+    }
+
+    // Retorna o valor máximo entre as 3 últimas sequências de correção.
+    return Math.max(...correctionStreaks.slice(0, 3));
+}
+
 // [NOVO HELPER OBRIGATÓRIO] Predominância de positivas nas últimas N velas
 function predominancePct(colorsLastN){
   const pos = colorsLastN.filter(isPositiveColor).length;
@@ -141,14 +173,6 @@ function predominancePct(colorsLastN){
 // Funções antigas mantidas para compatibilidade de chamadas
 function consecutiveBlueCount(list){
   let c=0; for(let i=list.length-1;i>=0;i--){ if(list[i].color==="blue") c++; else break; } return c;
-}
-function hasConsecutiveBlues(colorsLastN, k){
-  let run=0;
-  for(const c of colorsLastN){
-    if(c==="blue") run++; else run=0;
-    if(run>=k) return true;
-  }
-  return false;
 }
 function lastPink(arr){ for(let i=arr.length-1;i>=0;i--){ if(arr[i].color==="pink") return arr[i]; } return null; }
 function lastPurpleOrPink(arr){ for(let i=arr.length-1;i>=0;i--){ if(arr[i].color!=="blue") return arr[i]; } return null; }
@@ -195,7 +219,6 @@ const TIME_TOLERANCE_MIN = 2;
 window.lastBlockReason = null;
 window.lastPauseMessage = null;
 window.seguidinhaOn = false; 
-window.tripleCorrectionWatch = false; // Estado de vigilância da Tripla Correção
 
 // ===================== Estratégias baseadas no Ebook (mantidas) =======================
 function inPinkTimeWindow(nowTs, arr){ 
@@ -340,10 +363,7 @@ function onNewCandle(arr){
   // CORREÇÃO OFICIAL: MAIOR STREAK DE AZUIS NAS 20
   const corr20 = getMaxBlueStreak20(colorsLast20); 
 
-  // A tripla correção (BBB) só é relevante se for a CORREÇÃO ATUAL
   const blueRun = consecutiveBlueCount(arr); // Seguidas de AGORA
-  const currentBlueRunIsTriple = blueRun >= 3; 
-  
   const pred20Strong = pred20 >= STRONG_PCT; // 60%
   
   const analysis = getStrategyAndGate(colors, arr40, arr, pred20, true);
@@ -352,36 +372,26 @@ function onNewCandle(arr){
   predStatus.textContent = `Predominância (20): ${(pred20*100).toFixed(0)}% · Max Streak: ${corr20}`;
   blueRunPill.textContent = `Azuis seguidas: ${blueRun}` + (window.seguidinhaOn ? " · SEGUIDINHA ON" : "");
   
-  // ================= LÓGICA DE SEGUIDINHA AGRESSIVA (Regra 3 - REVISADA) =================
-  
-  // Desativação (Ativação do WATCH): Se a sequência atual de azuis for >= 3
-  if (currentBlueRunIsTriple) {
-    window.seguidinhaOn = false;
-    if(!window.tripleCorrectionWatch) { // Evita spam de 'info'
-      window.tripleCorrectionWatch = true; 
-      addFeed("info", `Tripla correção detectada (${blueRun} azuis atuais), Seguidinha desativada. Aguardando 2 confirmações.`);
-    }
-  } 
-  
-  // Ativação: Apenas se o Max Streak for 1 E a vigilância estiver OFF/resetada
-  const singleCorrectionDominant = (corr20 === 1); 
-  
-  if (singleCorrectionDominant) {
-    if(!window.tripleCorrectionWatch) {
-      if (!window.seguidinhaOn) addFeed("info", "Seguidinha ativada: Single Correction Dominante (Corr. 1).");
+  // ================= LÓGICA DE SEGUIDINHA AGRESSIVA (Regra 3 - MAIS REFINADA) =================
+  const maxStreakLastThree = getLastThreeCorrectionsMaxStreak(colors);
+  const singleCorrectionDominant = (corr20 === 1);
+  const canDoSeguidinhaByHistory = maxStreakLastThree <= 2; // True se TODAS as últimas 3 correções foram <= 2
+
+  // Ação: Ativação
+  if (singleCorrectionDominant && canDoSeguidinhaByHistory) {
+      if (!window.seguidinhaOn) addFeed("info", `Seguidinha ativada: Corr. Oficial (${corr20}) OK e Histórico de Correções Max: ${maxStreakLastThree} (OK).`);
       window.seguidinhaOn = true;
-    } else if (isPositiveColor(last.color) && arr.length >= 2 && isPositiveColor(arr[arr.length-2].color)) {
-      // 2 confirmações consecutivas de positiva (fim de correção) após watch
-      window.tripleCorrectionWatch = false; // RESET DO WATCH
-      if (!window.seguidinhaOn) addFeed("info", "Seguidinha ativada: 2 confirmações pós-tripla OK.");
-      window.seguidinhaOn = true;
-    }
   } else {
-      // Se a correção não é 1, a Seguidinha deve ser desativada
+      // Ação: Desativação/Bloqueio
+      if (window.seguidinhaOn) {
+         let reason = singleCorrectionDominant ? 
+                        `Histórico de Correção (${maxStreakLastThree}) alto, desativando.` : 
+                        `Correção Oficial (${corr20}) > 1, desativando.`;
+         addFeed("info", `Seguidinha desativada: ${reason}`);
+      }
       window.seguidinhaOn = false;
   }
-
-
+  
   // ================= PROCESSAMENTO DE FIM DE SINAL (WIN/LOSS/GALE) =================
   if(pending && typeof pending.enterAtIdx === "number" && last.idx === pending.enterAtIdx){
     const win = last.mult >= 2.0;
@@ -500,6 +510,7 @@ function onNewCandle(arr){
               
     setCardState({active:false, awaiting:true, title:"aguardando estabilidade", sub});
     const pauseMsg = sub;
+    // Prevenção de spam
     if (window.lastPauseMessage !== pauseMsg) { addFeed("warn", pauseMsg); window.lastPauseMessage = pauseMsg; }
     
     return;
@@ -545,7 +556,7 @@ function onNewCandle(arr){
         let g2Allowed = false;
         let reason;
 
-        // Regra 4/G2 de 'WAIT' para 'GALE' - corr20=2 agora deve manter o WAIT ou ir para LOSS
+        // Regra 4/G2 de 'WAIT' para 'GALE' - corr20=2 deve manter o WAIT ou ir para LOSS
         if(corr20 <= 1){
           g2Allowed = true; reason = `Correção melhorou para ${corr20}.`;
         } else if(corr20 === 2){
