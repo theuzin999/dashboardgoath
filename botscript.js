@@ -112,7 +112,7 @@ function colorFrom(mult){ if(mult<2.0) return "blue"; if(mult<10.0) return "purp
 const isPos = (c) => c==="purple" || c==="pink";
 
 // ===== Window param =====
-const WINDOW_N = 10;
+const WINDOW_N = 6;
 
 function getLastNColors(arr, n){ return arr.slice(-n).map(r=>r.color); }
 
