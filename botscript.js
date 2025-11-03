@@ -121,7 +121,7 @@ function predominancePositive(list, N=10){ // leitura micro do MOMENTO (últimas
 function consecutiveBlueCount(list){
   let c=0; for(let i=list.length-1;i>=0;i--){ if(list[i].color==="blue") c++; else break; } return c;
 }
-function countBBBSequences(colors, N=10){ // correção pesada: blocos com ≥3 azuis seguidas
+function countBBBSequences(colors, N=7){ // correção pesada: blocos com ≥3 azuis seguidas
   const window = colors.slice(-N);
   let cnt=0, run=0;
   for(let i=0;i<window.length;i++){
@@ -191,8 +191,8 @@ function check5LineBlock(arr, cols=5){
 }
 
 // ===================== Parâmetros (ajustados pelo Ebook) =======================
-const SOFT_PCT = 0.50;  // ≥50% = pague leve (pode operar se contexto permitir)
-const STRONG_PCT = 0.60; // ≥60% = pague forte (libera até com correção leve) // alinhado com tua prática
+const SOFT_PCT = 0.50;  // ≥50% = pague leve (G0) (pode operar se contexto permitir)
+const STRONG_PCT = 0.60; // ≥60% = pague forte (G1/G2) (libera até com correção leve)
 const HARD_PAUSE_BLUE_RUN = 3; // ebook: após 3 azuis → parar e reavaliar (micro) // janela 8 velas: bloqueio extra com BBB≥2
 // const COOLDOWN_AFTER_100X_CANDLES = 10; // REMOVIDO
 const TIME_WINDOWS_AFTER_PINK = [5,7,10,20]; // ±2 min
@@ -393,13 +393,13 @@ function onNewCandle(arr){
       // LÓGICA DE LOSS E TRANSIÇÃO PARA GALE/ESPERA
       
       // [CORREÇÃO 2] Adicionado 'false' para exigir padrão específico no GALE
-      // G1 e G2 SÓ PODEM SER ATIVADOS se um NOVO PADRÃO/ESTRATÉGIA for encontrado
+      // G1 e G2 SÓ PODem SER ATIVADOS se um NOVO PADRÃO/ESTRATÉGIA for encontrado
       const nextSuggestion = getStrategyAndGate(colors, pred8, arr40, arr, false); 
-      const predOk = pred8.ok;
+      const predStrong = pred8.strong; // <<< ALTERAÇÃO AQUI: Usa 60% (STRONG_PCT) para GALE
       const newPatternFound = !!nextSuggestion; // Agora só é true se houver PADRÃO
 
       if(pending.stage===0){
-          const g1Allowed = predOk && newPatternFound; // Exige predominância E novo padrão
+          const g1Allowed = predStrong && newPatternFound; // Exige predominância FORTE (60%+) E novo padrão
 
           if(g1Allowed){
             pending.stage=1; pending.enterAtIdx=last.idx+1; martingaleTag.style.display="inline-block";
@@ -407,12 +407,12 @@ function onNewCandle(arr){
             addFeed("warn",`Ativando G1 (Gatilho: ${nextSuggestion.name})`);
           } else {
             pending.stage = 'G1_WAIT'; pending.enterAtIdx = null; 
-            const reason = !predOk ? "aguardando pred. >= 50%" : "aguardando novo padrão/estratégia"; 
+            const reason = !predStrong ? "aguardando pred. >= 60%" : "aguardando novo padrão/estratégia"; // <<< Mensagem atualizada
             setCardState({active:false, awaiting:true, title:"Aguardando G1", sub: reason});
             addFeed("warn", `G1 em espera: ${reason}`);
           }
       } else if(pending.stage===1){
-          const g2Allowed = predOk && newPatternFound; // Exige predominância E novo padrão
+          const g2Allowed = predStrong && newPatternFound; // Exige predominância FORTE (60%+) E novo padrão
 
           if(g2Allowed){ 
              pending.stage=2; pending.enterAtIdx=last.idx+1; martingaleTag.style.display="inline-block";
@@ -422,7 +422,7 @@ function onNewCandle(arr){
              addFeed("warn","SINAL 2x (G2) — último recurso");
           } else {
             pending.stage = 'G2_WAIT'; pending.enterAtIdx = null; 
-            const reason = !predOk ? "aguardando pred. >= 50% (G2)" : "aguardando novo padrão/estratégia (G2)"; 
+            const reason = !predStrong ? "aguardando pred. >= 60% (G2)" : "aguardando novo padrão/estratégia (G2)"; // <<< Mensagem atualizada
             setCardState({active:false, awaiting:true, title:"Aguardando G2", sub: reason});
             addFeed("warn", `G2 em espera: ${reason}`);
           }
@@ -466,13 +466,13 @@ function onNewCandle(arr){
   if(pending && (pending.stage==='G1_WAIT' || pending.stage==='G2_WAIT')){
      // [CORREÇÃO 3] Adicionado 'false' para exigir padrão específico
      const nextSuggestion = getStrategyAndGate(colors, pred8, arr40, arr, false);
-     const predOk = pred8.ok;
+     const predStrong = pred8.strong; // <<< ALTERAÇÃO AQUI: Usa 60% (STRONG_PCT) para GALE
      const newPatternFound = !!nextSuggestion; // Só é true se houver PADRÃO
     
     let transitioned = false; 
 
     if(pending.stage==='G1_WAIT'){
-        const g1Allowed = predOk && newPatternFound; // Exige predominância E novo padrão
+        const g1Allowed = predStrong && newPatternFound; // Exige predominância FORTE (60%+) E novo padrão
         if(g1Allowed){
             pending.stage=1; 
             pending.enterAtIdx=last.idx + 1; 
@@ -481,12 +481,12 @@ function onNewCandle(arr){
             addFeed("warn",`SINAL 2x (G1) — entrar após (${lastMultTxt})`);
             transitioned = true; 
         } else {
-            const reason = !predOk ? "aguardando pred. >= 50%" : "aguardando novo padrão/estratégia";
+            const reason = !predStrong ? "aguardando pred. >= 60%" : "aguardando novo padrão/estratégia"; // <<< Mensagem atualizada
             setCardState({active:false, awaiting:true, title:"Aguardando G1", sub: reason});
         }
     } 
     else if(pending.stage==='G2_WAIT'){
-        const g2Allowed = predOk && newPatternFound; // Exige predominância E novo padrão
+        const g2Allowed = predStrong && newPatternFound; // Exige predominância FORTE (60%+) E novo padrão
         if(g2Allowed){
             pending.stage=2; 
             pending.enterAtIdx=last.idx + 1; 
@@ -497,7 +497,7 @@ function onNewCandle(arr){
             addFeed("warn",`SINAL 2x (G2) — entrar após (${lastMultTxt})`);
             transitioned = true; 
         } else {
-            const reason = !predOk ? "aguardando pred. >= 50% (G2)" : "aguardando novo padrão/estratégia (G2)";
+            const reason = !predStrong ? "aguardando pred. >= 60% (G2)" : "aguardando novo padrão/estratégia (G2)"; // <<< Mensagem atualizada
             setCardState({active:false, awaiting:true, title:"Aguardando G2", sub: reason});
         }
     }
@@ -509,6 +509,7 @@ function onNewCandle(arr){
   if(!pending){
     // A chamada G0 usa allowMacro=true, permitindo que o gatilho "macro" funcione.
     const analysis = getStrategyAndGate(colors, pred8, arr40, arr);
+    // G0 ainda permite entrar com SOFT_PCT (50%), mas exige condições de correção mais leves.
     const entryAllowed = pred8.ok && !blockCorrections && ( (bbbCount===0) || (bbbCount===1 && pred8.strong) );
     
     const fastLane = pred8.strong && !!analysis;
