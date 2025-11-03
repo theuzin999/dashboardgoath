@@ -250,10 +250,10 @@ function getStrategyAndGate(colors, arr40, arr, predNPct, allowMacro = true){
   return null;
 }
 
-// ===================== Motor (REGRA FINAL DE ERROS) ======================
+// ===================== Motor (COM "entrar após" NO G1/G2) ======================
 let pending = null;
 let waitingForNewCorrections = 0;
-let currentCycleLoss = false; // controla se o ciclo atual é perda total
+let currentCycleLoss = false;
 
 function clearPending(){ 
   pending = null; 
@@ -267,7 +267,7 @@ function onNewCandle(arr){
 
   const colors = arr.map(r=>r.color);
   const last = arr[arr.length-1];
-  const lastMultTxt = last.mult.toFixed(2)+"x";
+  const lastMultTxt = last.mult.toFixed(2)+"x"; // <-- USADO EM TODOS OS GALES
 
   const colorsLastN = getLastNColors(arr, WINDOW_N);
   const predN = predominancePct(colorsLastN);
@@ -303,9 +303,7 @@ function onNewCandle(arr){
     const win = last.mult >= 2.0;
     
     if(win){
-      // GANHOU → ciclo não é perda
       currentCycleLoss = false;
-
       stats.wins++; 
       stats.streak++; 
       stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
@@ -325,16 +323,18 @@ function onNewCandle(arr){
         addFeed("err", "LOSS 2x (G0)");
         topSlide("LOSS 2x", false);
 
-        // Inicia novo ciclo → pode ser perda total
         currentCycleLoss = true;
 
-        // Vai para G1
+        // ATIVA G1 COM "entrar após"
         pending.stage = 1;
         pending.enterAtIdx = last.idx + 1;
         pending.strategy = analysis?.name || "G1 Direto";
+        pending.afterMult = lastMultTxt; // <-- SALVA A VELA ANTERIOR
         martingaleTag.style.display = "inline-block";
-        setCardState({active:true, title:"Chance de 2x G1", sub:`Gatilho: ${pending.strategy}`});
-        addFeed("warn", "Ativando G1 após LOSS G0");
+        setCardState({active:true, title:"Chance de 2x G1", sub:`entrar após (${pending.afterMult})`});
+        strategyTag.textContent = "Estratégia: " + pending.strategy;
+        gateTag.textContent = "Gatilho: " + (analysis?.gate || "correção");
+        addFeed("warn", `SINAL 2x (G1) — entrar após (${pending.afterMult})`);
         return;
       }
 
@@ -342,13 +342,16 @@ function onNewCandle(arr){
         addFeed("err", "LOSS 2x (G1)");
         topSlide("LOSS 2x (G1)", false);
 
-        // Vai para G2
+        // ATIVA G2 COM "entrar após"
         pending.stage = 2;
         pending.enterAtIdx = last.idx + 1;
         pending.strategy = analysis?.name || "G2 Direto";
+        pending.afterMult = lastMultTxt; // <-- SALVA A VELA ANTERIOR
         martingaleTag.style.display = "inline-block";
-        setCardState({active:true, title:"Chance de 2x G2", sub:`Gatilho: ${pending.strategy}`});
-        addFeed("warn", "Ativando G2 após LOSS G1");
+        setCardState({active:true, title:"Chance de 2x G2", sub:`entrar após (${pending.afterMult})`});
+        strategyTag.textContent = "Estratégia: " + pending.strategy;
+        gateTag.textContent = "Gatilho: " + (analysis?.gate || "correção");
+        addFeed("warn", `SINAL 2x (G2) — entrar após (${pending.afterMult})`);
         return;
       }
 
@@ -356,7 +359,6 @@ function onNewCandle(arr){
         addFeed("err", "LOSS 2x (G2)");
         topSlide("LOSS 2x (G2)", false);
 
-        // Só conta como erro se NENHUM acertou
         if(currentCycleLoss){
           stats.losses++;
           stats.streak = 0;
@@ -383,7 +385,7 @@ function onNewCandle(arr){
     return;
   }
 
-   // ===== BLOQUEIO: 2 azuis seguidos (exceto xadrez B-P-B) =====
+  // ===== BLOQUEIO: 2 azuis seguidos (exceto xadrez B-P-B) =====
   const lastTwoBlue = colors.length >= 2 && colors[colors.length-1] === "blue" && colors[colors.length-2] === "blue";
   const isXadrez = isXadrezBPB(colors);
 
@@ -402,13 +404,18 @@ function onNewCandle(arr){
     else if(corrGate === 2) entryAllowed = predN >= 0.60 || strongStrategyActive || window.seguidinhaOn;
 
     if(entryAllowed){
-      pending = { stage:0, enterAtIdx:last.idx+1, strategy: analysis?.name || "seguidinha" };
-      currentCycleLoss = true; // novo ciclo → pode ser perda
+      pending = { 
+        stage:0, 
+        enterAtIdx: last.idx + 1, 
+        strategy: analysis?.name || "seguidinha",
+        afterMult: lastMultTxt // <-- SALVA PARA G0
+      };
+      currentCycleLoss = true;
 
-      setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${lastMultTxt})`});
+      setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${pending.afterMult})`});
       strategyTag.textContent = "Estratégia: " + pending.strategy;
       gateTag.textContent = "Gatilho: " + (analysis?.gate || "single correction");
-      addFeed("warn",`SINAL 2x (G0) — entrar após (${lastMultTxt})`);
+      addFeed("warn",`SINAL 2x (G0) — entrar após (${pending.afterMult})`);
     } else {
       setCardState({active:false, awaiting:false, title:"SINAL BLOQUEADO", sub:"Corr=2 sem critério forte"});
     }
