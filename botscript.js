@@ -289,7 +289,7 @@ function onNewCandle(arr){
   const analysis = getStrategyAndGate(colors, [], arr, predN, false);
   const strongStrategyActive = !!analysis;
 
-  predStatus.textContent = `Pred (${WINDOW_PRED}): ${(predN*100).toFixed(0)}% · Corr (${WINDOW_CORR}): ${corrN}`;
+  predStatus.textContent = `Predominância: ${(predN*100).toFixed(0)}% · Corr: ${corrN}`;
   blueRunPill.textContent = `Azuis seguidas: ${consecutiveBlueCount(arr)}` + (window.seguidinhaOn ? " · SEGUIDINHA ON" : "");
 
   // ===== Rastreia MUDANÇAS de correção (só quando muda de valor) =====
