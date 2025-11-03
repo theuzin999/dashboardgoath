@@ -315,7 +315,7 @@ function getStrategyAndGate(colors, arr40, arr, pred20Pct, allowMacro = true){
 }
 
 
-// ===================== Motor (REESCRITO COM NOVA CORREÇÃO OFICIAL) =======================
+// ===================== Motor (REESCRITO COM NOVA CORREÇÃO OFICIAL E BLOQUEIO G2/Corr2) =======================
 let pending = null;
 function clearPending(){ 
   pending=null; 
@@ -333,12 +333,11 @@ function onNewCandle(arr){
   const last = arr[arr.length-1];
   const lastMultTxt = last.mult.toFixed(2)+"x";
   
-  // LEITURAS NOVAS OBRIGATÓRIAS (20 velas)
+  // LEITURAS OBRIGATÓRIAS (20 velas)
   const colorsLast20 = getLastNColors(arr, 20);
-  const totalAzuis20 = colorsLast20.filter(c=>c==="blue").length; // Mantido para a Seguidinha (dominância)
   const pred20 = predominancePct(colorsLast20); // % de positivas nas últimas 20
   
-  // <<<< CORREÇÃO OFICIAL: MAIOR STREAK DE AZUIS NAS 20 >>>>
+  // CORREÇÃO OFICIAL: MAIOR STREAK DE AZUIS NAS 20
   const corr20 = getMaxBlueStreak20(colorsLast20); 
 
   const redTriplo = hasConsecutiveBlues(colorsLast20, 3); // true se BBB
@@ -352,13 +351,10 @@ function onNewCandle(arr){
   predStatus.textContent = `Predominância (20): ${(pred20*100).toFixed(0)}% · Max Streak: ${corr20}`;
   blueRunPill.textContent = `Azuis seguidas: ${blueRun}` + (window.seguidinhaOn ? " · SEGUIDINHA ON" : "");
   
-  // ================= LÓGICA DE SEGUIDINHA AGRESSIVA (Regra 3) =================
-  const posCount20 = 20 - totalAzuis20;
-  const correctionsDominating = totalAzuis20 > posCount20; // Usa TOTAL de azuis para DOMINÂNCIA
-  const singleCorrectionDominant = (corr20 === 1) && (!correctionsDominating); // Usa Max Streak=1
+  // ================= LÓGICA DE SEGUIDINHA AGRESSIVA (Regra 3 - SIMPLIFICADA) =================
   
-  // Desativação
-  if (correctionsDominating || redTriplo) {
+  // Desativação: Apenas se houver Tripla Correção (BBB)
+  if (redTriplo) {
     window.seguidinhaOn = false;
     if(redTriplo) {
       window.tripleCorrectionWatch = true; 
@@ -366,12 +362,14 @@ function onNewCandle(arr){
     }
   } 
   
-  // Ativação
+  // Ativação: Apenas se o Max Streak for 1
+  const singleCorrectionDominant = (corr20 === 1); 
   if (singleCorrectionDominant) {
     if(!window.tripleCorrectionWatch) {
-      if (!window.seguidinhaOn) addFeed("info", "Seguidinha ativada: Single Correction Dominante.");
+      if (!window.seguidinhaOn) addFeed("info", "Seguidinha ativada: Single Correction Dominante (Corr. 1).");
       window.seguidinhaOn = true;
     } else if (isPositiveColor(last.color) && arr.length >= 2 && isPositiveColor(arr[arr.length-2].color)) {
+      // 2 confirmações consecutivas de positiva após tripla
       window.tripleCorrectionWatch = false;
       if (!window.seguidinhaOn) addFeed("info", "Seguidinha ativada: 2 confirmações pós-tripla OK.");
       window.seguidinhaOn = true;
@@ -396,7 +394,7 @@ function onNewCandle(arr){
       return;
     } 
     
-    // LÓGICA DE LOSS E TRANSIÇÃO PARA GALE/ESPERA - USANDO corr20 (MAX STREAK)
+    // LÓGICA DE LOSS E TRANSIÇÃO PARA GALE/ESPERA
     
     const nextAnalysis = getStrategyAndGate(colors, arr40, arr, pred20, false); 
     const nextStrongStrategy = nextAnalysis && nextAnalysis.isStrongStrategy; 
@@ -435,13 +433,19 @@ function onNewCandle(arr){
           addFeed("err","LOSS 2x (G0)"); topSlide("LOSS 2x", false); clearPending();
         }
     } else if(pending.stage===1){
-        // LÓGICA G2 (TOLERA +1 CORREÇÃO que G1) - USANDO corr20 (MAX STREAK)
+        // LÓGICA G2 - APLICANDO BLOQUEIO RÍGIDO DO corr20=2
         let g2Action = 'LOSS'; 
         let reason;
         
-        // Regra 4 (G2)
-        if(corr20 <= 2){
+        if(corr20 <= 1){
           g2Action = 'GALE'; reason = `Correção Oficial (${corr20}) OK.`;
+        } else if(corr20 === 2){
+          // NUNCA PODE MANDAR G2 GALE DIRETO COM corr20=2.
+          if(pred20Strong || nextStrongStrategy){
+              g2Action = 'WAIT'; reason = "Corr. 2: Bloqueio G2 Direto. Aguardando reavaliação (Pred. Strong ou Estratégia Forte).";
+          } else {
+              g2Action = 'LOSS'; reason = `Correção Oficial (${corr20}): não permite G2 sem critério forte.`;
+          }
         } else if(corr20 === 3){
           if(pred20Strong || nextStrongStrategy){
               g2Action = 'GALE'; reason = `Corr. 3, mas Pred. Strong (${(pred20*100).toFixed(0)}%) ou Estratégia Forte.`;
@@ -536,12 +540,15 @@ function onNewCandle(arr){
         let g2Allowed = false;
         let reason;
 
-        // Regra 4/G2 de 'WAIT' para 'GALE'
-        if(corr20 <= 2){
+        // Regra 4/G2 de 'WAIT' para 'GALE' - corr20=2 agora deve manter o WAIT ou ir para LOSS
+        if(corr20 <= 1){
           g2Allowed = true; reason = `Correção melhorou para ${corr20}.`;
+        } else if(corr20 === 2){
+            // Se estiver em WAIT, e o max streak é 2, deve permanecer em WAIT (não pode ir para GALE)
+            g2Allowed = false; reason = "Corr. 2: Bloqueio G2 Direto. Mantendo espera.";
         } else if(corr20 === 3){
           g2Allowed = pred20Strong || nextStrongStrategy;
-          reason = g2Allowed ? `Pred. Strong (${(pred20*100).toFixed(0)}%) ou Estratégia Forte.` : "Aguardando Pred. 60%+ ou Estratégia Forte.";
+          reason = g2Allowed ? `Pred. Strong (${(pred20*100).toFixed(0)}%) ou Estratégia Forte.` : "Ainda em 3, aguardando Pred. 60%+ ou Estratégia Forte.";
         } else if(corr20 === 4){
            g2Allowed = false; reason = "Ainda com 4 de correção, mantendo espera.";
         } else {
