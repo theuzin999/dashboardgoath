@@ -250,11 +250,14 @@ function getStrategyAndGate(colors, arr40, arr, predNPct, allowMacro = true){
   return null;
 }
 
-// ===================== Motor (G1/G2 SÓ COM NOVO GATILHO + corrGate <= 1) ======================
+// ===================== Motor (CORREÇÃO + SEGUIDINHA PERFEITA) ======================
 let pending = null;
 let waitingForNewCorrections = 0;
 let currentCycleLoss = false;
-let lastG0Strategy = null; // armazena estratégia do G0
+let lastG0Strategy = null;
+
+// ===== CONTROLE DE BLOQUEIO POR CORREÇÃO =====
+let maxBlueStreakHistory = []; // armazena [idx, streak] de cada mudança
 
 function clearPending(){ 
   pending = null; 
@@ -285,18 +288,48 @@ function onNewCandle(arr){
   predStatus.textContent = `Predominância (${WINDOW_N}): ${(predN*100).toFixed(0)}% · Max Streak: ${corrN}`;
   blueRunPill.textContent = `Azuis seguidas: ${consecutiveBlueCount(arr)}` + (window.seguidinhaOn ? " · SEGUIDINHA ON" : "");
 
-  // ===== Rastreia mudanças de correção =====
-  const prevCorr = window.prevCorrGate || corrGate;
-  if(corrGate < prevCorr && corrGate <= 2){
-    window.correctionHistory.push({from: prevCorr, to: corrGate, idx: last.idx});
-    if(waitingForNewCorrections > 0) waitingForNewCorrections--;
+  // ===== Rastreia MUDANÇAS de correção (só quando muda de valor) =====
+  const prevCorr = window.prevCorrGate;
+  if(prevCorr !== undefined && corrGate !== prevCorr && corrGate <= 2){
+    maxBlueStreakHistory.push({idx: last.idx, streak: corrGate});
+    // Remove entradas antigas (máx 50)
+    if(maxBlueStreakHistory.length > 50) maxBlueStreakHistory.shift();
   }
   window.prevCorrGate = corrGate;
 
-  // ===== Seguidinha ON/OFF =====
-  if(corrGate <= 1 && twoPos && !window.seguidinhaOn){
+  // ===== ATUALIZA BLOQUEIO POR CORREÇÃO =====
+  const currentBlueRun = finalBlueRunNow(colors);
+  if(currentBlueRun >= 3){
+    if(waitingForNewCorrections === 0){
+      waitingForNewCorrections = 2;
+      setCardState({active:false, awaiting:true, title:"SINAL BLOQUEADO", sub:"3+ correções → aguardando 2 novas"});
+      addFeed("warn", "Bloqueio: 3+ correções. Aguardando 2 novas.");
+      engineStatus.textContent = "bloqueado (3+ corr)";
+    }
+  }
+
+  // Desbloqueia com 2 novas sequências de correção ≤2
+  if(waitingForNewCorrections > 0){
+    const recentChanges = maxBlueStreakHistory.filter(c => c.streak <= 2);
+    if(recentChanges.length >= 2){
+      waitingForNewCorrections = 0;
+      addFeed("info", "Desbloqueado: 2 novas correções ≤2 confirmadas.");
+    }
+  }
+
+  // ===== SEGUIDINHA: sequência positiva com 0 ou 1 azul (mínimo 4 velas) =====
+  const lastNForSeguidinha = colors.slice(-Math.max(4, colors.length));
+  const blueCountInSeg = lastNForSeguidinha.filter(c => c === "blue").length;
+  const posCountInSeg = lastNForSeguidinha.length - blueCountInSeg;
+  const isSeguidinha = lastNForSeguidinha.length >= 4 && blueCountInSeg <= 1 && posCountInSeg >= 3;
+
+  if(isSeguidinha && !window.seguidinhaOn){
     window.seguidinhaOn = true;
-    addFeed("info","Seguidinha ON");
+    addFeed("info", "Seguidinha ON: sequência positiva com 0-1 azul");
+  }
+  if(!isSeguidinha && window.seguidinhaOn && lastNForSeguidinha.length >= 6){
+    window.seguidinhaOn = false;
+    addFeed("info", "Seguidinha OFF: padrão quebrado");
   }
 
   // ===== Finalização de entrada =====
@@ -325,11 +358,8 @@ function onNewCandle(arr){
         addFeed("err", "LOSS 2x (G0)");
         topSlide("LOSS 2x", false);
         currentCycleLoss = true;
-
-        // Salva estratégia do G0
         lastG0Strategy = pending.strategy;
 
-        // Muda para modo espera G1
         pending.stage = 'G1_WAIT';
         pending.enterAtIdx = null;
         setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Procurando novo gatilho..."});
@@ -341,7 +371,6 @@ function onNewCandle(arr){
         addFeed("err", "LOSS 2x (G1)");
         topSlide("LOSS 2x (G1)", false);
 
-        // Muda para modo espera G2
         pending.stage = 'G2_WAIT';
         pending.enterAtIdx = null;
         setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Procurando novo gatilho..."});
@@ -366,17 +395,9 @@ function onNewCandle(arr){
     }
   }
 
-  // ===== BLOQUEIO: 3 correções → espera 2 novas =====
-  if(corrGate === 3 && waitingForNewCorrections === 0){
-    waitingForNewCorrections = 2;
-    setCardState({active:false, awaiting:true, title:"SINAL BLOQUEADO", sub:"3 correções → aguardando 2 novas"});
-    addFeed("warn", "Bloqueio: 3 correções. Aguardando 2 novas.");
-    engineStatus.textContent = "bloqueado (3 corr)";
-    return;
-  }
-
-  if(waitingForNewCorrections > 0){
-    setCardState({active:false, awaiting:true, title:"Aguardando nova correção", sub:`Faltam ${waitingForNewCorrections} nova(s)`});
+  // ===== BLOQUEIO: 3+ correções (mas SEGUIDINHA libera) =====
+  if(waitingForNewCorrections > 0 && !window.seguidinhaOn){
+    setCardState({active:false, awaiting:true, title:"SINAL BLOQUEADO", sub:`Aguardando ${waitingForNewCorrections} nova(s) correção(ões)`});
     return;
   }
 
@@ -390,50 +411,48 @@ function onNewCandle(arr){
     return;
   }
 
-  // ===== ESPERA G1: procura novo gatilho + estratégia diferente + corrGate <= 1 =====
+  // ===== ESPERA G1: novo gatilho + estratégia diferente + corrGate <= 1 =====
   if(pending?.stage === 'G1_WAIT'){
-    if(corrGate > 1){
+    if(corrGate > 1 && !window.seguidinhaOn){
       setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:`Correção alta (${corrGate})`});
       return;
     }
-    if(!strongStrategyActive){
+    if(!strongStrategyActive && !window.seguidinhaOn){
       setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Sem gatilho forte"});
       return;
     }
-    if(analysis.name === lastG0Strategy){
+    if(analysis && analysis.name === lastG0Strategy){
       setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Mesma estratégia do G0"});
       return;
     }
 
-    // GATILHO VÁLIDO → ativa G1
     pending.stage = 1;
     pending.enterAtIdx = last.idx + 1;
-    pending.strategy = analysis.name;
+    pending.strategy = analysis?.name || "seguidinha";
     pending.afterMult = lastMultTxt;
     martingaleTag.style.display = "inline-block";
     setCardState({active:true, title:"Chance de 2x G1", sub:`entrar após (${pending.afterMult})`});
     strategyTag.textContent = "Estratégia: " + pending.strategy;
-    gateTag.textContent = "Gatilho: " + analysis.gate;
+    gateTag.textContent = "Gatilho: " + (analysis?.gate || "seguidinha");
     addFeed("warn", `SINAL 2x (G1) — entrar após (${pending.afterMult})`);
     return;
   }
 
-  // ===== ESPERA G2: procura novo gatilho + estratégia diferente + corrGate <= 1 =====
+  // ===== ESPERA G2: novo gatilho + estratégia diferente + corrGate <= 1 =====
   if(pending?.stage === 'G2_WAIT'){
-    if(corrGate > 1){
+    if(corrGate > 1 && !window.seguidinhaOn){
       setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:`Correção alta (${corrGate})`});
       return;
     }
-    if(!strongStrategyActive){
+    if(!strongStrategyActive && !window.seguidinhaOn){
       setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Sem gatilho forte"});
       return;
     }
-    if(analysis.name === lastG0Strategy || analysis.name === pending.strategy){
+    if(analysis && (analysis.name === lastG0Strategy || analysis.name === pending.strategy)){
       setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Mesma estratégia anterior"});
       return;
     }
 
-    // GATILHO VÁLIDO → ativa G2
     pending.stage = 2;
     pending.enterAtIdx = last.idx + 1;
     pending.strategy = analysis.name;
@@ -448,17 +467,15 @@ function onNewCandle(arr){
 
   // ===== Novo Sinal G0 =====
   if(!pending){
-    if(!strongStrategyActive && !window.seguidinhaOn) return;
+    const allowEntry = (corrGate <= 1) || 
+                       (corrGate === 2 && (predN >= 0.60 || strongStrategyActive || window.seguidinhaOn)) ||
+                       window.seguidinhaOn;
 
-    let entryAllowed = false;
-    if(corrGate <= 1) entryAllowed = true;
-    else if(corrGate === 2) entryAllowed = predN >= 0.60 || strongStrategyActive || window.seguidinhaOn;
-
-    if(entryAllowed){
+    if(allowEntry){
       pending = { 
         stage:0, 
         enterAtIdx: last.idx + 1, 
-        strategy: analysis?.name || "seguidinha",
+        strategy: analysis?.name || (window.seguidinhaOn ? "seguidinha" : "correção"),
         afterMult: lastMultTxt
       };
       currentCycleLoss = true;
@@ -473,9 +490,8 @@ function onNewCandle(arr){
     }
   }
 
-  engineStatus.textContent = window.seguidinhaOn ? "Seguidinha ON" : "operando";
+  engineStatus.textContent = window.seguidinhaOn ? "Seguidinha ON" : (waitingForNewCorrections > 0 ? "bloqueado (3+ corr)" : "operando");
 }
-
 // ===================== Firebase =======================
 function toArrayFromHistory(raw){
   const rows = [];
