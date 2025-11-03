@@ -113,7 +113,7 @@ function positivesRatio(list){
   const pos = list.filter(c=>c.color==="purple"||c.color==="pink").length;
   return list.length ? pos/list.length : 0;
 }
-function predominancePositive(list, N=8){ // leitura micro do MOMENTO (últimas 8 velas)
+function predominancePositive(list, N=6){ // leitura micro do MOMENTO (últimas 8 velas)
   const lastN = list.slice(-N);
   const pct = positivesRatio(lastN);
   return {pct, ok:pct>=SOFT_PCT, strong:pct>=STRONG_PCT}; // ok é >= 0.50
