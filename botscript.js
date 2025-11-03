@@ -375,15 +375,6 @@ function onNewCandle(arr){
     }
   }
 
-  // ===== BLOQUEIO G1/G2: 2 azuis seguidos (exceto xadrez) =====
-  const lastTwoBlue = colors.length >= 2 && colors[colors.length-1] === "blue" && colors[colors.length-2] === "blue";
-  const isXadrez = isXadrezBPB(colors);
-  if(lastTwoBlue && !isXadrez && pending?.stage >= 1){
-    setCardState({active:false, awaiting:true, title:"BLOQUEADO", sub:"2 azuis seguidos (não é B-P-B)"});
-    addFeed("warn", "G1/G2 bloqueado: 2 azuis seguidos");
-    return;
-  }
-
   // ===== G1_WAIT =====
   if(pending?.stage === 'G1_WAIT'){
     if(!strongStrategyActive && !window.seguidinhaOn){
