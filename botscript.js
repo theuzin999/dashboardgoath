@@ -150,14 +150,14 @@ function predominancePositive(list, N=6){ // leitura micro do MOMENTO (últimas 
 function consecutiveBlueCount(list){
   let c=0; for(let i=list.length-1;i>=0;i--){ if(list[i].color==="blue") c++; else break; } return c;
 }
-function countBBBSequences(colors, N=12){ // MANTIDO
-  const window = colors.slice(-N);
+function countBBBSequences(colors, N=12){ // correção pesada: blocos com ≥3 azuis seguidas
+  // ...
   let cnt=0, run=0;
   for(let i=0;i<window.length;i++){
     if(window[i]==="blue"){ run++; if(run===3) cnt++; }
-    else run=0;
+    else run=0; // <-- O reset do 'run' (sequência) para 0 aqui garante que apenas azuis consecutivos sejam contados como bloco.
   }
-  return cnt; 
+  return cnt; // se ≥2 na janela → bloqueio
 }
 function lastPink(arr){ for(let i=arr.length-1;i>=0;i--){ if(arr[i].color==="pink") return arr[i]; } return null; }
 function lastPurpleOrPink(arr){ for(let i=arr.length-1;i>=0;i--){ if(arr[i].color!=="blue") return arr[i]; } return null; }
