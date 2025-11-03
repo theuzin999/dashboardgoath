@@ -331,14 +331,16 @@ function modelSuggest(colors){
 let pending = null;
 function clearPending(){ pending=null; martingaleTag.style.display="none"; setCardState({active:false, awaiting:false}); }
 
-function getStrategyAndGate(colors, pred8, arr40, arr){
+// [CORREÇÃO 1] Adicionado 'allowMacro = true'
+function getStrategyAndGate(colors, pred8, arr40, arr, allowMacro = true){
   let suggestion = detectStrategies(colors, pred8.pct) || 
                    detectRepetitionStrategy(colors) || 
                    modelSuggest(colors); 
   
   const macroOk = macroConfirm(arr40, arr[arr.length-1]?.ts || Date.now(), arr);
 
-  if(suggestion || (macroOk && pred8.ok)){
+  // [CORREÇÃO 1] Adicionado 'allowMacro &&'
+  if(suggestion || (allowMacro && macroOk && pred8.ok)){
     const usedName = suggestion ? suggestion.name : "macro";
     const usedGate = suggestion ? suggestion.gate : "tempo/rosa/surf/coluna (40m)";
     return { name: usedName, gate: usedGate, suggestion };
@@ -364,14 +366,12 @@ function onNewCandle(arr){
   predStatus.textContent = `Predominância: ${(pred8.pct*100).toFixed(0)}%` + (pred8.strong?" · forte":"");
   blueRunPill.textContent = `Azuis seguidas: ${blueRun}`;
 
-  // [CORREÇÃO 1: Bloco MOVIDO para cima]
   // ================= PROCESSAMENTO DE FIM DE SINAL (WIN/LOSS/GALE) =================
-  // Este bloco AGORA roda ANTES do hardPaused, garantindo que um G0 Loss seja processado.
   if(pending && typeof pending.enterAtIdx === "number" && last.idx === pending.enterAtIdx){
     const win = last.mult >= 2.0;
     
     if(win){
-      // LÓGICA DE WIN (sem alteração)
+      // LÓGICA DE WIN
       stats.wins++; stats.streak++; stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
       if(pending.stage===0) stats.normalWins++;
       else if(pending.stage===1) stats.g1Wins++;
@@ -390,28 +390,27 @@ function onNewCandle(arr){
       clearPending(); 
     } else {
       // LÓGICA DE LOSS E TRANSIÇÃO PARA GALE/ESPERA
-      const nextSuggestion = getStrategyAndGate(colors, pred8, arr40, arr);
-      const predOk = pred8.ok; // >= 50%
-      const newPatternFound = !!nextSuggestion;
+      
+      // [CORREÇÃO 2] Adicionado 'false' para exigir padrão específico no GALE
+      const nextSuggestion = getStrategyAndGate(colors, pred8, arr40, arr, false); 
+      const predOk = pred8.ok;
+      const newPatternFound = !!nextSuggestion; // Agora só é true se houver PADRÃO
 
       if(pending.stage===0){
-          const g1Allowed = predOk && newPatternFound;
+          const g1Allowed = predOk && newPatternFound; // Exige padrão
 
           if(g1Allowed){
             pending.stage=1; pending.enterAtIdx=last.idx+1; martingaleTag.style.display="inline-block";
             setCardState({active:true, title:"Chance de 2x G1", sub:`Gatilho: ${nextSuggestion.name}`}); 
             addFeed("warn",`Ativando G1 (Gatilho: ${nextSuggestion.name})`);
           } else {
-            // [AQUI ESTÁ A LÓGICA CORRETA]
-            // Mesmo que hardPaused=true, este bloco agora executa,
-            // definindo o estado para G1_WAIT e mostrando o card "Aguardando G1".
             pending.stage = 'G1_WAIT'; pending.enterAtIdx = null; 
             const reason = !predOk ? "aguardando pred. >= 50%" : "aguardando novo padrão/estratégia"; 
             setCardState({active:false, awaiting:true, title:"Aguardando G1", sub: reason});
             addFeed("warn", `G1 em espera: ${reason}`);
           }
       } else if(pending.stage===1){
-          const g2Allowed = predOk && newPatternFound; 
+          const g2Allowed = predOk && newPatternFound; // Exige padrão
 
           if(g2Allowed){ 
              pending.stage=2; pending.enterAtIdx=last.idx+1; martingaleTag.style.display="inline-block";
@@ -430,32 +429,25 @@ function onNewCandle(arr){
           addFeed("err","LOSS 2x (G2 falhou)"); topSlide("LOSS 2x (G2)", false); clearPending();
       }
     }
-    return; // Encerra o processamento da vela se houve fechamento de sinal
+    return;
   }
   
   // ================= BLOQUEIOS E PAUSAS GERAIS =================
-  const line5Block = check5LineBlock(arr); // Nova regra: Bloqueio por Linha de 5
+  const line5Block = check5LineBlock(arr);
   const blockCorrections = bbbCount>=2; 
-  const weakPred = !pred8.ok; // < 50%
+  const weakPred = !pred8.ok;
   const hardPauseBlueRun = blueRun >= HARD_PAUSE_BLUE_RUN;
 
   const hardPaused = hardPauseBlueRun || blockCorrections || weakPred || line5Block;
   engineStatus.textContent = hardPaused ? "aguardando" : "operando";
 
   if(hardPaused){
-    // [CORREÇÃO 2A: MOVIDO PARA CIMA]
-    // Se já estamos em G1_WAIT/G2_WAIT, não sobrescreva o card "Aguardando G1"
-    // com "aguardando estabilidade". Apenas saia.
     if(pending && (pending.stage === 'G1_WAIT' || pending.stage === 'G2_WAIT')) return;
     
-    // Se não for G1/G2_WAIT, mostre o card de pausa geral
     let sub = (line5Block ? lastBlockReason : blockCorrections?"correção BBB repetida (micro 8)": weakPred?"Aguardando Estabilização": hardPauseBlueRun ? "3+ azuis seguidas na ponta" : "aguarde uma possibilidade");
     setCardState({active:false, awaiting:true, title:"aguardando estabilidade", sub});
     const pauseMsg = sub;
     if (window.lastPauseMessage !== pauseMsg) { addFeed("warn", pauseMsg); window.lastPauseMessage = pauseMsg; }
-    
-    // [CORREÇÃO 2B: REMOVIDO]
-    // if(pending && pending.stage === 0) clearPending(); // Esta linha era o BUG. Foi removida.
     
     return;
   }
@@ -469,21 +461,20 @@ function onNewCandle(arr){
   }
 
   if(pending && (pending.stage==='G1_WAIT' || pending.stage==='G2_WAIT')){
-     const nextSuggestion = getStrategyAndGate(colors, pred8, arr40, arr);
+     // [CORREÇÃO 3] Adicionado 'false' para exigir padrão específico
+     const nextSuggestion = getStrategyAndGate(colors, pred8, arr40, arr, false);
      const predOk = pred8.ok;
-     const newPatternFound = !!nextSuggestion;
+     const newPatternFound = !!nextSuggestion; // Só é true se houver PADRÃO
     
     let transitioned = false; 
 
     if(pending.stage==='G1_WAIT'){
-        const g1Allowed = predOk && newPatternFound;
+        const g1Allowed = predOk && newPatternFound; // Exige padrão
         if(g1Allowed){
             pending.stage=1; 
-            // [CORREÇÃO 3A] - Entrar na PRÓXIMA vela
             pending.enterAtIdx=last.idx + 1; 
             martingaleTag.style.display="inline-block";
             setCardState({active:true, title:"Chance de 2x G1", sub:`Gatilho: ${nextSuggestion.name}`}); 
-            // [CORREÇÃO 3B] - Mensagem "entrar após"
             addFeed("warn",`SINAL 2x (G1) — entrar após (${lastMultTxt})`);
             transitioned = true; 
         } else {
@@ -492,16 +483,14 @@ function onNewCandle(arr){
         }
     } 
     else if(pending.stage==='G2_WAIT'){
-        const g2Allowed = predOk && newPatternFound;
+        const g2Allowed = predOk && newPatternFound; // Exige padrão
         if(g2Allowed){
             pending.stage=2; 
-            // [CORREÇÃO 3A] - Entrar na PRÓXIMA vela
             pending.enterAtIdx=last.idx + 1; 
             martingaleTag.style.display="inline-block";
             setCardState({active:true, title:"Chance de 2x G2", sub:`Gatilho: ${nextSuggestion.name}`});
             strategyTag.textContent = "Estratégia: " + nextSuggestion.name;
             gateTag.textContent = "Gatilho: " + nextSuggestion.gate;
-            // [CORREÇÃO 3B] - Mensagem "entrar após"
             addFeed("warn",`SINAL 2x (G2) — entrar após (${lastMultTxt})`);
             transitioned = true; 
         } else {
@@ -510,13 +499,13 @@ function onNewCandle(arr){
         }
     }
     
-    // [CORREÇÃO 4] - Deve retornar SEMPRE que estiver em G1/G2_WAIT,
-    // para não tentar criar um G0.
     return;
   }
   
   // ================= NOVO SINAL (G0) =================
   if(!pending){
+    // A chamada do G0 (abaixo) está CORRETA. Ela usa o padrão (allowMacro=true)
+    // permitindo que o gatilho "macro" funcione para entradas G0.
     const analysis = getStrategyAndGate(colors, pred8, arr40, arr);
     const entryAllowed = pred8.ok && !blockCorrections && ( (bbbCount===0) || (bbbCount===1 && pred8.strong) );
     
