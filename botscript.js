@@ -360,7 +360,7 @@ function onNewCandle(arr){
   const last = arr[arr.length-1];
   const lastMultTxt = last.mult.toFixed(2)+"x";
 
-  const pred8 = predominancePositive(arr, 7);
+  const pred8 = predominancePositive(arr, 6);
   const blueRun = consecutiveBlueCount(arr);
   const bbbCount = countBBBSequences(colors, 7); 
 
