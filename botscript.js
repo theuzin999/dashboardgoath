@@ -297,33 +297,50 @@ function onNewCandle(arr){
 
   const currentBlueRun = finalBlueRunNow(colors);
 
-  // ===== BLOQUEIO: 3+ AZUIS SEGUIDOS =====
-  if (currentBlueRun >= 3) {
-    if (waitingForNewCorrections === 0) {
-      waitingForNewCorrections = 1;
-      setCardState({active:false, awaiting:true, title:"SINAL BLOQUEADO", sub:"3+ azuis seguidos → aguardando 1 nova"});
-      addFeed("warn", "Bloqueio: 3+ azuis. Aguardando 1 nova correção ≤2.");
-      engineStatus.textContent = "bloqueado (3+ azuis)";
-    }
-    return;
-  }
-
-  // ===== DESBLOQUEIO: 1 nova correção ≤2 =====
-  if (waitingForNewCorrections > 0) {
-    const lastChange = maxBlueStreakHistory[maxBlueStreakHistory.length - 1];
-    if (lastChange && lastChange.streak <= 2) {
-      waitingForNewCorrections = 0;
-      addFeed("info", "Desbloqueado: nova correção ≤2 confirmada.");
-      engineStatus.textContent = "operando";
-      setCardState({active:false, awaiting:false});
-      // Removido clearPending() para preservar estados de WAIT e retomar G1/G2 após desbloqueio
+  // ===== FINALIZAÇÃO DE ENTRADA (sempre processar) =====
+  if(pending && pending.enterAtIdx === last.idx){
+    const win = last.mult >= 2.0;
+    if(win){
+      currentCycleLoss = false;
+      stats.wins++; stats.streak++; stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
+      if(pending.stage===0) stats.normalWins++;
+      else if(pending.stage===1) stats.g1Wins++;
+      else stats.g2Wins++;
+      syncStatsUI(); store.set(stats);
+      addFeed("ok", `WIN 2x (G${pending.stage})`);
+      topSlide("WIN 2x", true);
+      clearPending();
+      lastG0Strategy = null;
+      // Continuar para checar bloqueio e novos sinais
     } else {
-      setCardState({active:false, awaiting:true, title:"SINAL BLOQUEADO", sub:"Aguardando 1 nova correção ≤2"});
-      return;
+      if(pending.stage === 0){
+        addFeed("err", "LOSS 2x (G0)"); topSlide("LOSS 2x", false);
+        currentCycleLoss = true; lastG0Strategy = pending.strategy;
+        pending.stage = 'G1_WAIT'; pending.enterAtIdx = null;
+        setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Procurando novo gatilho..."});
+        addFeed("warn", "Aguardando novo gatilho para G1");
+        // Continuar
+      }
+      if(pending.stage === 1){
+        addFeed("err", "LOSS 2x (G1)"); topSlide("LOSS 2x (G1)", false);
+        pending.stage = 'G2_WAIT'; pending.enterAtIdx = null;
+        setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Procurando novo gatilho..."});
+        addFeed("warn", "Aguardando novo gatilho para G2");
+        // Continuar
+      }
+      if(pending.stage === 2){
+        addFeed("err", "LOSS 2x (G2)"); topSlide("LOSS 2x (G2)", false);
+        stats.losses++;
+        stats.streak = 0;
+        syncStatsUI(); store.set(stats);
+        clearPending(); lastG0Strategy = null;
+        currentCycleLoss = false;
+        // Continuar para novos sinais
+      }
     }
   }
 
-  // ===== SEGUIDINHA: 4+ velas com 0-1 azul =====
+  // ===== SEGUIDINHA =====
   const minSeg = 4;
   const lastN = colors.slice(-Math.max(minSeg, colors.length));
   const blueInLastN = lastN.filter(c => c === "blue").length;
@@ -338,54 +355,11 @@ function onNewCandle(arr){
     addFeed("info", "SEGUIDINHA OFF: padrão quebrado");
   }
 
-  // ===== FINALIZAÇÃO DE ENTRADA =====
-  if(pending && pending.enterAtIdx === last.idx){
-    const win = last.mult >= 2.0;
-    if(win){
-      currentCycleLoss = false;
-      stats.wins++; stats.streak++; stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
-      if(pending.stage===0) stats.normalWins++;
-      else if(pending.stage===1) stats.g1Wins++;
-      else stats.g2Wins++;
-      syncStatsUI(); store.set(stats);
-      addFeed("ok", `WIN 2x (G${pending.stage})`);
-      topSlide("WIN 2x", true);
-      clearPending();
-      lastG0Strategy = null;
-      return;
-    } else {
-      if(pending.stage === 0){
-        addFeed("err", "LOSS 2x (G0)"); topSlide("LOSS 2x", false);
-        currentCycleLoss = true; lastG0Strategy = pending.strategy;
-        pending.stage = 'G1_WAIT'; pending.enterAtIdx = null;
-        setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Procurando novo gatilho..."});
-        addFeed("warn", "Aguardando novo gatilho para G1");
-        return;
-      }
-      if(pending.stage === 1){
-        addFeed("err", "LOSS 2x (G1)"); topSlide("LOSS 2x (G1)", false);
-        pending.stage = 'G2_WAIT'; pending.enterAtIdx = null;
-        setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Procurando novo gatilho..."});
-        addFeed("warn", "Aguardando novo gatilho para G2");
-        return;
-      }
-      if(pending.stage === 2){
-        addFeed("err", "LOSS 2x (G2)"); topSlide("LOSS 2x (G2)", false);
-        stats.losses++;
-        stats.streak = 0;
-        syncStatsUI(); store.set(stats);
-        clearPending(); lastG0Strategy = null;
-        currentCycleLoss = false;
-        return;
-      }
-    }
-  }
-
-  // ===== G1_WAIT =====
+  // ===== PROCESSAR WAITS (G1_WAIT, G2_WAIT) - sempre, mesmo em bloqueio =====
   if(pending?.stage === 'G1_WAIT'){
     if(!strongStrategyActive && !window.seguidinhaOn){
       setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Sem gatilho forte"});
-      return;
+      return; // Sai, mas permite retry na próxima candle
     }
     if(analysis && analysis.name === lastG0Strategy){
       setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Mesma estratégia do G0"});
@@ -400,7 +374,6 @@ function onNewCandle(arr){
     return;
   }
 
-  // ===== G2_WAIT =====
   if(pending?.stage === 'G2_WAIT'){
     if(!strongStrategyActive && !window.seguidinhaOn){
       setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Sem gatilho forte"});
@@ -419,8 +392,42 @@ function onNewCandle(arr){
     return;
   }
 
-  // ===== NOVO SINAL G0: SEGUIDINHA = PRIORIDADE MÁXIMA =====
-  if (!pending) {
+  // ===== BLOQUEIO: 3+ AZUIS SEGUIDOS - só para novos G0, não retorna se pending =====
+  if (currentBlueRun >= 3) {
+    if (waitingForNewCorrections === 0) {
+      waitingForNewCorrections = 1;
+      setCardState({active:false, awaiting:true, title:"SINAL BLOQUEADO", sub:"3+ azuis seguidos → aguardando 1 nova"});
+      addFeed("warn", "Bloqueio: 3+ azuis. Aguardando 1 nova correção ≤2.");
+      engineStatus.textContent = "bloqueado (3+ azuis)";
+    }
+    if (pending) {
+      // Se pending existe (cycle em andamento), continuar normalmente (já processado acima)
+    } else {
+      return; // Só return se não pending, para bloquear novos G0
+    }
+  }
+
+  // ===== DESBLOQUEIO: 1 nova correção ≤2 =====
+  if (waitingForNewCorrections > 0) {
+    const lastChange = maxBlueStreakHistory[maxBlueStreakHistory.length - 1];
+    if (lastChange && lastChange.streak <= 2) {
+      waitingForNewCorrections = 0;
+      addFeed("info", "Desbloqueado: nova correção ≤2 confirmada.");
+      engineStatus.textContent = "operando";
+      setCardState({active:false, awaiting:false});
+      // Não clearPending, preserva cycle
+    } else {
+      setCardState({active:false, awaiting:true, title:"SINAL BLOQUEADO", sub:"Aguardando 1 nova correção ≤2"});
+      if (pending) {
+        // Permitir processar WAIT (já feito acima)
+      } else {
+        return; // Bloquear novos se não pending
+      }
+    }
+  }
+
+  // ===== NOVO SINAL G0 - só se não bloqueado e !pending =====
+  if (!pending && waitingForNewCorrections === 0) {
     if (window.seguidinhaOn) {
       pending = { stage: 0, enterAtIdx: last.idx + 1, strategy: "seguidinha", afterMult: lastMultTxt };
       currentCycleLoss = true; lastG0Strategy = "seguidinha";
@@ -441,22 +448,6 @@ function onNewCandle(arr){
       addFeed("warn", `SINAL 2x (G0) — entrar após (${pending.afterMult})`);
     } else {
       setCardState({active:false, awaiting:false, title:"SINAL BLOQUEADO", sub:"Corr≥3 sem força"});
-    }
-  }
-
-  // Forçar reavaliação após desbloqueio apenas se não houver pending
-  if (waitingForNewCorrections === 0 && !pending) {
-    const analysis = getStrategyAndGate(colors, [], arr, predN, false);
-    if (analysis) {
-      const allowEntry = corrGate <= 2 || (corrGate === 3 && predN >= 0.65 && !!analysis);
-      if (allowEntry) {
-        pending = { stage: 0, enterAtIdx: last.idx + 1, strategy: analysis?.name || "correção", afterMult: lastMultTxt };
-        currentCycleLoss = true; lastG0Strategy = pending.strategy;
-        setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${pending.afterMult})`});
-        strategyTag.textContent = "Estratégia: " + pending.strategy;
-        gateTag.textContent = "Gatilho: " + (analysis?.gate || "correção ≤2");
-        addFeed("warn", `SINAL 2x (G0) — entrar após (${pending.afterMult})`);
-      }
     }
   }
 
