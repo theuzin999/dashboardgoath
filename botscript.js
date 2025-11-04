@@ -361,10 +361,9 @@ function onNewCandle(arr){
 {
   const last2 = colors.slice(-2);
   if(last2[0] === "blue" && last2[1] === "blue"){
-    setCardState({active:false, awaiting:false, title:"SINAL BLOQUEADO", sub:"2 blues antes (G1 proibido)"});
-    addFeed("warn","BLOQUEADO G1 — 2 Blue consecutivos antes da entrada");
-    pending = null;
-    return;
+    setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"2 blues antes — aguardando próximo padrão seguro"});
+    addFeed("warn","G1 pausado — 2 Blue antes. Mantendo cycle.");
+    return; // NÃO ZERA pending
   }
 }
 
@@ -390,10 +389,9 @@ function onNewCandle(arr){
 {
   const last2 = colors.slice(-2);
   if(last2[0] === "blue" && last2[1] === "blue"){
-    setCardState({active:false, awaiting:false, title:"SINAL BLOQUEADO", sub:"2 blues antes (G2 proibido)"});
-    addFeed("warn","BLOQUEADO G2 — 2 Blue consecutivos antes da entrada");
-    pending = null;
-    return;
+    setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"2 blues antes — aguardando próximo padrão seguro"});
+    addFeed("warn","G2 pausado — 2 Blue antes. Mantendo cycle.");
+    return; // NÃO ZERA pending
   }
 }
 
