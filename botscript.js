@@ -314,9 +314,9 @@ function onNewCandle(arr){
     if (lastChange && lastChange.streak <= 2) {
       waitingForNewCorrections = 0;
       addFeed("info", "Desbloqueado: nova correção ≤2 confirmada.");
-      clearPending();
       engineStatus.textContent = "operando";
       setCardState({active:false, awaiting:false});
+      // Removido clearPending() para preservar estados de WAIT e retomar G1/G2 após desbloqueio
     } else {
       setCardState({active:false, awaiting:true, title:"SINAL BLOQUEADO", sub:"Aguardando 1 nova correção ≤2"});
       return;
@@ -444,7 +444,7 @@ function onNewCandle(arr){
     }
   }
 
-  // Forçar reavaliação após desbloqueio
+  // Forçar reavaliação após desbloqueio apenas se não houver pending
   if (waitingForNewCorrections === 0 && !pending) {
     const analysis = getStrategyAndGate(colors, [], arr, predN, false);
     if (analysis) {
