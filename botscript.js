@@ -366,6 +366,17 @@ function onNewCandle(arr){
     return; // NÃO ZERA pending
   }
 }
+    // XADREZ — G1 só entra após confirmar 1 azul
+if(isXadrezAlternado3(colors)){
+   if(colors[colors.length-1] === "blue"){
+      // azul confirmada → libera G1 normal (faz nada, só continua)
+   } else {
+      setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Xadrez detectado — aguardando azul"});
+      addFeed("warn","G1 pausado (xadrez) — Aguardando possivel xadrez");
+      return; // mantém pending vivo
+   }
+}
+
 
     if(!strongStrategyActive && !window.seguidinhaOn){
       setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Sem gatilho forte"});
@@ -393,6 +404,16 @@ function onNewCandle(arr){
     addFeed("warn","G2 pausado — 2 Blue antes. Mantendo cycle.");
     return; // NÃO ZERA pending
   }
+}
+    // XADREZ — G2 só entra após confirmar 1 azul
+if(isXadrezAlternado3(colors)){
+   if(colors[colors.length-1] === "blue"){
+      // azul confirmada → libera G2 normal
+   } else {
+      setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Xadrez detectado — aguardando azul"});
+      addFeed("warn","G2 pausado (xadrez) — Aguardando possivel xadrez");
+      return;
+   }
 }
 
     if(!strongStrategyActive && !window.seguidinhaOn){
