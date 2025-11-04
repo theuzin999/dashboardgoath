@@ -247,6 +247,17 @@ function getStrategyAndGate(colors, arr40, arr, predNPct, allowMacro = true){
   return null;
 }
 
+function isXadrezAlternado4(colors){
+  if(colors.length < 4) return false;
+  const a = colors[colors.length-4];
+  const b = colors[colors.length-3];
+  const c = colors[colors.length-2];
+  const d = colors[colors.length-1];
+
+  // alternância perfeita ABAB ou BABA
+  return (a !== b) && (b !== c) && (c !== d);
+}
+
 // ===================== Motor ======================
 let pending = null;
 let currentCycleLoss = false;
@@ -367,7 +378,7 @@ function onNewCandle(arr){
   }
 }
     // XADREZ — G1 só entra após confirmar 1 azul
-if(isXadrezAlternado3(colors)){
+if(isXadrezAlternado4(colors)){
    if(colors[colors.length-1] === "blue"){
       // azul confirmada → libera G1 normal (faz nada, só continua)
    } else {
@@ -406,7 +417,7 @@ if(isXadrezAlternado3(colors)){
   }
 }
     // XADREZ — G2 só entra após confirmar 1 azul
-if(isXadrezAlternado3(colors)){
+if(isXadrezAlternado4(colors)){
    if(colors[colors.length-1] === "blue"){
       // azul confirmada → libera G2 normal
    } else {
