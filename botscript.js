@@ -357,6 +357,17 @@ function onNewCandle(arr){
 
   // ===== PROCESSAR WAITS (G1_WAIT, G2_WAIT) - sempre, mesmo em bloqueio =====
   if(pending?.stage === 'G1_WAIT'){
+    // BLOQUEIO G1 se tiver 2 blues antes
+{
+  const last2 = colors.slice(-2);
+  if(last2[0] === "blue" && last2[1] === "blue"){
+    setCardState({active:false, awaiting:false, title:"SINAL BLOQUEADO", sub:"2 blues antes (G1 proibido)"});
+    addFeed("warn","BLOQUEADO G1 — 2 Blue consecutivos antes da entrada");
+    pending = null;
+    return;
+  }
+}
+
     if(!strongStrategyActive && !window.seguidinhaOn){
       setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Sem gatilho forte"});
       return; // Sai, mas permite retry na próxima candle
@@ -375,6 +386,17 @@ function onNewCandle(arr){
   }
 
   if(pending?.stage === 'G2_WAIT'){
+    // BLOQUEIO G2 se tiver 2 blues antes
+{
+  const last2 = colors.slice(-2);
+  if(last2[0] === "blue" && last2[1] === "blue"){
+    setCardState({active:false, awaiting:false, title:"SINAL BLOQUEADO", sub:"2 blues antes (G2 proibido)"});
+    addFeed("warn","BLOQUEADO G2 — 2 Blue consecutivos antes da entrada");
+    pending = null;
+    return;
+  }
+}
+
     if(!strongStrategyActive && !window.seguidinhaOn){
       setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Sem gatilho forte"});
       return;
