@@ -377,6 +377,19 @@ function onNewCandle(arr){
     return; // NÃO ZERA pending
   }
 }
+    // NÃO entrar G1 em frente de positivo isolado (precisa 2 ou mais positivas antes)
+{
+  const last2 = colors.slice(-2);
+  const prevIsPos = (colors[colors.length-2] !== "blue"); // vela anterior positiva
+  const prevPrevIsPos = (colors[colors.length-3] !== "blue"); // 2 velas antes positiva
+
+  if(prevIsPos && !prevPrevIsPos){ 
+    setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Positiva isolada — aguardando confirmação"});
+    addFeed("warn","G1 pausado — positiva isolada, aguardando mais contexto");
+    return;
+  }
+}
+    
     // XADREZ — G1 só entra após confirmar 1 azul
 if(isXadrezAlternado4(colors)){
    if(colors[colors.length-1] === "blue"){
@@ -416,6 +429,20 @@ if(isXadrezAlternado4(colors)){
     return; // NÃO ZERA pending
   }
 }
+    
+    // NÃO entrar G2 em frente de positivo isolado (precisa 2 ou mais positivas antes)
+{
+  const last2 = colors.slice(-2);
+  const prevIsPos = (colors[colors.length-2] !== "blue");
+  const prevPrevIsPos = (colors[colors.length-3] !== "blue");
+
+  if(prevIsPos && !prevPrevIsPos){ 
+    setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Positiva isolada — aguardando confirmação"});
+    addFeed("warn","G2 pausado — positiva isolada, aguardando mais contexto");
+    return;
+  }
+}
+    
     // XADREZ — G2 só entra após confirmar 1 azul
 if(isXadrezAlternado4(colors)){
    if(colors[colors.length-1] === "blue"){
