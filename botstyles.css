@@ -69,7 +69,7 @@ h1{font-size:18px;margin:0;font-weight:800}
   gap: 20px;
 }
 
-/* Largura Máxima Ajustada para Tablet/PC (maior que o mobile) */
+/* Largura Máxima Ajustada */
 main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
 .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
 
@@ -88,16 +88,20 @@ main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
   letter-spacing: 0.5px;
 }
 
-/* Estilo para cada KPI (novo: Unifica Status, Predominância e Azuis no topo do card) */
+/* Estilo para cada KPI (novo: kpi-box) */
 .kpi-box {
   background: rgba(16,22,40,.6);
   border: 1px solid #1e2a47;
   border-radius: 12px;
   padding: 10px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .kpi-box .label { font-size: 11px; color: #a8b0c3; margin-bottom: 4px; }
-.kpi-box .big { font-size: 24px; font-weight: 800; color: #e6e8ee; }
+.kpi-box .big { font-size: 24px; font-weight: 800; color: #e6e8ee; } /* Fonte desktop padrão */
+
 
 /* Container para os KPIs do Status Card (3 colunas por padrão) */
 .stats-kpi-grid {
@@ -188,7 +192,7 @@ main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
 .chance-blocked .chance-sub { color: #fecaca; }
 
 
-.chance-title{font-weight:900;font-size:20px} /* Aumentei a fonte do título */
+.chance-title{font-weight:900;font-size:20px} /* Título do card principal aumentado */
 .chance-sub{color:#d7e4ff;opacity:.9;font-size:13px}
 .sep{height:1px;background:#1a2a4a;margin:12px 0}
 
@@ -282,10 +286,10 @@ main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
         min-height: 80px; /* Garante que todos tenham a mesma altura */
     }
     .kpi-box .label {
-        font-size: 9px; /* Fonte bem pequena para a label */
+        font-size: 11px; /* Título do KPI visível no mobile */
     }
     .kpi-box .big {
-        font-size: 16px; /* Ajuste final para predominância/azuis seguidas caberem */
+        font-size: 18px; /* O VALOR DINÂMICO (texto de dentro) É DIMINUÍDO para caber */
     }
     
     /* No mobile, todos os cards ocupam 100% (12/12) e empilham */
