@@ -371,10 +371,9 @@ function onNewCandle(arr){
     
     // if cycle nasceu isolado -> não faz G1
 if(pendingIsIsolated){
-    setCardState({active:false, awaiting:false, title:`SINAL BLOQUEADO`, sub:`Cycle isolado (2B atrás) — G1 proibido`});
-    addFeed("warn","G1 bloqueado — cycle nasceu isolado");
-    pending = null;
-    return;
+    setCardState({active:false, awaiting:true, title:`Aguardando G1`, sub:`Cycle isolado (2B atrás) — aguardando ponto seguro`});
+    addFeed("warn","G1 pausado — cycle nasceu isolado");
+    return; // NÃO zera pending
 }
 
     // BLOQUEIO G1 se tiver 2 blues antes
@@ -430,6 +429,13 @@ if(isXadrezAlternado4(colors)){
   }
 
   if(pending?.stage === 'G2_WAIT'){
+    // if cycle nasceu isolado -> não faz G2
+    if(pendingIsIsolated){
+    setCardState({active:false, awaiting:true, title:`Aguardando G2`, sub:`Cycle isolado (2B atrás) — aguardando ponto seguro`});
+    addFeed("warn","G2 pausado — cycle nasceu isolado");
+    return;
+}
+
     // BLOQUEIO G2 se tiver 2 blues antes
 {
   const last2 = colors.slice(-2);
