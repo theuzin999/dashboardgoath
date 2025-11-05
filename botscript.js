@@ -491,12 +491,15 @@ if(isXadrezAlternado4(colors)){
     // BBPPP (espera confirmação extra ainda)
     const BBPPP = isBlue(c[L-5]) && isBlue(c[L-4]) && isPos(c[L-3]) && isPos(c[L-2]) && isPos(c[L-1]);
 
-    // PRIORIDADE: força > xadrez > isolada
-    if(force){
-        setCardState({active:false, awaiting:true, title:`Aguardando G2`, sub:`Aguardando G2 — força detectada`});
-        addFeed("info", "Aguardando G2 — força detectada");
-        return;
-    }
+   // força detectada -> prioridade máxima
+if(force){
+    setCardState({active:true, awaiting:false, title:`Chance de 2x G1`, sub:`força confirmada`});
+    addFeed("info", `SINAL 2x (G1) — força confirmada`);
+    pending.stage = 1;
+    pending.enterAtIdx = last.idx + 0;
+    martingaleTag.style.display = "inline-block";
+    return;
+}
 
     if(!force && (BPBP || PBPB)){
         // deixa seguir xadrez normal
