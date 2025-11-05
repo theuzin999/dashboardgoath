@@ -452,7 +452,6 @@ if(isXadrezAlternado4(colors)){
    }
 }
 
-
     if(!strongStrategyActive && !window.seguidinhaOn){
       setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Sem gatilho forte"});
       return; // Sai, mas permite retry na próxima candle
@@ -461,6 +460,7 @@ if(isXadrezAlternado4(colors)){
       setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Mesma estratégia do G0"});
       return;
     }
+  window.lastWaitReason = "";
     pending.stage = 1; pending.enterAtIdx = last.idx + 1; pending.strategy = analysis?.name || "seguidinha"; pending.afterMult = lastMultTxt;
     martingaleTag.style.display = "inline-block";
     setCardState({active:true, title:"Chance de 2x G1", sub:`entrar após (${pending.afterMult})`});
@@ -562,6 +562,7 @@ if(isXadrezAlternado4(colors)){
       setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Mesma estratégia anterior"});
       return;
     }
+    window.lastWaitReason = "";
     pending.stage = 2; pending.enterAtIdx = last.idx + 1; pending.strategy = analysis.name; pending.afterMult = lastMultTxt;
     martingaleTag.style.display = "inline-block";
     setCardState({active:true, title:"Chance de 2x G2", sub:`entrar após (${pending.afterMult})`});
