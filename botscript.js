@@ -4,14 +4,13 @@ const firebaseConfig = {
   authDomain: "history-dashboard-a70ee.firebaseapp.com",
   databaseURL: "https://history-dashboard-a70ee-default-rtdb.firebaseio.com",
   projectId: "history-dashboard-a70ee",
-  storageBucket: "history-dashboard-a70ee.firebasestorage.app",
+  storageBucket: "history-dashboard-a70ee.appspot.com",
   messagingSenderId: "969153856969",
   appId: "1:969153856969:web:6b50fae1db463b8352d418",
   measurementId: "G-9MVGBX2KLX"
 };
 
 // ===================== CORREÇÃO: ESPERA O HTML CARREGAR =====================
-// Todo o script agora só vai rodar depois que a página HTML estiver pronta.
 document.addEventListener("DOMContentLoaded", () => {
 
   // ===================== UI Helpers ================================
@@ -65,6 +64,9 @@ document.addEventListener("DOMContentLoaded", () => {
     topslide.classList.add("show");
     setTimeout(()=> topslide.classList.remove("show"), 1000);
   }
+
+  // ===================== CORREÇÃO: ANTI-FLOOD =======================
+  window.lastFeedMsg = ""; 
   function addFeed(type,text){
     const div = document.createElement("div"); div.className="item";
     const left=document.createElement("div"); left.textContent=text;
@@ -72,6 +74,13 @@ document.addEventListener("DOMContentLoaded", () => {
     right.textContent= type==="ok"?"WIN": type==="err"?"LOSS":"INFO";
     div.appendChild(left); div.appendChild(right); feed.prepend(div);
   }
+
+  function safeFeed(type, msg){
+     if(window.lastFeedMsg === msg) return;
+     window.lastFeedMsg = msg;
+     addFeed(type,msg);
+  }
+  // =================================================================
 
   function renderHistory(list){
     const historyGrid = document.getElementById("history");
@@ -162,6 +171,45 @@ document.addEventListener("DOMContentLoaded", () => {
     return L >= 3 && colors[L-3] === "blue" && isPos(colors[L-2]) && colors[L-1] === "blue";
   }
 
+  // ===================== NOVOS HELPERS BLOQUEIO =======================
+  /** Retorna quantas blues estão imediatamente atrás da última vela positiva. */
+  function bluesBeforeLastPositive(colors){
+    let lastPositiveIndex = -1;
+    for(let i=colors.length-1; i>=0; i--){
+      if(colors[i] !== "blue"){
+        lastPositiveIndex = i;
+        break;
+      }
+    }
+    if(lastPositiveIndex === -1) return 0; // Nenhuma positiva (tudo azul)
+
+    let blues = 0;
+    for(let i=lastPositiveIndex-1; i>=0 && colors[i] === "blue"; i--){
+      blues++;
+    }
+    return blues;
+  }
+
+  /** Checa se as duas últimas velas foram positivas. */
+  function hasTwoConsecutivePositives(colors){
+      const L = colors.length;
+      if(L < 2) return false;
+      return colors[L-1] !== "blue" && colors[L-2] !== "blue";
+  }
+
+  /** Checa se há "Força" (2 positivas consecutivas) nas últimas N velas. */
+  function hasForce(colors, N=6){
+    const L = colors.length;
+    const c = colors;
+    const isPos = (v)=>v !== "blue";
+    if(L < N) return false;
+    for(let i=L-N; i<L-1; i++){
+       if(isPos(c[i]) && isPos(c[i+1])){ return true; }
+    }
+    return false;
+  }
+  // ==================================================================
+
   // ===================== Parâmetros =======================
   const SOFT_PCT = 0.50; 
   const STRONG_PCT = 0.60; 
@@ -171,6 +219,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.prevCorrGate = null;
   let maxBlueStreakHistory = []; // [idx, streak]
   let waitingForNewCorrections = 0;
+  window.pendingTwoBlueBlock = false; // Novo estado de bloqueio 2+ blues
 
   // ===================== Estratégias =======================
   function detectStrategies(colors, predNPct){
@@ -295,12 +344,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const analysis = getStrategyAndGate(colors, [], arr, predN, false);
     const strongStrategyActive = !!analysis;
+    
+    // ===================== ATUALIZAÇÃO DO NOVO BLOQUEIO =====================
+    const bluesBeforeLastP = bluesBeforeLastPositive(colors);
+
+    if (bluesBeforeLastP >= 2) {
+        // Ativa o bloqueio se a última P teve 2+ blues atrás
+        if (!window.pendingTwoBlueBlock) {
+            window.pendingTwoBlueBlock = true;
+            safeFeed("warn", `Bloqueio 2+ Azuis ON: ${bluesBeforeLastP} azuis atrás da última positiva.`);
+        }
+    }
+    
+    // Verifica a condição de LIBERAÇÃO (Duas positivas consecutivas)
+    if (window.pendingTwoBlueBlock && hasTwoConsecutivePositives(colors)) {
+        // Se a condição for atendida, libera o bloqueio
+        window.pendingTwoBlueBlock = false;
+        safeFeed("info", "Bloqueio 2+ Azuis OFF: Duas positivas consecutivas confirmadas.");
+    }
+    // =========================================================================
 
     predStatus.textContent = `Predominância: ${(predN*100).toFixed(0)}% · Corr: ${corrN}`;
     blueRunPill.textContent = `Azuis seguidas: ${consecutiveBlueCount(arr)}` + (window.seguidinhaOn ? " · SEGUIDINHA ON" : "");
 
     // ===== DEBUG LOG =====
-    console.log(`[CANDLE ${last.idx}] CorrGate: ${corrGate} | Pred: ${(predN*100).toFixed(0)}% | BlueRun: ${finalBlueRunNow(colors)} | Seguidinha: ${window.seguidinhaOn} | Estratégia: ${analysis?.name || '—'}`);
+    console.log(`[CANDLE ${last.idx}] CorrGate: ${corrGate} | Pred: ${(predN*100).toFixed(0)}% | BlueRun: ${finalBlueRunNow(colors)} | Seguidinha: ${window.seguidinhaOn} | Estratégia: ${analysis?.name || '—'} | 2+BluesBlock: ${window.pendingTwoBlueBlock}`);
 
     // ===== RASTREIA MUDANÇAS DE CORREÇÃO =====
     const prevCorr = window.prevCorrGate;
@@ -322,29 +390,29 @@ document.addEventListener("DOMContentLoaded", () => {
         else if(pending.stage===1) stats.g1Wins++;
         else stats.g2Wins++;
         syncStatsUI(); store.set(stats);
-        addFeed("ok", `WIN 2x (G${pending.stage})`);
+        safeFeed("ok", `WIN 2x (G${pending.stage})`);
         topSlide("WIN 2x", true);
         clearPending();
         lastG0Strategy = null;
         // Continuar para checar bloqueio e novos sinais
       } else {
         if(pending.stage === 0){
-          addFeed("err", "LOSS 2x (G0)"); topSlide("LOSS 2x", false);
+          safeFeed("err", "LOSS 2x (G0)"); topSlide("LOSS 2x", false);
           currentCycleLoss = true; lastG0Strategy = pending.strategy;
           pending.stage = 'G1_WAIT'; pending.enterAtIdx = null;
           setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Procurando novo gatilho..."});
-          addFeed("warn", "Aguardando novo gatilho para G1");
+          safeFeed("warn", "Aguardando novo gatilho para G1");
           // Continuar
         }
         if(pending.stage === 1){
-          addFeed("err", "LOSS 2x (G1)"); topSlide("LOSS 2x (G1)", false);
+          safeFeed("err", "LOSS 2x (G1)"); topSlide("LOSS 2x (G1)", false);
           pending.stage = 'G2_WAIT'; pending.enterAtIdx = null;
           setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Procurando novo gatilho..."});
-          addFeed("warn", "Aguardando novo gatilho para G2");
+          safeFeed("warn", "Aguardando novo gatilho para G2");
           // Continuar
         }
         if(pending.stage === 2){
-          addFeed("err", "LOSS 2x (G2)"); topSlide("LOSS 2x (G2)", false);
+          safeFeed("err", "LOSS 2x (G2)"); topSlide("LOSS 2x (G2)", false);
           stats.losses++;
           stats.streak = 0;
           syncStatsUI(); store.set(stats);
@@ -363,226 +431,83 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (isSeguidinha && !window.seguidinhaOn) {
       window.seguidinhaOn = true;
-      addFeed("info", `SEGUIDINHA ON: ${lastN.length} velas, ${blueInLastN} azul`);
+      safeFeed("info", `SEGUIDINHA ON: ${lastN.length} velas, ${blueInLastN} azul`);
     }
     if (!isSeguidinha && window.seguidinhaOn && lastN.length >= 6) {
       window.seguidinhaOn = false;
-      addFeed("info", "SEGUIDINHA OFF: padrão quebrado");
+      safeFeed("info", "SEGUIDINHA OFF: padrão quebrado");
     }
 
-    // ===== PROCESSAR WAITS (G1_WAIT, G2_WAIT) - sempre, mesmo em bloqueio =====
-    if(pending?.stage === 'G1_WAIT'){
-
-      // BLOQUEIO G1 se tiver 2 blues antes
-  {
-    // pega últimas 6 velas = pra contar azuis
-  const last6 = colors.slice(-6);
-  const bluesBefore = last6.filter(v => v === "blue").length;
-
-  // se tiver 2 ou mais azuis antes do positive -> trava até confirmar força positiva
-  if(bluesBefore >= 2){
-     // precisa 2 positivas consecutivas pra liberar
-     const c = colors;
-     const last = c.length;
-     const posNow = c[last-1] !== "blue";
-     const posPrev = c[last-2] !== "blue";
-
-     if(!(posNow && posPrev)){ // não tem 2 positivas seguidas ainda
-        if(window.lastWaitReason !== "2BlueG1"){
-            addFeed("warn","G1 pausado — 2+ azuis antes — aguardando 2 positivas para liberar a entrada");
-            window.lastWaitReason = "2BlueG1";
-        }
-        setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"2+ azuis antes — aguardando 2 positivas"});
-        return;
-     }
-  }
-    // FILTRO INTELIGENTE DE CONTEXTO G1
-  {
-    const L = colors.length;
-    if(L >= 6){
-
+    // ===================== PROCESSAR WAITS (G1_WAIT, G2_WAIT) =====================
+    if(pending?.stage === 'G1_WAIT' || pending?.stage === 'G2_WAIT'){
       const c = colors;
+      const L = colors.length;
       const isPos = (v)=>v !== "blue";
       const isBlue = (v)=>v === "blue";
+      const stage = pending.stage === 'G1_WAIT' ? 'G1' : 'G2';
+      const nextStage = pending.stage === 'G1_WAIT' ? 1 : 2;
 
-      // força de 2 positivas consecutivas dentro das últimas 6 velas
-      let force = false;
-      for(let i=L-6;i<L-1;i++){
-         if(isPos(c[i]) && isPos(c[i+1])){ force=true; break; }
+      // 1. CHECAGEM DE FORÇA (PRIORIDADE MÁXIMA)
+      const forceDetected = hasForce(colors, 6);
+      if(forceDetected){
+        // A força anula o Bloqueio de 2+ Azuis para esta rodada.
+        window.pendingTwoBlueBlock = false; 
+        safeFeed("info", `${stage} liberado por Força (2 consecutivas nas últimas 6).`);
       }
 
-      // padrões xadrez
-      const BPBP = isBlue(c[L-4]) && isPos(c[L-3]) && isBlue(c[L-2]) && isPos(c[L-1]);
-      const PBPB = isPos(c[L-4]) && isBlue(c[L-3]) && isPos(c[L-2]) && isBlue(c[L-1]);
-
-      // BBPP (sem chance para Blue)
-      const BBPP = isBlue(c[L-4]) && isBlue(c[L-3]) && isPos(c[L-2]) && isPos(c[L-1]);
-
-      // BBPPP (espera confirmação extra ainda)
-      const BBPPP = isBlue(c[L-5]) && isBlue(c[L-4]) && isPos(c[L-3]) && isPos(c[L-2]) && isPos(c[L-1]);
-
-      // PRIORIDADE: força > xadrez > isolada
-      if(force){
-          setCardState({active:false, awaiting:true, title:`Aguardando G1`, sub:`Aguardando G1 — força detectada`});
-          if(window.lastWaitReason !== "forceG1"){
-     addFeed("info","Aguardando G1 — força detectada");
-     window.lastWaitReason = "forceG1";
-  }
-          return;
+      // 2. BLOQUEIO PRINCIPAL: 2+ AZUIS ATRÁS DA ÚLTIMA POSITIVA
+      if(window.pendingTwoBlueBlock){
+          if(!forceDetected){ // Só bloqueia se a Força NÃO anulou.
+              safeFeed("warn",`${stage} pausado — Bloqueio 2+ Azuis — Aguardando 2 positivas consecutivas para liberar`);
+              setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:`2+ azuis antes da última P — bloqueado`});
+              return;
+          }
       }
 
-      if(!force && (BPBP || PBPB)){
-          // deixa seguir xadrez normal
-      } else if(BBPP && isBlue(c[L-1])){
-          setCardState({active:false, awaiting:true, title:`Aguardando G1`, sub:`BBPP — sem Blue agora`});
-          addFeed("warn", "G1 pausado — BBPP sem Blue");
-          return;
-      } else if(BBPPP){
-          setCardState({active:false, awaiting:true, title:`Aguardando G1`, sub:`BBPPP — aguardar próxima P`});
-          addFeed("info", "G1 pausado — BBPPP aguardando próxima positiva");
-          return;
+      // 3. BLOQUEIO XADREZ (REGRA ANTIGA - SÓ ENTRA DEPOIS DE BLUE)
+      if(isXadrezAlternado4(colors)){
+         if(colors[colors.length-1] !== "blue"){
+            safeFeed("warn",`${stage} pausado (xadrez) — Aguardando confirmação de Blue`);
+            setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:"Xadrez detectado — aguardando azul"});
+            return; 
+         }
       }
-    }
-  }
-  }
-      
-      // XADREZ — G1 só entra após confirmar 1 azul
-  if(isXadrezAlternado4(colors)){
-     if(colors[colors.length-1] === "blue"){
-        // azul confirmada → libera G1 normal (faz nada, só continua)
-     } else {
-        setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Xadrez detectado — aguardando azul"});
-        addFeed("warn","G1 pausado (xadrez) — Aguardando possivel xadrez");
-        return; // mantém pending vivo
-     }
-  }
 
+      // 4. CHECAGEM DE ESTRATÉGIA e SEGUIDINHA (gatilho de re-entrada)
       if(!strongStrategyActive && !window.seguidinhaOn){
-        setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Sem gatilho forte"});
-        return; // Sai, mas permite retry na próxima candle
+        setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:"Sem gatilho forte"});
+        return; 
       }
-      if(analysis && analysis.name === lastG0Strategy){
-        setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Mesma estratégia do G0"});
+      
+      // 5. CHECAGEM DE ESTRATÉGIA REPETIDA
+      if(analysis && (analysis.name === lastG0Strategy || (stage === 'G2' && analysis.name === pending.strategy))){
+        setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:"Mesma estratégia anterior"});
         return;
       }
-    window.lastWaitReason = "";
-      pending.stage = 1; pending.enterAtIdx = last.idx + 1; pending.strategy = analysis?.name || "seguidinha"; pending.afterMult = lastMultTxt;
+      
+      // ===================== LIBERAÇÃO DA ENTRADA =====================
+      window.lastWaitReason = "";
+      pending.stage = nextStage; 
+      pending.enterAtIdx = last.idx + 1; 
+      pending.strategy = analysis?.name || "seguidinha"; 
+      pending.afterMult = lastMultTxt;
+      
       martingaleTag.style.display = "inline-block";
-      setCardState({active:true, title:"Chance de 2x G1", sub:`entrar após (${pending.afterMult})`});
+      setCardState({active:true, title:`Chance de 2x ${stage}`, sub:`entrar após (${pending.afterMult})`});
       strategyTag.textContent = "Estratégia: " + pending.strategy;
       gateTag.textContent = "Gatilho: " + (analysis?.gate || "seguidinha");
-      addFeed("warn", `SINAL 2x (G1) — entrar após (${pending.afterMult})`);
+      safeFeed("warn", `SINAL 2x (${stage}) — entrar após (${pending.afterMult})`);
       return;
     }
 
-    if(pending?.stage === 'G2_WAIT'){
-      
-     // BLOQUEIO G2 se tiver 2 blues antes OU mais
-  {
-    const last6 = colors.slice(-6);
-    const bluesBefore = last6.filter(v => v === "blue").length;
-
-    if(bluesBefore >= 2){
-        const c = colors;
-        const last = c.length;
-        const posNow = c[last-1] !== "blue";
-        const posPrev = c[last-2] !== "blue";
-
-        if(!(posNow && posPrev)){ // não tem 2 positivas consecutivas ainda
-            if(window.lastWaitReason !== "2BlueG2"){
-              addFeed("warn","G2 pausado — 2+ azuis antes — aguardando 2 positivas para liberar a entrada");
-              window.lastWaitReason = "2BlueG2";
-            }
-            setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"2+ azuis antes — aguardando 2 positivas"});
-            return;
-        }
-    }
-  }
-
-      // FILTRO INTELIGENTE DE CONTEXTO G2
-  {
-    const L = colors.length;
-    if(L >= 6){
-
-      const c = colors;
-      const isPos = (v)=>v !== "blue";
-      const isBlue = (v)=>v === "blue";
-
-      // força de 2 positivas consecutivas dentro das últimas 6 velas
-      let force = false;
-      for(let i=L-6;i<L-1;i++){
-         if(isPos(c[i]) && isPos(c[i+1])){ force=true; break; }
-      }
-
-      // padrões xadrez
-      const BPBP = isBlue(c[L-4]) && isPos(c[L-3]) && isBlue(c[L-2]) && isPos(c[L-1]);
-      const PBPB = isPos(c[L-4]) && isBlue(c[L-3]) && isPos(c[L-2]) && isBlue(c[L-1]);
-
-      // BBPP (sem chance para Blue)
-      const BBPP = isBlue(c[L-4]) && isBlue(c[L-3]) && isPos(c[L-2]) && isPos(c[L-1]);
-
-      // BBPPP (espera confirmação extra ainda)
-      const BBPPP = isBlue(c[L-5]) && isBlue(c[L-4]) && isPos(c[L-3]) && isPos(c[L-2]) && isPos(c[L-1]);
-
-     // força detectada -> prioridade máxima
-  if(force){
-     setCardState({active:false, awaiting:true, title:`Aguardando G2`, sub:`Aguardando G2 — força detectada`});
-     if(window.lastWaitReason !== "forceG2"){
-         addFeed("info", "Aguardando G2 — força detectada");
-         window.lastWaitReason = "forceG2";
-     }
-     return;
-  }
-
-      if(!force && (BPBP || PBPB)){
-          // deixa seguir xadrez normal
-      } else if(BBPP && isBlue(c[L-1])){
-          setCardState({active:false, awaiting:true, title:`Aguardando G2`, sub:`BBPP — sem Blue agora`});
-          addFeed("warn", "G2 pausado — BBPP sem Blue");
-          return;
-      } else if(BBPPP){
-          setCardState({active:false, awaiting:true, title:`Aguardando G2`, sub:`BBPPP — aguardar próxima P`});
-          addFeed("info", "G2 pausado — BBPPP aguardando próxima positiva");
-          return;
-      }
-    }
-  }
-      
-      // XADREZ — G2 só entra após confirmar 1 azul
-  if(isXadrezAlternado4(colors)){
-     if(colors[colors.length-1] === "blue"){
-        // azul confirmada → libera G2 normal
-     } else {
-        setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Xadrez detectado — aguardando azul"});
-        addFeed("warn","G2 pausado (xadrez) — Aguardando possivel xadrez");
-        return;
-     }
-  }
-
-      if(!strongStrategyActive && !window.seguidinhaOn){
-        setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Sem gatilho forte"});
-        return;
-      }
-      if(analysis && (analysis.name === lastG0Strategy || analysis.name === pending.strategy)){
-        setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Mesma estratégia anterior"});
-        return;
-      }
-      window.lastWaitReason = "";
-      pending.stage = 2; pending.enterAtIdx = last.idx + 1; pending.strategy = analysis.name; pending.afterMult = lastMultTxt;
-      martingaleTag.style.display = "inline-block";
-      setCardState({active:true, title:"Chance de 2x G2", sub:`entrar após (${pending.afterMult})`});
-      strategyTag.textContent = "Estratégia: " + pending.strategy;
-      gateTag.textContent = "Gatilho: " + analysis.gate;
-      addFeed("warn", `SINAL 2x (G2) — entrar após (${pending.afterMult})`);
-      return;
-    }
-
+    // ===================== FIM PROCESSAMENTO WAITS =====================
+    
     // ===== BLOQUEIO: 3+ AZUIS SEGUIDOS - só para novos G0, não retorna se pending =====
     if (currentBlueRun >= 3) {
       if (waitingForNewCorrections === 0) {
         waitingForNewCorrections = 1;
         setCardState({active:false, awaiting:true, title:"SINAL BLOQUEADO", sub:"3+ azuis seguidos → aguardando 1 nova"});
-        addFeed("warn", "Bloqueio: 3+ azuis. Aguardando 1 nova correção ≤2.");
+        safeFeed("warn", "Bloqueio: 3+ azuis. Aguardando 1 nova correção ≤2.");
         engineStatus.textContent = "bloqueado (3+ azuis)";
       }
       if (pending) {
@@ -597,7 +522,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const lastChange = maxBlueStreakHistory[maxBlueStreakHistory.length - 1];
       if (lastChange && lastChange.streak <= 2) {
         waitingForNewCorrections = 0;
-        addFeed("info", "Desbloqueado: nova correção ≤2 confirmada.");
+        safeFeed("info", "Desbloqueado: nova correção ≤2 confirmada.");
         engineStatus.textContent = "operando";
         setCardState({active:false, awaiting:false});
         // Não clearPending, preserva cycle
@@ -619,25 +544,26 @@ document.addEventListener("DOMContentLoaded", () => {
         setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${pending.afterMult})`});
         strategyTag.textContent = "Estratégia: seguidinha";
         gateTag.textContent = "Gatilho: sequência positiva (0-1 azul)";
-        addFeed("warn", `SINAL 2x (G0) — SEGUIDINHA ON`);
+        safeFeed("warn", `SINAL 2x (G0) — SEGUIDINHA ON`);
         return;
       }
 
       const allowEntry = corrGate <= 2 || (corrGate === 3 && predN >= 0.65 && strongStrategyActive);
       if (allowEntry) {
         pending = { stage: 0, enterAtIdx: last.idx + 1, strategy: analysis?.name || "correção", afterMult: lastMultTxt };
-            // se nasceu isolada com 2 blues atrás -> cycle isolado
-       const P  = (colors[colors.length-1] !== "blue");
-       const B1 = (colors[colors.length-2] === "blue");
-       const B2 = (colors[colors.length-3] === "blue");
+          // se nasceu isolada com 2 blues atrás -> cycle isolado
+        const P  = (colors[colors.length-1] !== "blue");
+        const B1 = (colors[colors.length-2] === "blue");
+        const B2 = (colors[colors.length-3] === "blue");
         
-        pendingIsIsolated = (P && B1 && B2);
+        // Esta variável não é usada no seu script, mas mantida para referência
+        // pendingIsIsolated = (P && B1 && B2); 
 
         currentCycleLoss = true; lastG0Strategy = pending.strategy;
         setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${pending.afterMult})`});
         strategyTag.textContent = "Estratégia: " + pending.strategy;
         gateTag.textContent = "Gatilho: " + (analysis?.gate || "correção ≤2");
-        addFeed("warn", `SINAL 2x (G0) — entrar após (${pending.afterMult})`);
+        safeFeed("warn", `SINAL 2x (G0) — entrar após (${pending.afterMult})`);
       } else {
         setCardState({active:false, awaiting:false, title:"SINAL BLOQUEADO", sub:"Corr≥3 sem força"});
       }
@@ -690,7 +616,7 @@ document.addEventListener("DOMContentLoaded", () => {
           window.seguidinhaOn = false;
           maxBlueStreakHistory = [];
           window.prevCorrGate = null;
-          addFeed("info", "Reset automático após inatividade.");
+          safeFeed("info", "Reset automático após inatividade.");
           engineStatus.textContent = "operando";
         }
       }, 1800000); // 30 min
