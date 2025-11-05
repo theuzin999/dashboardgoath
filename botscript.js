@@ -323,7 +323,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // ===================== Motor ======================
   let pending = null;
   let currentCycleLoss = false;
-  let lastG0Strategy = null;
+  let lastG0Strategy = null; // Estratégia usada no G0
+  let lastG1Strategy = null; // Estratégia usada no G1
 
   function clearPending(){
     pending = null; 
@@ -403,31 +404,33 @@ document.addEventListener("DOMContentLoaded", () => {
         topSlide("WIN 2x", true);
         clearPending();
         lastG0Strategy = null;
+        lastG1Strategy = null; // Limpa G1 ao vencer
         // Continuar para checar bloqueio e novos sinais
       } else {
         if(pending.stage === 0){
           safeFeed("err", "LOSS 2x (G0)"); topSlide("LOSS 2x", false);
-          currentCycleLoss = true; lastG0Strategy = pending.strategy;
+          currentCycleLoss = true; lastG0Strategy = pending.strategy; // Armazena G0
           pending.stage = 'G1_WAIT'; pending.enterAtIdx = null;
           setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Procurando novo gatilho..."});
           safeFeed("warn", "Aguardando novo gatilho para G1");
-          // Continuar
+          // Continua
         }
         if(pending.stage === 1){
           safeFeed("err", "LOSS 2x (G1)"); topSlide("LOSS 2x (G1)", false);
+          lastG1Strategy = pending.strategy; // Armazena G1
           pending.stage = 'G2_WAIT'; pending.enterAtIdx = null;
           setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Procurando novo gatilho..."});
           safeFeed("warn", "Aguardando novo gatilho para G2");
-          // Continuar
+          // Continua
         }
         if(pending.stage === 2){
           safeFeed("err", "LOSS 2x (G2)"); topSlide("LOSS 2x (G2)", false);
           stats.losses++;
           stats.streak = 0;
           syncStatsUI(); store.set(stats);
-          clearPending(); lastG0Strategy = null;
+          clearPending(); lastG0Strategy = null; lastG1Strategy = null; // Limpa tudo
           currentCycleLoss = false;
-          // Continuar para novos sinais
+          // Continua para novos sinais
         }
       }
     }
@@ -464,18 +467,18 @@ document.addEventListener("DOMContentLoaded", () => {
         safeFeed("info", `${stage} liberado por Força (2 consecutivas nas últimas 6). Força anula bloqueios.`);
       }
 
-      // 2. BLOQUEIO PRINCIPAL: 2+ AZUIS ATRÁS DA ÚLTIMA POSITIVA
-      if(window.pendingTwoBlueBlock && !forceDetected){ // Só bloqueia se a Força NÃO anulou.
-          safeFeed("warn",`${stage} pausado — Bloqueio 2+ Azuis (Regra Principal) — Aguardando 2 positivas consecutivas para liberar`);
-          setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:`2+ azuis antes da última P — bloqueado`});
-          return;
-      }
-
-      // 3. NOVO BLOQUEIO IMEDIATO: 2 AZUIS CONSECUTIVOS ANTES DA ENTRADA (B-B)
+      // 2. BLOQUEIO IMEDIATO: 2 AZUIS CONSECUTIVOS ANTES DA ENTRADA (B-B)
       // Bloqueia se os dois últimos são azuis e a Força não está ativa para anular.
       if (hasImmediateTwoBlues(colors) && !forceDetected) {
           safeFeed("warn",`${stage} pausado — 2 Azuis (B-B) detectados imediatamente antes da entrada.`);
           setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:"2 Azuis consecutivos (B-B) — bloqueado"});
+          return;
+      }
+
+      // 3. BLOQUEIO PRINCIPAL: 2+ AZUIS ATRÁS DA ÚLTIMA POSITIVA
+      if(window.pendingTwoBlueBlock && !forceDetected){ // Só bloqueia se a Força NÃO anulou.
+          safeFeed("warn",`${stage} pausado — Bloqueio 2+ Azuis (Regra Principal) — Aguardando 2 positivas consecutivas para liberar`);
+          setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:`2+ azuis antes da última P — bloqueado`});
           return;
       }
 
@@ -488,17 +491,18 @@ document.addEventListener("DOMContentLoaded", () => {
          }
       }
 
-      // 5. CHECAGEM DE ESTRATÉGIA e SEGUIDINHA (gatilho de re-entrada)
+      // 5. CHECAGEM DE ESTRATÉGIA REPETIDA (NOVA REGRA)
+      // Bloqueia se a nova estratégia detectada for igual à estratégia do G0
+      if(analysis && analysis.name === lastG0Strategy){
+        setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:"Mesma estratégia do G0 anterior — bloqueado"});
+        return;
+      }
+      
+      // 6. CHECAGEM DE ESTRATÉGIA e SEGUIDINHA (gatilho de re-entrada)
       // Se a força foi detectada, ela é um gatilho!
       if(!strongStrategyActive && !window.seguidinhaOn && !forceDetected){
         setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:"Sem gatilho forte (Força, Estratégia, Seguidinha)"});
         return; 
-      }
-      
-      // 6. CHECAGEM DE ESTRATÉGIA REPETIDA
-      if(analysis && (analysis.name === lastG0Strategy || (stage === 'G2' && analysis.name === pending.strategy))){
-        setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:"Mesma estratégia anterior"});
-        return;
       }
       
       // ===================== LIBERAÇÃO DA ENTRADA =====================
@@ -567,13 +571,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const allowEntry = corrGate <= 2 || (corrGate === 3 && predN >= 0.65 && strongStrategyActive);
       if (allowEntry) {
         pending = { stage: 0, enterAtIdx: last.idx + 1, strategy: analysis?.name || "correção", afterMult: lastMultTxt };
-          // se nasceu isolada com 2 blues atrás -> cycle isolado
-        const P  = (colors[colors.length-1] !== "blue");
-        const B1 = (colors[colors.length-2] === "blue");
-        const B2 = (colors[colors.length-3] === "blue");
-        
-        // pendingIsIsolated = (P && B1 && B2); 
-
         currentCycleLoss = true; lastG0Strategy = pending.strategy;
         setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${pending.afterMult})`});
         strategyTag.textContent = "Estratégia: " + pending.strategy;
