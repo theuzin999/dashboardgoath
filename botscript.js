@@ -368,6 +368,15 @@ function onNewCandle(arr){
 
   // ===== PROCESSAR WAITS (G1_WAIT, G2_WAIT) - sempre, mesmo em bloqueio =====
   if(pending?.stage === 'G1_WAIT'){
+    
+    // if cycle nasceu isolado -> não faz G1
+if(pendingIsIsolated){
+    setCardState({active:false, awaiting:false, title:`SINAL BLOQUEADO`, sub:`Cycle isolado (2B atrás) — G1 proibido`});
+    addFeed("warn","G1 bloqueado — cycle nasceu isolado");
+    pending = null;
+    return;
+}
+
     // BLOQUEIO G1 se tiver 2 blues antes
 {
   const last2 = colors.slice(-2);
@@ -534,6 +543,13 @@ if(isXadrezAlternado4(colors)){
     const allowEntry = corrGate <= 2 || (corrGate === 3 && predN >= 0.65 && strongStrategyActive);
     if (allowEntry) {
       pending = { stage: 0, enterAtIdx: last.idx + 1, strategy: analysis?.name || "correção", afterMult: lastMultTxt };
+          // se nasceu isolada com 2 blues atrás -> cycle isolado
+     const P  = (colors[colors.length-1] !== "blue");
+     const B1 = (colors[colors.length-2] === "blue");
+     const B2 = (colors[colors.length-3] === "blue");
+      
+      pendingIsIsolated = (P && B1 && B2);
+
       currentCycleLoss = true; lastG0Strategy = pending.strategy;
       setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${pending.afterMult})`});
       strategyTag.textContent = "Estratégia: " + pending.strategy;
