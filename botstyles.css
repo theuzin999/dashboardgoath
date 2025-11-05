@@ -69,7 +69,7 @@ h1{font-size:18px;margin:0;font-weight:800}
   gap: 20px;
 }
 
-/* Aumenta a largura máxima para melhor visualização no desktop */
+/* Largura Máxima Ajustada */
 main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
 .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
 
@@ -88,7 +88,9 @@ main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
   letter-spacing: 0.5px;
 }
 
-/* Novo estilo para cada KPI (kpi-box) */
+/* ----------------------------------------------------------------- */
+/* NOVO: Estilos para KPI (Desktop/Tablet - Valores PADRÃO) */
+/* ----------------------------------------------------------------- */
 .kpi-box {
   background: rgba(16,22,40,.6);
   border: 1px solid #1e2a47;
@@ -98,9 +100,10 @@ main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
   display: flex;
   flex-direction: column;
   justify-content: center;
+  min-height: 84px; /* Garante altura mínima, herdado do antigo .kpi */
 }
-.kpi-box .label { font-size: 13px; color: #a8b0c3; margin-bottom: 4px; } /* Tamanho desktop/tablet para o título */
-.kpi-box .big { font-size: 28px; font-weight: 800; color: #e6e8ee; } /* Tamanho GRANDE desktop/tablet para o VALOR */
+.kpi-box .label { font-size: 13px; color: var(--muted); margin-bottom: 4px; } /* Título */
+.kpi-box .big { font-size: 24px; font-weight: 800; color: var(--text); } /* Valor DINÂMICO */
 
 /* Container para os KPIs do Status Card (3 colunas por padrão) */
 .stats-kpi-grid {
@@ -109,6 +112,9 @@ main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
     gap: 8px; 
     margin-bottom: 12px; 
 }
+
+/* Removemos as classes .kpi, .kpi small, .kpi .big antigas para evitar conflitos */
+
 
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .pill{
@@ -143,10 +149,9 @@ main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
   opacity: 0.7;
 }
 
-/* ====== Card Chance com efeito roxo animado - AUMENTADO ====== */
+/* ====== Card Chance com efeito roxo animado ====== */
 .chance-card{
-  position:relative;border-radius:18px;
-  padding: 20px; /* Aumentei o padding */
+  position:relative;border-radius:18px;padding:16px;
   background:linear-gradient(135deg,rgba(37,99,235,.12),rgba(16,24,44,.9));
   border:1px solid var(--stroke);transition:.25s ease;overflow:hidden;isolation:isolate;
 }
@@ -190,7 +195,7 @@ main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
 .chance-blocked .chance-sub { color: #fecaca; }
 
 
-.chance-title{font-weight:900;font-size:20px} /* Título do card principal aumentado */
+.chance-title{font-weight:900;font-size:18px}
 .chance-sub{color:#d7e4ff;opacity:.9;font-size:13px}
 .sep{height:1px;background:#1a2a4a;margin:12px 0}
 
@@ -209,7 +214,6 @@ main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
 .chip.warn{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.32);color:#ffe0b3}
 
 /* ====== Histórico de multiplicadores colorido ====== */
-/* Ajustei para 15 colunas, como estava no seu CSS anterior, mas com o minmax correto */
 .history{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:8px;max-height:240px;overflow:auto}
 .hbox{
   border:1px solid var(--stroke);
@@ -285,7 +289,7 @@ main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
         min-height: 80px; /* Garante que todos tenham a mesma altura */
     }
     .kpi-box .label {
-        font-size: 10px; /* DIMINUI o TÍTULO (Predominância) para caber bem no mobile */
+        font-size: 10px; /* Título bem pequeno no mobile */
     }
     .kpi-box .big {
         font-size: 18px; /* O VALOR DINÂMICO (texto de dentro) É DIMINUÍDO para 18px */
