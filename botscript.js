@@ -374,7 +374,10 @@ function onNewCandle(arr){
   const last2 = colors.slice(-2);
   if(last2[0] === "blue" && last2[1] === "blue"){
     setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"2 blues antes — aguardando próximo padrão seguro"});
-    addFeed("warn","G1 pausado — 2 Blue antes. Mantendo cycle.");
+    if(lastWaitReason !== "2BlueG1"){
+   addFeed("warn","G1 pausado — 2 Blue antes. Mantendo cycle.");
+   window.lastWaitReason = "2BlueG1";
+}
     return; // NÃO ZERA pending
   }
 }
@@ -407,7 +410,10 @@ function onNewCandle(arr){
     // PRIORIDADE: força > xadrez > isolada
     if(force){
         setCardState({active:false, awaiting:true, title:`Aguardando G1`, sub:`Aguardando G1 — força detectada`});
-        addFeed("info", "Aguardando G1 — força detectada");
+        if(window.lastWaitReason !== "forceG1"){
+   addFeed("info","Aguardando G1 — força detectada");
+   window.lastWaitReason = "forceG1";
+}
         return;
     }
 
@@ -456,13 +462,16 @@ if(isXadrezAlternado4(colors)){
 
   if(pending?.stage === 'G2_WAIT'){
     
-    // BLOQUEIO G2 se tiver 2 blues antes
+   // BLOQUEIO G2 se tiver 2 blues antes
 {
   const last2 = colors.slice(-2);
   if(last2[0] === "blue" && last2[1] === "blue"){
+    if(window.lastWaitReason !== "2BlueG2"){
+        addFeed("warn","G2 pausado — 2 Blue antes. Mantendo cycle.");
+        window.lastWaitReason = "2BlueG2";
+    }
     setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"2 blues antes — aguardando próximo padrão seguro"});
-    addFeed("warn","G2 pausado — 2 Blue antes. Mantendo cycle.");
-    return; // NÃO ZERA pending
+    return;
   }
 }
 
@@ -493,12 +502,12 @@ if(isXadrezAlternado4(colors)){
 
    // força detectada -> prioridade máxima
 if(force){
-    setCardState({active:true, awaiting:false, title:`Chance de 2x G1`, sub:`força confirmada`});
-    addFeed("info", `SINAL 2x (G1) — força confirmada`);
-    pending.stage = 1;
-    pending.enterAtIdx = last.idx + 0;
-    martingaleTag.style.display = "inline-block";
-    return;
+   setCardState({active:false, awaiting:true, title:`Aguardando G2`, sub:`Aguardando G2 — força detectada`});
+   if(window.lastWaitReason !== "forceG2"){
+       addFeed("info", "Aguardando G2 — força detectada");
+       window.lastWaitReason = "forceG2";
+   }
+   return;
 }
 
     if(!force && (BPBP || PBPB)){
