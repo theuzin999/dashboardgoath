@@ -312,3 +312,142 @@ main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
         grid-column: span 12;
     }
 }
+/* ================================================= */
+/* MELHORIAS VISUAIS - KPIS E CARD DE SINAL         */
+/* ================================================= */
+
+/* AUMENTA O CARD DE SINAL (mais destaque) */
+#chanceCardParent .chance-card {
+  padding: 24px 20px !important;
+  min-height: 140px;
+  border-radius: 20px !important;
+}
+
+/* Título do sinal maior e mais forte */
+.chance-title {
+  font-size: 26px !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.5px;
+  background: linear-gradient(90deg, #60a5fa, #c084fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Subtítulo do sinal */
+.chance-sub {
+  font-size: 15px !important;
+  font-weight: 600;
+  margin-top: 6px;
+  color: #a5b4fc !important;
+}
+
+/* Pills (estratégia, gatilho) */
+.pill {
+  font-size: 13px !important;
+  font-weight: 700;
+  padding: 8px 14px !important;
+  border: 1.5px solid rgba(99, 102, 241, 0.4) !important;
+  background: rgba(79, 70, 229, 0.15) !important;
+  backdrop-filter: blur(4px);
+}
+
+/* ================================================= */
+/* KPIS - TÍTULOS GRANDES, NÚMEROS ELEGANTES        */
+/* ================================================= */
+
+.kpi-box {
+  padding: 14px 8px !important;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1.5px solid #334155;
+  border-radius: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+  min-height: 90px;
+}
+
+.kpi-box:hover {
+  border-color: #60a5fa;
+  transform: translateY(-2px);
+}
+
+/* TÍTULO DO KPI (GRANDE E CHAMATIVO) */
+.kpi-box .label {
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #93c5fd !important;
+  margin-bottom: 6px !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* NÚMERO PRINCIPAL (GRANDE, MAS CONTROLADO) */
+.kpi-box .big {
+  font-size: 28px !important;
+  font-weight: 900 !important;
+  color: #e0e7ff !important;
+  line-height: 1.1;
+  letter-spacing: -1px;
+}
+
+/* Botões "detalhes" menores e discretos */
+.btn-more {
+  font-size: 10px !important;
+  padding: 4px 8px !important;
+  margin-top: 6px;
+  opacity: 0.8;
+}
+
+/* ================================================= */
+/* DESTAQUE ESPECIAL: ACERTOS, ERROS, STREAK        */
+/* ================================================= */
+
+/* Aumenta só os KPIs de acertos/erros/streak */
+#streak .big,
+#wins .big,
+#losses .big {
+  font-size: 32px !important;
+  background: linear-gradient(135deg, #a78bfa, #60a5fa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Fundo especial para esses KPIs */
+#streak .kpi-box,
+#wins .kpi-box,
+#losses .kpi-box {
+  background: linear-gradient(135deg, rgba(59, 7, 100, 0.4), rgba(30, 58, 136, 0.4));
+  border: 1.5px solid rgba(147, 51, 234, 0.5) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+#streak .kpi-box::before,
+#wins .kpi-box::before,
+#losses .kpi-box::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(45deg, transparent 30%, rgba(167, 139, 250, 0.1) 50%, transparent 70%);
+  background-size: 200% 200%;
+  animation: shimmer 4s infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes shimmer {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 200% 200%; }
+}
+
+/* ================================================= */
+/* RESPONSIVIDADE - MOBILE (ajuste fino)           */
+/* ================================================= */
+@media (max-width: 767px) {
+  .chance-title { font-size: 22px !important; }
+  .kpi-box .big { font-size: 22px !important; }
+  #streak .big, #wins .big, #losses .big { font-size: 26px !important; }
+  .kpi-box { padding: 10px 6px !important; }
+}
