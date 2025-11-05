@@ -421,19 +421,14 @@ document.addEventListener("DOMContentLoaded", () => {
       // BBPPP (espera confirmação extra ainda)
       const BBPPP = isBlue(c[L-5]) && isBlue(c[L-4]) && isPos(c[L-3]) && isPos(c[L-2]) && isPos(c[L-1]);
 
-     // força detectada -> entra direto G1
-pending.stage = 1;
-pending.enterAtIdx = last.idx + 1;
-pending.strategy = analysis?.name || "forca";
-pending.afterMult = lastMultTxt;
-
-martingaleTag.style.display = "inline-block";
-setCardState({active:true, title:"Chance de 2x (FORÇA)", sub:`entrar após (${pending.afterMult})`});
-strategyTag.textContent = "Estratégia: força";
-gateTag.textContent = "Gatilho: força detectada";
-addFeed("warn", `SINAL 2x (FORÇA) — entrar após (${pending.afterMult})`);
-window.lastWaitReason = "";
-return;
+      // PRIORIDADE: força > xadrez > isolada
+      if(force){
+          setCardState({active:false, awaiting:true, title:`Aguardando G1`, sub:`Aguardando G1 — força detectada`});
+          if(window.lastWaitReason !== "forceG1"){
+     addFeed("info","Aguardando G1 — força detectada");
+     window.lastWaitReason = "forceG1";
+  }
+          return;
       }
 
       if(!force && (BPBP || PBPB)){
@@ -529,22 +524,15 @@ return;
       // BBPPP (espera confirmação extra ainda)
       const BBPPP = isBlue(c[L-5]) && isBlue(c[L-4]) && isPos(c[L-3]) && isPos(c[L-2]) && isPos(c[L-1]);
 
-     // força detectada -> entra direto G2
-if(force){
-    pending.stage = 2;
-    pending.enterAtIdx = last.idx + 1;
-    pending.strategy = analysis?.name || "força";
-    pending.afterMult = lastMultTxt;
-
-    martingaleTag.style.display = "inline-block";
-    setCardState({active:true, title:"Chance de 2x (FORÇA)", sub:`entrar após (${pending.afterMult})`});
-    strategyTag.textContent = "Estratégia: força";
-    gateTag.textContent = "Gatilho: força detectada";
-
-    addFeed("warn", `SINAL 2x (FORÇA) — entrar após (${pending.afterMult})`);
-    window.lastWaitReason = "";
-    return;
-}
+     // força detectada -> prioridade máxima
+  if(force){
+     setCardState({active:false, awaiting:true, title:`Aguardando G2`, sub:`Aguardando G2 — força detectada`});
+     if(window.lastWaitReason !== "forceG2"){
+         addFeed("info", "Aguardando G2 — força detectada");
+         window.lastWaitReason = "forceG2";
+     }
+     return;
+  }
 
       if(!force && (BPBP || PBPB)){
           // deixa seguir xadrez normal
