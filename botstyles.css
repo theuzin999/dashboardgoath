@@ -451,3 +451,40 @@ main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
   #streak .big, #wins .big, #losses .big { font-size: 26px !important; }
   .kpi-box { padding: 10px 6px !important; }
 }
+/* ============================================= */
+/* CORRIGE SÓ OS 3 KPIS QUE TÁ GIGANTE           */
+/* ============================================= */
+#predStatus-kpi .big,
+#blueRun-kpi .big,
+#engineStatus-kpi .big {
+  font-size: 18px !important;     /* TAMANHO PERFEITO */
+  font-weight: 700 !important;
+  color: #93c5fd !important;
+  background: none !important;
+  -webkit-text-fill-color: unset !important;
+  line-height: 1.2;
+}
+
+/* Tira o gradiente e brilho só desses 3 */
+#predStatus-kpi,
+#blueRun-kpi,
+#engineStatus-kpi {
+  background: rgba(16,22,40,.6) !important;
+  border: 1px solid #1e2a47 !important;
+}
+
+/* Remove o shimmer animado desses 3 */
+#predStatus-kpi::before,
+#blueRun-kpi::before,
+#engineStatus-kpi::before {
+  display: none !important;
+}
+
+/* Deixa o texto alinhado e limpo */
+#predStatus-kpi .label,
+#blueRun-kpi .label,
+#engineStatus-kpi .label {
+  font-size: 11px !important;
+  color: #60a5fa !important;
+  margin-bottom: 4px !important;
+}
