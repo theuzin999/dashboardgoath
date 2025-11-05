@@ -69,8 +69,8 @@ h1{font-size:18px;margin:0;font-weight:800}
   gap: 20px;
 }
 
-
-main{max-width:1180px;margin:18px auto;padding:0 14px 40px}
+/* Largura Máxima Ajustada para Tablet/PC (maior que o mobile) */
+main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
 .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
 
 .card{
@@ -88,12 +88,17 @@ main{max-width:1180px;margin:18px auto;padding:0 14px 40px}
   letter-spacing: 0.5px;
 }
 
-.kpi{
-  display:flex;flex-direction:column;gap:6px;background:rgba(16,22,40,.6);
-  border:1px solid var(--stroke);padding:12px;border-radius:12px;min-height:84px;
+/* Estilo para cada KPI (novo) */
+.kpi-box {
+  background: rgba(16,22,40,.6);
+  border: 1px solid #1e2a47;
+  border-radius: 12px;
+  padding: 10px;
+  text-align: center;
 }
-.kpi small{color:var(--muted)}
-.kpi .big{font-size:26px;font-weight:800}
+.kpi-box .label { font-size: 11px; color: #a8b0c3; margin-bottom: 4px; }
+.kpi-box .big { font-size: 24px; font-weight: 800; color: #e6e8ee; }
+
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .pill{
   padding:6px 10px;border-radius:999px;background:#0b1224;color:#c3d3f5;
@@ -192,7 +197,7 @@ main{max-width:1180px;margin:18px auto;padding:0 14px 40px}
 .chip.warn{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.32);color:#ffe0b3}
 
 /* ====== Histórico de multiplicadores colorido ====== */
-.history{display:grid;grid-template-columns:repeat(15,minmax(64px,1fr));gap:8px;max-height:240px;overflow:auto}
+.history{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:8px;max-height:240px;overflow:auto}
 .hbox{
   border:1px solid var(--stroke);
   border-radius:12px;
@@ -245,3 +250,65 @@ main{max-width:1180px;margin:18px auto;padding:0 14px 40px}
 .topslide.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .topslide.ok{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.35);color:#b9f5c7}
 .topslide.err{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);color:#ffd1d1}
+
+/* ======================================================= */
+/* REGRAS DE LAYOUT E RESPONSIVIDADE (MOBILE E TABLET/PC) */
+/* ======================================================= */
+
+/* Container para os KPIs do Status Card (3 colunas por padrão) */
+.stats-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); 
+    gap: 8px; 
+    margin-bottom: 12px; 
+}
+
+/* ------------------------------------------- */
+/* Ajustes Específicos para TELA DE CELULAR */
+/* ------------------------------------------- */
+@media (max-width: 767px) {
+    /* Remove o padding lateral no mobile para ocupar a tela inteira */
+    main { padding: 0 8px 40px !important; }
+
+    /* FORÇA 3 COLUNAS E COMPACTA OS KPIS CONFORME SOLICITADO */
+    .stats-kpi-grid {
+        grid-template-columns: repeat(3, 1fr); 
+        gap: 4px; /* Reduz o espaçamento ao máximo */
+    }
+    .kpi-box {
+        padding: 8px 4px; /* Torna o padding interno menor */
+        min-height: 80px; /* Garante que todos tenham a mesma altura */
+    }
+    .kpi-box .label {
+        font-size: 9px; /* Fonte bem pequena para a label */
+    }
+    .kpi-box .big {
+        font-size: 18px; /* Fonte menor para o valor */
+    }
+    
+    /* No mobile, todos os cards ocupam 100% (12/12) e empilham */
+    .sinais-feed-container, .stats-card-parent, .history-card-parent {
+        grid-column: span 12;
+    }
+}
+
+/* ------------------------------------------- */
+/* Layout TABLET / PC (2 COLUNAS) */
+/* ------------------------------------------- */
+@media (min-width: 768px) {
+    /* Containers laterais */
+    .sinais-feed-container {
+        grid-column: span 8; /* Ocupa 8 de 12 colunas */
+        display: flex;
+        flex-direction: column;
+        gap: 20px; 
+    }
+    .stats-card-parent {
+        grid-column: span 4; /* Ocupa 4 de 12 colunas */
+        align-self: start; 
+    }
+    /* Histórico na linha de baixo, ocupando tudo */
+    .history-card-parent {
+        grid-column: span 12;
+    }
+}

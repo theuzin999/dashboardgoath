@@ -35,14 +35,11 @@
     verificarSessao();
   </script>
 
-  <!-- CSS -->
   <link rel="stylesheet" href="botstyles.css" />
 
-  <!-- Firebase SDKs (Compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 
-  <!-- App JS -->
   <script defer src="botscript.js"></script>
 </head>
 <body>
@@ -62,58 +59,70 @@
 
 <main>
   <div class="grid">
-    <section class="card" style="grid-column: span 12;">
-      <div class="stats-header">ESTATÍSTICAS DESDE QUE VOCÊ ENTROU:</div>
-      <div class="row">
-        <div class="kpi" style="flex:1;">
-          <small>Status</small>
-          <div class="row">
-            <div id="engineStatus" class="pill">Inicializando…</div>
-            <div id="predStatus" class="pill">Predominância: —</div>
-            <div id="blueRun" class="pill">Azuis seguidas: 0</div>
-          </div>
+
+    <div class="sinais-feed-container">
+        <section class="card signal-card" id="chanceCardParent">
+            <div class="chance-card" id="chanceCard">
+                <div class="chance-title" id="chanceTitle">Chance de 2x</div>
+                <div class="chance-sub" id="chanceSub">identificando padrão…</div>
+                <div class="sep"></div>
+                <div class="row">
+                    <span class="pill" id="strategyTag">Estratégia: —</span>
+                    <span class="pill" id="gateTag">Gatilho: —</span>
+                    <span class="pill" id="martingaleTag" style="display:none;">G1/G2</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="card feed-card-parent">
+            <div class="stats-header">Feed de Sinais</div>
+            <div class="feed" id="feed"></div>
+        </section>
+    </div>
+    
+    <section class="card stats-card-parent">
+      <div class="stats-header">Estatísticas</div>
+      
+      <div class="stats-kpi-grid">
+        <div class="kpi-box" id="engineStatus-kpi">
+          <div class="label">Status</div>
+          <div class="big" id="engineStatus">Inicializando…</div>
         </div>
-        <div class="kpi" style="width:160px;">
-          <small>Acertos consecutivos</small>
+        <div class="kpi-box" id="predStatus-kpi">
+          <div class="label">Predominância</div>
+          <div class="big" id="predStatus">—</div>
+        </div>
+        <div class="kpi-box" id="blueRun-kpi">
+          <div class="label">Azuis Seguidas</div>
+          <div class="big" id="blueRun">0</div>
+        </div>
+      </div>
+
+      <div class="stats-kpi-grid">
+        <div class="kpi-box">
+          <div class="label">Acertos Consec.</div>
           <div class="big" id="streak">0</div>
-          <button class="btn-more" id="streakMoreBtn">Ver mais</button>
+          <button class="btn-more" id="streakMoreBtn">detalhes</button>
         </div>
-        <div class="kpi" style="width:160px;">
-          <small>Total de acertos</small>
+        <div class="kpi-box">
+          <div class="label">Total Acertos</div>
           <div class="big" id="wins">0</div>
-          <button class="btn-more" id="winsMoreBtn">Ver mais</button>
+          <button class="btn-more" id="winsMoreBtn">detalhes</button>
         </div>
-        <div class="kpi" style="width:160px;"><small>Total de erros</small><div id="losses" class="big">0</div></div>
-      </div>
-      <button class="btn-clear-stats" id="clearStatsBtn">LIMPAR ESTATÍSTICAS</button>
-    </section>
-
-    <section class="card" style="grid-column: span 6;">
-      <div class="chance-card" id="chanceCard">
-        <div class="row" style="justify-content:space-between;">
-          <div>
-            <div class="chance-title" id="chanceTitle">Chance de 2x</div>
-            <div class="chance-sub" id="chanceSub">identificando padrão…</div>
-          </div>
-        </div>
-        <div class="sep"></div>
-        <div class="row">
-          <div class="pill" id="strategyTag">Estratégia: —</div>
-          <div class="pill" id="gateTag">Gatilho: —</div>
-          <div class="pill" id="martingaleTag" style="display:none;">G1/G2 ativo</div>
+        <div class="kpi-box">
+          <div class="label">Total Erros</div>
+          <div class="big" id="losses">0</div>
         </div>
       </div>
+
+      <button class="btn-clear-stats" id="clearStatsBtn">LIMPAR TUDO</button>
     </section>
 
-    <section class="card" style="grid-column: span 6;">
-      <div class="chance-title">Feed de sinais</div>
-      <div class="feed" id="feed"></div>
-    </section>
-
-    <section class="card" style="grid-column: span 12;">
-      <div class="chance-title">Últimas 15 velas</div>
+    <section class="card history-card-parent">
+      <div class="stats-header">Últimas 24 velas</div>
       <div id="history" class="history"></div>
     </section>
+
   </div>
 </main>
 
@@ -136,5 +145,33 @@
   </div>
   <div class="stat-line"><span>Maior sequência</span><strong id="maxStreak">0</strong></div>
 </div>
+<script>
+  (function antiDevTools() {
+    const redirectURL = "/"; // volta pro login
+
+    document.addEventListener("keydown", (e) => {
+      if (
+        e.key === "F12" ||
+        (e.ctrlKey && e.shiftKey && ["I","i","J","j","C","c"].includes(e.key))
+      ) {
+        e.preventDefault();
+        window.location.replace(redirectURL);
+      }
+    });
+
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    const element = new Image();
+    Object.defineProperty(element, "id", {
+      get: function () {
+        throw new Error("DevTools detectado!");
+      },
+    });
+
+    setInterval(() => {
+      console.log(element);
+    }, 1000);
+  })();
+</script>
 </body>
 </html>
