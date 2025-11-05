@@ -88,7 +88,7 @@ main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
   letter-spacing: 0.5px;
 }
 
-/* Estilo para cada KPI (novo) */
+/* Estilo para cada KPI (novo: Unifica Status, Predominância e Azuis no topo do card) */
 .kpi-box {
   background: rgba(16,22,40,.6);
   border: 1px solid #1e2a47;
@@ -98,6 +98,15 @@ main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
 }
 .kpi-box .label { font-size: 11px; color: #a8b0c3; margin-bottom: 4px; }
 .kpi-box .big { font-size: 24px; font-weight: 800; color: #e6e8ee; }
+
+/* Container para os KPIs do Status Card (3 colunas por padrão) */
+.stats-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); 
+    gap: 8px; 
+    margin-bottom: 12px; 
+}
+
 
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .pill{
@@ -132,9 +141,10 @@ main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
   opacity: 0.7;
 }
 
-/* ====== Card Chance com efeito roxo animado ====== */
+/* ====== Card Chance com efeito roxo animado - AUMENTADO ====== */
 .chance-card{
-  position:relative;border-radius:18px;padding:16px;
+  position:relative;border-radius:18px;
+  padding: 20px; /* Aumentei o padding */
   background:linear-gradient(135deg,rgba(37,99,235,.12),rgba(16,24,44,.9));
   border:1px solid var(--stroke);transition:.25s ease;overflow:hidden;isolation:isolate;
 }
@@ -178,7 +188,7 @@ main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
 .chance-blocked .chance-sub { color: #fecaca; }
 
 
-.chance-title{font-weight:900;font-size:18px}
+.chance-title{font-weight:900;font-size:20px} /* Aumentei a fonte do título */
 .chance-sub{color:#d7e4ff;opacity:.9;font-size:13px}
 .sep{height:1px;background:#1a2a4a;margin:12px 0}
 
@@ -255,14 +265,6 @@ main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
 /* REGRAS DE LAYOUT E RESPONSIVIDADE (MOBILE E TABLET/PC) */
 /* ======================================================= */
 
-/* Container para os KPIs do Status Card (3 colunas por padrão) */
-.stats-kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr); 
-    gap: 8px; 
-    margin-bottom: 12px; 
-}
-
 /* ------------------------------------------- */
 /* Ajustes Específicos para TELA DE CELULAR */
 /* ------------------------------------------- */
@@ -283,13 +285,19 @@ main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
         font-size: 9px; /* Fonte bem pequena para a label */
     }
     .kpi-box .big {
-        font-size: 18px; /* Fonte menor para o valor */
+        font-size: 16px; /* Ajuste final para predominância/azuis seguidas caberem */
     }
     
     /* No mobile, todos os cards ocupam 100% (12/12) e empilham */
     .sinais-feed-container, .stats-card-parent, .history-card-parent {
         grid-column: span 12;
     }
+    
+    /* Ajuste para o card principal no mobile */
+    .chance-card {
+        padding: 16px; /* Mantém o padding padrão no mobile */
+    }
+    .chance-title{font-size:18px} /* Mantém o tamanho padrão no mobile */
 }
 
 /* ------------------------------------------- */
