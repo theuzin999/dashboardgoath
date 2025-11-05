@@ -282,9 +282,8 @@ main{max-width:1400px;margin:18px auto;padding:0 14px 40px}
     .kpi-box .label {
         font-size: 9px; /* Fonte bem pequena para a label */
     }
-    /* FONTE PRINCIPAL REDUZIDA DE 18PX PARA 16PX */
     .kpi-box .big {
-        font-size: 16px; 
+        font-size: 18px; /* Fonte menor para o valor */
     }
     
     /* No mobile, todos os cards ocupam 100% (12/12) e empilham */
