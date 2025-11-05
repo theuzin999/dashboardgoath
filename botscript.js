@@ -371,17 +371,27 @@ function onNewCandle(arr){
 
     // BLOQUEIO G1 se tiver 2 blues antes
 {
-  const last2 = colors.slice(-2);
-  if(last2[0] === "blue" && last2[1] === "blue"){
-    setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"2 blues antes — aguardando próximo padrão seguro"});
-    if(lastWaitReason !== "2BlueG1"){
-   addFeed("warn","G1 pausado — 2 Blue antes. Mantendo cycle.");
-   window.lastWaitReason = "2BlueG1";
-}
-    return; // NÃO ZERA pending
-  }
-}
+  // pega últimas 6 velas = pra contar azuis
+const last6 = colors.slice(-6);
+const bluesBefore = last6.filter(v => v === "blue").length;
 
+// se tiver 2 ou mais azuis antes do positive -> trava até confirmar força positiva
+if(bluesBefore >= 2){
+   // precisa 2 positivas consecutivas pra liberar
+   const c = colors;
+   const last = c.length;
+   const posNow = c[last-1] !== "blue";
+   const posPrev = c[last-2] !== "blue";
+
+   if(!(posNow && posPrev)){ // não tem 2 positivas seguidas ainda
+      if(window.lastWaitReason !== "2BlueG1"){
+          addFeed("warn","G1 pausado — 2+ azuis antes — aguardando 2 positivas para liberar a entrada");
+          window.lastWaitReason = "2BlueG1";
+      }
+      setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"2+ azuis antes — aguardando 2 positivas"});
+      return;
+   }
+}
   // FILTRO INTELIGENTE DE CONTEXTO G1
 {
   const L = colors.length;
@@ -462,16 +472,25 @@ if(isXadrezAlternado4(colors)){
 
   if(pending?.stage === 'G2_WAIT'){
     
-   // BLOQUEIO G2 se tiver 2 blues antes
+   // BLOQUEIO G2 se tiver 2 blues antes OU mais
 {
-  const last2 = colors.slice(-2);
-  if(last2[0] === "blue" && last2[1] === "blue"){
-    if(window.lastWaitReason !== "2BlueG2"){
-        addFeed("warn","G2 pausado — 2 Blue antes. Mantendo cycle.");
-        window.lastWaitReason = "2BlueG2";
-    }
-    setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"2 blues antes — aguardando próximo padrão seguro"});
-    return;
+  const last6 = colors.slice(-6);
+  const bluesBefore = last6.filter(v => v === "blue").length;
+
+  if(bluesBefore >= 2){
+      const c = colors;
+      const last = c.length;
+      const posNow = c[last-1] !== "blue";
+      const posPrev = c[last-2] !== "blue";
+
+      if(!(posNow && posPrev)){ // não tem 2 positivas consecutivas ainda
+          if(window.lastWaitReason !== "2BlueG2"){
+            addFeed("warn","G2 pausado — 2+ azuis antes — aguardando 2 positivas para liberar a entrada");
+            window.lastWaitReason = "2BlueG2";
+          }
+          setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"2+ azuis antes — aguardando 2 positivas"});
+          return;
+      }
   }
 }
 
