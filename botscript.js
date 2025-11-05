@@ -72,7 +72,7 @@ function addFeed(type,text){
 function renderHistory(list){
   const historyGrid = document.getElementById("history");
   historyGrid.innerHTML="";
-  const last15 = list.slice(-20).reverse();
+  const last15 = list.slice(-24).reverse();
   last15.forEach(r=>{
     const box=document.createElement("div"); 
     box.className="hbox "+r.color;
