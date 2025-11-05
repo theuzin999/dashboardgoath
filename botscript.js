@@ -386,16 +386,49 @@ if(pendingIsIsolated){
   }
 }
 
-    // NÃO entrar G1 em frente de positivo isolado (precisa 2 ou mais positivas antes)
+  // FILTRO INTELIGENTE DE CONTEXTO G1
 {
-  const last2 = colors.slice(-2);
-  const prevIsPos = (colors[colors.length-2] !== "blue"); // vela anterior positiva
-  const prevPrevIsPos = (colors[colors.length-3] !== "blue"); // 2 velas antes positiva
+  const L = colors.length;
+  if(L >= 6){
 
-  if(prevIsPos && !prevPrevIsPos){ 
-    setCardState({active:false, awaiting:true, title:"Aguardando G1", sub:"Positiva isolada — aguardando confirmação"});
-    addFeed("warn","G1 pausado — positiva isolada, aguardando mais contexto");
-    return;
+    const c = colors;
+    const isPos = (v)=>v !== "blue";
+    const isBlue = (v)=>v === "blue";
+
+    // força de 2 positivas consecutivas dentro das últimas 6 velas
+    let force = false;
+    for(let i=L-6;i<L-1;i++){
+       if(isPos(c[i]) && isPos(c[i+1])){ force=true; break; }
+    }
+
+    // padrões xadrez
+    const BPBP = isBlue(c[L-4]) && isPos(c[L-3]) && isBlue(c[L-2]) && isPos(c[L-1]);
+    const PBPB = isPos(c[L-4]) && isBlue(c[L-3]) && isPos(c[L-2]) && isBlue(c[L-1]);
+
+    // BBPP (sem chance para Blue)
+    const BBPP = isBlue(c[L-4]) && isBlue(c[L-3]) && isPos(c[L-2]) && isPos(c[L-1]);
+
+    // BBPPP (espera confirmação extra ainda)
+    const BBPPP = isBlue(c[L-5]) && isBlue(c[L-4]) && isPos(c[L-3]) && isPos(c[L-2]) && isPos(c[L-1]);
+
+    // PRIORIDADE: força > xadrez > isolada
+    if(force){
+        setCardState({active:false, awaiting:true, title:`Aguardando G1`, sub:`Aguardando G1 — força detectada`});
+        addFeed("info", "Aguardando G1 — força detectada");
+        return;
+    }
+
+    if(!force && (BPBP || PBPB)){
+        // deixa seguir xadrez normal
+    } else if(BBPP && isBlue(c[L-1])){
+        setCardState({active:false, awaiting:true, title:`Aguardando G1`, sub:`BBPP — sem Blue agora`});
+        addFeed("warn", "G1 pausado — BBPP sem Blue");
+        return;
+    } else if(BBPPP){
+        setCardState({active:false, awaiting:true, title:`Aguardando G1`, sub:`BBPPP — aguardar próxima P`});
+        addFeed("info", "G1 pausado — BBPPP aguardando próxima positiva");
+        return;
+    }
   }
 }
     
@@ -435,7 +468,7 @@ if(isXadrezAlternado4(colors)){
     addFeed("warn","G2 pausado — cycle nasceu isolado");
     return;
 }
-
+    
     // BLOQUEIO G2 se tiver 2 blues antes
 {
   const last2 = colors.slice(-2);
@@ -446,29 +479,49 @@ if(isXadrezAlternado4(colors)){
   }
 }
 
-    // CANCELA tentativa dessa vela se a positiva atual estiver isolada com 2 blues atrás
+    // FILTRO INTELIGENTE DE CONTEXTO G2
 {
-  const P  = (colors[colors.length-1] !== "blue"); // vela atual positiva
-  const B1 = (colors[colors.length-2] === "blue"); // vela -1 azul
-  const B2 = (colors[colors.length-3] === "blue"); // vela -2 azul
+  const L = colors.length;
+  if(L >= 6){
 
-  if(P && B1 && B2){
-    setCardState({active:false, awaiting:true, title:`Aguardando G${pending?.stage}`, sub:"Positiva isolada + 2 blues atrás — risco máximo"});
-    addFeed("warn",`G${pending?.stage} pausado — positiva isolada com 2 blues atrás`);
-    return; // mantém pending vivo
-  }
-}
-    
-    // NÃO entrar G2 em frente de positivo isolado (precisa 2 ou mais positivas antes)
-{
-  const last2 = colors.slice(-2);
-  const prevIsPos = (colors[colors.length-2] !== "blue");
-  const prevPrevIsPos = (colors[colors.length-3] !== "blue");
+    const c = colors;
+    const isPos = (v)=>v !== "blue";
+    const isBlue = (v)=>v === "blue";
 
-  if(prevIsPos && !prevPrevIsPos){ 
-    setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Positiva isolada — aguardando confirmação"});
-    addFeed("warn","G2 pausado — positiva isolada, aguardando mais contexto");
-    return;
+    // força de 2 positivas consecutivas dentro das últimas 6 velas
+    let force = false;
+    for(let i=L-6;i<L-1;i++){
+       if(isPos(c[i]) && isPos(c[i+1])){ force=true; break; }
+    }
+
+    // padrões xadrez
+    const BPBP = isBlue(c[L-4]) && isPos(c[L-3]) && isBlue(c[L-2]) && isPos(c[L-1]);
+    const PBPB = isPos(c[L-4]) && isBlue(c[L-3]) && isPos(c[L-2]) && isBlue(c[L-1]);
+
+    // BBPP (sem chance para Blue)
+    const BBPP = isBlue(c[L-4]) && isBlue(c[L-3]) && isPos(c[L-2]) && isPos(c[L-1]);
+
+    // BBPPP (espera confirmação extra ainda)
+    const BBPPP = isBlue(c[L-5]) && isBlue(c[L-4]) && isPos(c[L-3]) && isPos(c[L-2]) && isPos(c[L-1]);
+
+    // PRIORIDADE: força > xadrez > isolada
+    if(force){
+        setCardState({active:false, awaiting:true, title:`Aguardando G2`, sub:`Aguardando G2 — força detectada`});
+        addFeed("info", "Aguardando G2 — força detectada");
+        return;
+    }
+
+    if(!force && (BPBP || PBPB)){
+        // deixa seguir xadrez normal
+    } else if(BBPP && isBlue(c[L-1])){
+        setCardState({active:false, awaiting:true, title:`Aguardando G2`, sub:`BBPP — sem Blue agora`});
+        addFeed("warn", "G2 pausado — BBPP sem Blue");
+        return;
+    } else if(BBPPP){
+        setCardState({active:false, awaiting:true, title:`Aguardando G2`, sub:`BBPPP — aguardar próxima P`});
+        addFeed("info", "G2 pausado — BBPPP aguardando próxima positiva");
+        return;
+    }
   }
 }
     
