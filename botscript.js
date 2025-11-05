@@ -378,19 +378,6 @@ function onNewCandle(arr){
   }
 }
 
-    // CANCELA tentativa dessa vela se a positiva atual estiver isolada com 2 blues atrás
-{
-  const P  = (colors[colors.length-1] !== "blue"); // vela atual positiva
-  const B1 = (colors[colors.length-2] === "blue"); // vela -1 azul
-  const B2 = (colors[colors.length-3] === "blue"); // vela -2 azul
-
-  if(P && B1 && B2){
-    setCardState({active:false, awaiting:true, title:`Aguardando G${pending?.stage}`, sub:"Positiva isolada + 2 blues atrás — risco máximo"});
-    addFeed("warn",`G${pending?.stage} pausado — positiva isolada com 2 blues atrás`);
-    return; // mantém pending vivo
-  }
-}
-
     // NÃO entrar G1 em frente de positivo isolado (precisa 2 ou mais positivas antes)
 {
   const last2 = colors.slice(-2);
