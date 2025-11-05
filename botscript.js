@@ -4,7 +4,7 @@ const firebaseConfig = {
   authDomain: "history-dashboard-a70ee.firebaseapp.com",
   databaseURL: "https://history-dashboard-a70ee-default-rtdb.firebaseio.com",
   projectId: "history-dashboard-a70ee",
-  storageBucket: "history-dashboard-a70ee.appspot.com",
+  storageBucket: "history-dashboard-a70ee.firebasestorage.app",
   messagingSenderId: "969153856969",
   appId: "1:969153856969:web:6b50fae1db463b8352d418",
   measurementId: "G-9MVGBX2KLX"
