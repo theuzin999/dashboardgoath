@@ -185,7 +185,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return (a !== b) && (b !== c) && (c !== d);
   }
 
-  // ===================== HELPERS BLOQUEIO =======================
+  // ===================== HELPERS BLOQUEIO (MODIFICADAS) =======================
   /** Retorna quantas blues estão imediatamente atrás da última vela positiva. */
   function bluesBeforeLastPositive(colors){
     let lastPositiveIndex = -1;
@@ -211,14 +211,15 @@ document.addEventListener("DOMContentLoaded", () => {
       return colors[L-1] !== "blue" && colors[L-2] !== "blue";
   }
 
-  /** Checa se há "Força" (2 positivas consecutivas) nas últimas N velas. */
-  function hasForce(colors, N=6){
+  /** Checa se há "Força" (3 positivas consecutivas) nas últimas N velas. */
+  function hasForce(colors, N=8){ // N=8 para garantir contexto suficiente para 3 P's
     const L = colors.length;
     const c = colors;
     const isPos = (v)=>v !== "blue";
     if(L < N) return false;
-    for(let i=L-N; i<L-1; i++){
-       if(isPos(c[i]) && isPos(c[i+1])){ return true; }
+    // Busca 3 positivas consecutivas
+    for(let i=L-N; i<L-2; i++){
+       if(isPos(c[i]) && isPos(c[i+1]) && isPos(c[i+2])){ return true; }
     }
     return false;
   }
@@ -239,7 +240,9 @@ document.addEventListener("DOMContentLoaded", () => {
   window.prevCorrGate = null;
   let maxBlueStreakHistory = [];
   let waitingForNewCorrections = 0;
-  window.pendingTwoBlueBlock = false; // Bloqueio da Regra Principal
+  let pendingTwoBlueBlock = false; // Bloqueio da Regra Principal
+  let lastG0Strategy = null; // Estratégia usada no G0
+
 
   // ===================== Estratégias =======================
   function detectStrategies(colors, predNPct){
@@ -323,8 +326,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // ===================== Motor ======================
   let pending = null;
   let currentCycleLoss = false;
-  let lastG0Strategy = null; // Estratégia usada no G0
-  let lastG1Strategy = null; // Estratégia usada no G1
 
   function clearPending(){
     pending = null; 
@@ -356,20 +357,21 @@ document.addEventListener("DOMContentLoaded", () => {
     const strongStrategyActive = !!analysis;
     
     // ===================== ATUALIZAÇÃO DO NOVO BLOQUEIO (Regra Principal) =====================
+    // ATENÇÃO: Essa regra bloqueia G1/G2 se o G0 foi feito com uma positiva que tinha 2+ azuis atrás.
     const bluesBeforeLastP = bluesBeforeLastPositive(colors);
 
     if (bluesBeforeLastP >= 2) {
         // Ativa o bloqueio se a última P teve 2+ blues atrás
-        if (!window.pendingTwoBlueBlock) {
-            window.pendingTwoBlueBlock = true;
+        if (!pendingTwoBlueBlock) {
+            pendingTwoBlueBlock = true;
             safeFeed("warn", `Bloqueio 2+ Azuis ON: ${bluesBeforeLastP} azuis atrás da última positiva.`);
         }
     }
     
     // Verifica a condição de LIBERAÇÃO (Duas positivas consecutivas)
-    if (window.pendingTwoBlueBlock && hasTwoConsecutivePositives(colors)) {
+    if (pendingTwoBlueBlock && hasTwoConsecutivePositives(colors)) {
         // Se a condição for atendida, libera o bloqueio
-        window.pendingTwoBlueBlock = false;
+        pendingTwoBlueBlock = false;
         safeFeed("info", "Bloqueio 2+ Azuis OFF: Duas positivas consecutivas confirmadas.");
     }
     // =========================================================================
@@ -378,7 +380,7 @@ document.addEventListener("DOMContentLoaded", () => {
     blueRunPill.textContent = `Azuis seguidas: ${consecutiveBlueCount(arr)}` + (window.seguidinhaOn ? " · SEGUIDINHA ON" : "");
 
     // ===== DEBUG LOG =====
-    console.log(`[CANDLE ${last.idx}] CorrGate: ${corrGate} | Pred: ${(predN*100).toFixed(0)}% | BlueRun: ${finalBlueRunNow(colors)} | Seguidinha: ${window.seguidinhaOn} | Estratégia: ${analysis?.name || '—'} | 2+BluesBlock: ${window.pendingTwoBlueBlock}`);
+    console.log(`[CANDLE ${last.idx}] CorrGate: ${corrGate} | Pred: ${(predN*100).toFixed(0)}% | BlueRun: ${finalBlueRunNow(colors)} | Seguidinha: ${window.seguidinhaOn} | Estratégia: ${analysis?.name || '—'} | 2+BluesBlock: ${pendingTwoBlueBlock}`);
 
     // ===== RASTREIA MUDANÇAS DE CORREÇÃO =====
     const prevCorr = window.prevCorrGate;
@@ -403,8 +405,7 @@ document.addEventListener("DOMContentLoaded", () => {
         safeFeed("ok", `WIN 2x (G${pending.stage})`);
         topSlide("WIN 2x", true);
         clearPending();
-        lastG0Strategy = null;
-        lastG1Strategy = null; // Limpa G1 ao vencer
+        lastG0Strategy = null; // Limpa G0 ao vencer
         // Continuar para checar bloqueio e novos sinais
       } else {
         if(pending.stage === 0){
@@ -417,7 +418,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         if(pending.stage === 1){
           safeFeed("err", "LOSS 2x (G1)"); topSlide("LOSS 2x (G1)", false);
-          lastG1Strategy = pending.strategy; // Armazena G1
           pending.stage = 'G2_WAIT'; pending.enterAtIdx = null;
           setCardState({active:false, awaiting:true, title:"Aguardando G2", sub:"Procurando novo gatilho..."});
           safeFeed("warn", "Aguardando novo gatilho para G2");
@@ -428,7 +428,7 @@ document.addEventListener("DOMContentLoaded", () => {
           stats.losses++;
           stats.streak = 0;
           syncStatsUI(); store.set(stats);
-          clearPending(); lastG0Strategy = null; lastG1Strategy = null; // Limpa tudo
+          clearPending(); lastG0Strategy = null; // Limpa tudo
           currentCycleLoss = false;
           // Continua para novos sinais
         }
@@ -459,12 +459,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const stage = pending.stage === 'G1_WAIT' ? 'G1' : 'G2';
       const nextStage = pending.stage === 'G1_WAIT' ? 1 : 2;
 
-      // 1. CHECAGEM DE FORÇA (PRIORIDADE MÁXIMA)
-      const forceDetected = hasForce(colors, 6);
+      // 1. CHECAGEM DE FORÇA (PRIORIDADE MÁXIMA - 3 consecutivas)
+      const forceDetected = hasForce(colors, 8); // Busca 3P nas últimas 8
       if(forceDetected){
         // A força anula todos os bloqueios e LIBERA a entrada.
-        window.pendingTwoBlueBlock = false; 
-        safeFeed("info", `${stage} liberado por Força (2 consecutivas nas últimas 6). Força anula bloqueios.`);
+        pendingTwoBlueBlock = false; 
+        safeFeed("info", `${stage} liberado por Força (3 consecutivas nas últimas 8). Força anula bloqueios.`);
       }
 
       // 2. BLOQUEIO IMEDIATO: 2 AZUIS CONSECUTIVOS ANTES DA ENTRADA (B-B)
@@ -475,9 +475,9 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
       }
 
-      // 3. BLOQUEIO PRINCIPAL: 2+ AZUIS ATRÁS DA ÚLTIMA POSITIVA
-      if(window.pendingTwoBlueBlock && !forceDetected){ // Só bloqueia se a Força NÃO anulou.
-          safeFeed("warn",`${stage} pausado — Bloqueio 2+ Azuis (Regra Principal) — Aguardando 2 positivas consecutivas para liberar`);
+      // 3. BLOQUEIO PRINCIPAL: 2+ AZUIS ATRÁS DA ÚLTIMA POSITIVA (Regra G0)
+      if(pendingTwoBlueBlock && !forceDetected){ // Só bloqueia se a Força NÃO anulou.
+          safeFeed("warn",`${stage} pausado — Bloqueio 2+ Azuis (Regra Principal G0) — Aguardando 2 positivas para liberar`);
           setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:`2+ azuis antes da última P — bloqueado`});
           return;
       }
@@ -491,31 +491,30 @@ document.addEventListener("DOMContentLoaded", () => {
          }
       }
 
-      // 5. CHECAGEM DE ESTRATÉGIA REPETIDA (NOVA REGRA)
-      // Bloqueia se a nova estratégia detectada for igual à estratégia do G0
-      if(analysis && analysis.name === lastG0Strategy){
+      // 5. CHECAGEM DE ESTRATÉGIA REPETIDA (Regra: G1/G2 tem que ser diferente de G0)
+      const currentStrategyName = analysis?.name || (window.seguidinhaOn ? "seguidinha" : (forceDetected ? "forca" : null));
+      if(currentStrategyName && currentStrategyName === lastG0Strategy){
+        safeFeed("warn",`${stage} pausado — Mesma estratégia de re-entrada do G0`);
         setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:"Mesma estratégia do G0 anterior — bloqueado"});
         return;
       }
       
-      // 6. CHECAGEM DE ESTRATÉGIA e SEGUIDINHA (gatilho de re-entrada)
-      // Se a força foi detectada, ela é um gatilho!
+      // 6. CHECAGEM DE GATILHO: Força, Estratégia Forte ou Seguidinha
       if(!strongStrategyActive && !window.seguidinhaOn && !forceDetected){
         setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:"Sem gatilho forte (Força, Estratégia, Seguidinha)"});
         return; 
       }
       
       // ===================== LIBERAÇÃO DA ENTRADA =====================
-      window.lastWaitReason = "";
       pending.stage = nextStage; 
       pending.enterAtIdx = last.idx + 1; 
-      pending.strategy = analysis?.name || (forceDetected ? "forca" : "seguidinha"); 
+      pending.strategy = currentStrategyName || "correção"; // Deve ser um nome válido
       pending.afterMult = lastMultTxt;
       
       martingaleTag.style.display = "inline-block";
       setCardState({active:true, title:`Chance de 2x ${stage}`, sub:`entrar após (${pending.afterMult})`});
       strategyTag.textContent = "Estratégia: " + pending.strategy;
-      gateTag.textContent = "Gatilho: " + (analysis?.gate || (forceDetected ? "Força Detectada (2P/6)" : "seguidinha"));
+      gateTag.textContent = "Gatilho: " + (analysis?.gate || (forceDetected ? "Força Detectada (3P/8)" : "seguidinha"));
       safeFeed("warn", `SINAL 2x (${stage}) — entrar após (${pending.afterMult})`);
       return;
     }
