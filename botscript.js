@@ -211,14 +211,17 @@ document.addEventListener("DOMContentLoaded", () => {
       return colors[L-1] !== "blue" && colors[L-2] !== "blue";
   }
 
-  /** Checa se há "Força" (3 positivas consecutivas) nas últimas N velas. */
-  function hasForce(colors, N=8){ // N=8 para garantir contexto suficiente para 3 P's
+  /** * Checa se há "Força" (3 positivas consecutivas) nas últimas N velas. 
+   * N padrao = 6, conforme solicitado.
+   */
+  function hasForce(colors, N=6){ 
     const L = colors.length;
     const c = colors;
     const isPos = (v)=>v !== "blue";
     if(L < N) return false;
     // Busca 3 positivas consecutivas
-    for(let i=L-N; i<L-2; i++){
+    // O loop verifica i, i+1, i+2 dentro da janela L-N até L-1
+    for(let i=L-N; i<L-2; i++){ 
        if(isPos(c[i]) && isPos(c[i+1]) && isPos(c[i+2])){ return true; }
     }
     return false;
@@ -459,12 +462,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const stage = pending.stage === 'G1_WAIT' ? 'G1' : 'G2';
       const nextStage = pending.stage === 'G1_WAIT' ? 1 : 2;
 
-      // 1. CHECAGEM DE FORÇA (PRIORIDADE MÁXIMA - 3 consecutivas)
-      const forceDetected = hasForce(colors, 8); // Busca 3P nas últimas 8
+      // 1. CHECAGEM DE FORÇA (PRIORIDADE MÁXIMA - 3 consecutivas nas últimas 6)
+      const forceDetected = hasForce(colors, 6); // Busca 3P nas últimas 6
       if(forceDetected){
         // A força anula todos os bloqueios e LIBERA a entrada.
         pendingTwoBlueBlock = false; 
-        safeFeed("info", `${stage} liberado por Força (3 consecutivas nas últimas 8). Força anula bloqueios.`);
+        safeFeed("info", `${stage} liberado por Força (3 consecutivas nas últimas 6). Força anula bloqueios.`);
       }
 
       // 2. BLOQUEIO IMEDIATO: 2 AZUIS CONSECUTIVOS ANTES DA ENTRADA (B-B)
@@ -514,7 +517,7 @@ document.addEventListener("DOMContentLoaded", () => {
       martingaleTag.style.display = "inline-block";
       setCardState({active:true, title:`Chance de 2x ${stage}`, sub:`entrar após (${pending.afterMult})`});
       strategyTag.textContent = "Estratégia: " + pending.strategy;
-      gateTag.textContent = "Gatilho: " + (analysis?.gate || (forceDetected ? "Força Detectada (3P/8)" : "seguidinha"));
+      gateTag.textContent = "Gatilho: " + (analysis?.gate || (forceDetected ? "Força Detectada (3P/6)" : "seguidinha"));
       safeFeed("warn", `SINAL 2x (${stage}) — entrar após (${pending.afterMult})`);
       return;
     }
