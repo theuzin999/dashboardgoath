@@ -492,6 +492,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let lastG0Strategy = null; // Estratégia usada no G0
 
+  let bpppFlag = 0; // NOVO: Flag BPPP (0=off, 1=BPPP visto, 2=BPPPB visto)
+
 
 
 
@@ -514,7 +516,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if(run>=4) return {name:`surfing-4+`, gate:`${run} positivas ⇒ P (2x)`};
 
-      if(run===3) return {name:`sequência roxas 3`, gate:`3 positivas ⇒ P (2x)`};
+      
+
+      // ================== LÓGICA BPPP MODIFICADA ==================
+
+      if(run===3) { 
+
+        // É BPPP (ex: B[P][P][P]). 
+
+        // Não retorna estratégia, ativa a flag para 'onNewCandle' processar na *próxima* vela.
+
+        if(bpppFlag === 0) { // Só ativa se não estiver ativo
+          bpppFlag = 1; // 1 = BPPP foi visto, aguardando N+1
+          safeFeed("info", "Padrão BPPP detectado. Aguardando confirmação...");
+        }
+
+        return null; // NÃO envia a estratégia ainda
+
+      }
+
+      // ==========================================================
 
     }
 
@@ -670,6 +691,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     setCardState({active:false, awaiting:false}); 
 
+    // Não reseta bpppFlag aqui, pois ele controla G0, não G1/G2
   }
 
 
@@ -768,7 +790,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // ===== DEBUG LOG =====
 
-    console.log(`[CANDLE ${last.idx}] CorrGate: ${corrGate} | Pred: ${(predN*100).toFixed(0)}% | BlueRun: ${finalBlueRunNow(colors)} | Seguidinha: ${window.seguidinhaOn} | Estratégia: ${analysis?.name || '—'} | 2+BluesBlock: ${pendingTwoBlueBlock}`);
+    console.log(`[CANDLE ${last.idx}] CorrGate: ${corrGate} | Pred: ${(predN*100).toFixed(0)}% | BlueRun: ${finalBlueRunNow(colors)} | Seguidinha: ${window.seguidinhaOn} | Estratégia: ${analysis?.name || '—'} | 2+BluesBlock: ${pendingTwoBlueBlock} | BPPP_Flag: ${bpppFlag}`);
 
 
 
@@ -992,7 +1014,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // 5. CHECAGEM DE ESTRATÉGIA REPETIDA (Regra: G1/G2 tem que ser diferente de G0)
 
-      const currentStrategyName = analysis?.name || (window.seguidinhaOn ? "seguidinha" : (forceDetected ? "forca" : null));
+      const predSoftActive = predN >= SOFT_PCT; // Checa se a predominância 50% está ativa
+
+      const currentStrategyName = analysis?.name || (window.seguidinhaOn ? "seguidinha" : (forceDetected ? "forca" : (predSoftActive ? "pred_soft_50" : null)));
 
       if(currentStrategyName && currentStrategyName === lastG0Strategy){
 
@@ -1006,11 +1030,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
       
 
-      // 6. CHECAGEM DE GATILHO: Força, Estratégia Forte ou Seguidinha
+      // 6. CHECAGEM DE GATILHO: Força, Estratégia Forte, Seguidinha ou Pred. 50%
 
-      if(!strongStrategyActive && !window.seguidinhaOn && !forceDetected){
+      if(!strongStrategyActive && !window.seguidinhaOn && !forceDetected && !predSoftActive){
 
-        setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:"Sem gatilho forte (Força, Estratégia, Seguidinha)"});
+        setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:"Sem gatilho (Força, Estratégia, Seguidinha, Pred. 50%)"});
 
         return; 
 
@@ -1024,11 +1048,39 @@ document.addEventListener("DOMContentLoaded", () => {
 
       pending.enterAtIdx = last.idx + 1; 
 
-      pending.strategy = currentStrategyName || "correção"; // Deve ser um nome válido
+      // 'currentStrategyName' e 'predSoftActive' já foram definidos acima
+
+      pending.strategy = currentStrategyName || "correção"; 
 
       pending.afterMult = lastMultTxt;
 
       
+
+      // Define o texto do gatilho
+
+      let gateText = "correção"; // Padrão
+
+      if (analysis?.gate) {
+
+          gateText = analysis.gate;
+
+      } else if (forceDetected) {
+
+          gateText = "Força Detectada (3P/6)";
+
+      } else if (window.seguidinhaOn) {
+
+          gateText = "seguidinha";
+
+      } else if (predSoftActive) {
+
+          // Usa o valor atual de predN
+
+          gateText = `Predominância ${(predN*100).toFixed(0)}% (Soft)`; 
+
+      }
+
+
 
       martingaleTag.style.display = "inline-block";
 
@@ -1036,7 +1088,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       strategyTag.textContent = "Estratégia: " + pending.strategy;
 
-      gateTag.textContent = "Gatilho: " + (analysis?.gate || (forceDetected ? "Força Detectada (3P/6)" : "seguidinha"));
+      gateTag.textContent = "Gatilho: " + gateText;
 
       safeFeed("warn", `SINAL 2x (${stage}) — entrar após (${pending.afterMult})`);
 
@@ -1066,9 +1118,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
       }
 
+      
+      // Se 3 azuis, reseta o BPPP
+      if(bpppFlag > 0) {
+         safeFeed("info", "Bloco 3+ azuis reseta BPPP pendente.");
+         bpppFlag = 0;
+      }
+
       if (pending) {
 
-        // Se pending existe (cycle em andamento), continuar normalmente (já processado acima)
+        // Se pending existe (cycle em andamento), continuar normally (já processado acima)
 
       } else {
 
@@ -1122,6 +1181,98 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!pending && waitingForNewCorrections === 0) {
 
+
+
+      // ===================== NOVO: PROCESSAR BPPP PENDENTE (G0) =====================
+
+      if (bpppFlag > 0) {
+
+        const lastColor = colors[colors.length-1];
+
+
+
+        if (bpppFlag === 1) { // Estávamos em BPPP, esta é a vela N+1
+
+          if (lastColor !== 'blue') { // Veio P (BPPP -> P). Usuário pediu para entrar.
+
+            safeFeed("info", "Confirmação BPPP (veio P). Liberando sinal G0.");
+
+            
+
+            pending = { stage: 0, enterAtIdx: last.idx + 1, strategy: "BPPP_Confirm (P)", afterMult: lastMultTxt };
+
+            currentCycleLoss = true; 
+
+            lastG0Strategy = "BPPP_Confirm (P)";
+
+            setCardState({active:true, title:"Chance de 2x", sub:`entrar após (${pending.afterMult})`});
+
+            strategyTag.textContent = "Estratégia: BPPP Confirmado (P)";
+
+            gateTag.textContent = "Gatilho: BPPP + P";
+
+            safeFeed("warn", `SINAL 2x (G0) — entrar após (${pending.afterMult})`);
+
+
+
+            bpppFlag = 0; // Reseta a flag
+
+            return; // Sai da função, já temos um sinal
+
+
+
+          } else { // Veio B (BPPP -> B). Usuário pediu para esperar.
+
+            safeFeed("warn", "Padrão BPPPB... sinal BPPP bloqueado. Aguardando próxima vela.");
+
+            bpppFlag = 2; // Avança para o próximo estado de espera (BPPPB)
+
+            setCardState({active:false, awaiting:true, title:"SINAL BLOQUEADO", sub:"Aguardando confirmação BPPPB (veio B)"});
+
+            return; // Bloqueia outras estratégias G0
+
+          }
+
+        } 
+
+        else if (bpppFlag === 2) { // Estávamos em BPPPB, esta é a vela N+2
+
+           if (lastColor !== 'blue') { // Veio P (BPPPB -> P)
+
+              // Armadilha desfeita. Apenas reseta e deixa fluir.
+
+              safeFeed("info", "Padrão BPPPBP. Trap BPPP cancelada. Procurando novos sinais.");
+
+              bpppFlag = 0;
+
+              // Deixa fluir para outras estratégias (como "seguidinha" ou "predN")
+
+           
+
+           } else { // Veio B (BPPPB -> B)
+
+              // Padrão BPPPBB (TRAP CONFIRMADA)
+
+              safeFeed("err", "Padrão BPPPBB (trap) confirmado. Bloco BPPP cancelado.");
+
+              bpppFlag = 0; // Reseta a flag
+
+              // Bloqueia esta vela.
+
+              setCardState({active:false, awaiting:true, title:"SINAL BLOQUEADO", sub:"Padrão BPPPBB (trap)"});
+
+              return; // Bloqueia outras G0
+
+           }
+
+        }
+
+      }
+
+      // ========================================================================
+
+
+
       if (window.seguidinhaOn) {
 
         pending = { stage: 0, enterAtIdx: last.idx + 1, strategy: "seguidinha", afterMult: lastMultTxt };
@@ -1160,7 +1311,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
       } else {
 
-        setCardState({active:false, awaiting:false, title:"SINAL BLOQUEADO", sub:"Corr≥3 sem força"});
+        // Só mostra bloqueio se não estiver aguardando BPPP
+        if(bpppFlag === 0) {
+            setCardState({active:false, awaiting:false, title:"SINAL BLOQUEADO", sub:"Corr≥3 sem força"});
+        }
 
       }
 
@@ -1168,7 +1322,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-    engineStatus.textContent = window.seguidinhaOn ? "SEGUIDINHA ON" : (waitingForNewCorrections > 0 ? "bloqueado (3+ azuis)" : "operando");
+    engineStatus.textContent = window.seguidinhaOn ? "SEGUIDINHA ON" : (waitingForNewCorrections > 0 ? "bloqueado (3+ azuis)" : (bpppFlag > 0 ? "Aguardando BPPP" : "operando"));
 
   }
 
@@ -1250,7 +1404,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       setInterval(() => {
 
-        if (waitingForNewCorrections > 0 || !pending && engineStatus.textContent.includes("bloqueado")) {
+        if (waitingForNewCorrections > 0 || !pending && engineStatus.textContent.includes("bloqueado") || bpppFlag > 0) {
 
           waitingForNewCorrections = 0;
 
@@ -1262,6 +1416,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
           window.prevCorrGate = null;
 
+          bpppFlag = 0; // Reseta a flag BPPP
           safeFeed("info", "Reset automático após inatividade.");
 
           engineStatus.textContent = "operando";
