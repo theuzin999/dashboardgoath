@@ -474,7 +474,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const SOFT_PCT = 0.50; 
 
-  const STRONG_PCT = 0.50; 
+  const STRONG_PCT = 0.60; 
 
 
 
