@@ -331,10 +331,6 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentCycleLoss = false;
 
   function clearPending(){
-    // Limpa o objeto pending e remove o flag de delay se existir
-    if (pending && pending.hasOwnProperty('waitingForceDelay')) {
-        delete pending.waitingForceDelay;
-    }
     pending = null; 
     martingaleTag.style.display = "none"; 
     setCardState({active:false, awaiting:false}); 
@@ -402,10 +398,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // ===== FINALIZAÇÃO DE ENTRADA (sempre processar) =====
     if(pending && pending.enterAtIdx === last.idx){
       const win = last.mult >= 2.0;
-      
-      // Limpa o flag de delay após o ciclo de entrada/perda
-      if(pending.waitingForceDelay) delete pending.waitingForceDelay;
-
       if(win){
         currentCycleLoss = false;
         stats.wins++; stats.streak++; stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
@@ -472,32 +464,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // 1. CHECAGEM DE FORÇA (PRIORIDADE MÁXIMA - 3 consecutivas nas últimas 6)
       const forceDetected = hasForce(colors, 6); // Busca 3P nas últimas 6
-      
-      // VERIFICA SE ESTÁ AGUARDANDO A VELA DE DELAY
-      if (pending.waitingForceDelay) {
-          // O delay de uma vela terminou (estamos no ciclo da próxima vela).
-          // Desativa o flag e continua o fluxo para checar os gatilhos no item 6.
-          delete pending.waitingForceDelay;
-          safeFeed("info", `Delay de 1 vela concluído após liberação por Força para ${stage}.`);
-      }
-      
       if(forceDetected){
         // A força anula todos os bloqueios e LIBERA a entrada.
         pendingTwoBlueBlock = false; 
-
-        // *** DELAY DE 1 VELA APÓS LIBERAÇÃO POR FORÇA ***
-        if (!pending.waitingForceDelay && !pending.enterAtIdx) {
-            pending.waitingForceDelay = true; // Ativa o flag para aguardar o próximo ciclo
-            safeFeed("info", `${stage} liberado por Força (3 consecutivas nas últimas 6). Força anula bloqueios.`);
-            setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:`Liberado por Força — Vela de Delay`});
-            return; // Retorna para forçar o delay de uma vela
-        }
+        safeFeed("info", `${stage} liberado por Força (3 consecutivas nas últimas 6). Força anula bloqueios.`);
       }
 
       // 2. BLOQUEIO IMEDIATO: 2 AZUIS CONSECUTIVOS ANTES DA ENTRADA (B-B)
       // Bloqueia se os dois últimos são azuis e a Força não está ativa para anular.
       if (hasImmediateTwoBlues(colors) && !forceDetected) {
-          if(pending.waitingForceDelay) delete pending.waitingForceDelay; // Cancela o delay
           safeFeed("warn",`${stage} pausado — 2 Azuis (B-B) detectados imediatamente antes da entrada.`);
           setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:"2 Azuis consecutivos (B-B) — bloqueado"});
           return;
@@ -505,7 +480,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // 3. BLOQUEIO PRINCIPAL: 2+ AZUIS ATRÁS DA ÚLTIMA POSITIVA (Regra G0)
       if(pendingTwoBlueBlock && !forceDetected){ // Só bloqueia se a Força NÃO anulou.
-          if(pending.waitingForceDelay) delete pending.waitingForceDelay; // Cancela o delay
           safeFeed("warn",`${stage} pausado — Bloqueio 2+ Azuis (Regra Principal G0) — Aguardando 3 positivas para liberar`);
           setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:`2+ azuis antes da última P — bloqueado`});
           return;
@@ -514,7 +488,6 @@ document.addEventListener("DOMContentLoaded", () => {
       // 4. BLOQUEIO XADREZ (REGRA ANTIGA - SÓ ENTRA DEPOIS DE BLUE)
       if(isXadrezAlternado4(colors)){
          if(colors[colors.length-1] !== "blue"){
-            if(pending.waitingForceDelay) delete pending.waitingForceDelay; // Cancela o delay
             safeFeed("warn",`${stage} pausado (xadrez) — Aguardando confirmação de Blue (BPBP/PBPB)`);
             setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:"Xadrez detectado — aguardando azul"});
             return; 
@@ -524,17 +497,13 @@ document.addEventListener("DOMContentLoaded", () => {
       // 5. CHECAGEM DE ESTRATÉGIA REPETIDA (Regra: G1/G2 tem que ser diferente de G0)
       const currentStrategyName = analysis?.name || (window.seguidinhaOn ? "seguidinha" : (forceDetected ? "forca" : null));
       if(currentStrategyName && currentStrategyName === lastG0Strategy){
-        if(pending.waitingForceDelay) delete pending.waitingForceDelay; // Cancela o delay
         safeFeed("warn",`${stage} pausado — Mesma estratégia de re-entrada do G0`);
         setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:"Mesma estratégia do G0 anterior — bloqueado"});
         return;
       }
       
       // 6. CHECAGEM DE GATILHO: Força, Estratégia Forte ou Seguidinha
-      // Note que 'forceDetected' ainda pode ser true se o delay de uma vela terminou.
       if(!strongStrategyActive && !window.seguidinhaOn && !forceDetected){
-        if(pending.waitingForceDelay) delete pending.waitingForceDelay; // Cancela o delay
-        safeFeed("warn",`${stage} pausado — Sem gatilho forte.`);
         setCardState({active:false, awaiting:true, title:`Aguardando ${stage}`, sub:"Sem gatilho forte (Força, Estratégia, Seguidinha)"});
         return; 
       }
