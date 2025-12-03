@@ -908,38 +908,79 @@ window.renderDashboard = function() {
 }
 
 // ====================================================================
-// 7. LISTENER FIREBASE (Ponto de entrada de dados)
+// 7. LISTENER FIREBASE (Dinâmico para 2 Gráficos)
 // ====================================================================
 
-onValue(ref(db, "history/"), (snapshot) => {
-  const data = snapshot.val();
-  if (!data) {
-    historyData = [];
-    renderDashboard(); 
-    return;
-  }
-  
-  let rawHistory = Object.values(data);
-  
-  const finalHistory = rawHistory
-    .filter(item => item.multiplier && item.time && item.date)
-    .map(item => {
-        const multiplier = parseFloat(item.multiplier.replace('x', ''));
-        return {
-            multiplier: multiplier,
-            time: item.time,
-            date: item.date, 
-            color: getVelaColor(multiplier),
-            minutes: timeToMinutes(item.time) // Mantém a precisão total
-        };
-    })
-    .reverse(); 
+let currentUnsubscribe = null; // Variável para armazenar a conexão ativa
 
-  historyData = finalHistory.slice(0, 100000); 
-  
-  renderDashboard();
+// Função Global para trocar o gráfico (chamada pelo botão no HTML)
+window.mudarGrafico = function(gameType) {
+    // 1. Atualiza visual dos botões
+    const btn1 = document.getElementById('btn-game-1');
+    const btn2 = document.getElementById('btn-game-2');
+    
+    if (gameType === 'aviator') {
+        btn1.classList.add('active');
+        btn2.classList.remove('active');
+        connectToFirebase("history/"); // Caminho do Aviator 1
+    } else {
+        btn1.classList.remove('active');
+        btn2.classList.add('active');
+        connectToFirebase("aviator2/"); // Caminho do Aviator 2
+    }
+};
 
-});
+function connectToFirebase(path) {
+    // 1. Se já existir uma conexão aberta, encerra ela para não duplicar dados
+    if (currentUnsubscribe) {
+        currentUnsubscribe();
+        currentUnsubscribe = null;
+    }
+
+    // 2. Limpa o grid visualmente enquanto carrega
+    const multiplierGrid = document.getElementById('multiplier-grid');
+    if(multiplierGrid) {
+        multiplierGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--cor-texto-suave);">Carregando gráfico ' + path + '...</div>';
+    }
+
+    // 3. Cria a nova conexão
+    const dbRef = ref(db, path);
+    
+    // Armazena a função de "desinscrever" na variável global
+    currentUnsubscribe = onValue(dbRef, (snapshot) => {
+        const data = snapshot.val();
+        
+        if (!data) {
+            historyData = [];
+            renderDashboard(); 
+            return;
+        }
+      
+        let rawHistory = Object.values(data);
+      
+        const finalHistory = rawHistory
+            .filter(item => item.multiplier && item.time && item.date)
+            .map(item => {
+                const multiplier = parseFloat(item.multiplier.toString().replace('x', ''));
+                return {
+                    multiplier: multiplier,
+                    time: item.time,
+                    date: item.date, 
+                    color: getVelaColor(multiplier),
+                    minutes: timeToMinutes(item.time)
+                };
+            })
+            .reverse(); 
+
+        // Atualiza a variável global historyData usada por todo o sistema
+        historyData = finalHistory.slice(0, 100000); 
+      
+        // Renderiza tudo novamente com os novos dados
+        renderDashboard();
+    }, (error) => {
+        console.error("Erro ao ler Firebase:", error);
+    });
+}
 
 // ====================================================================
 // 8. Inicialização
@@ -956,7 +997,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('columns-select').value = isMobile ? 3 : 7;
     updateGridColumns();
     
-    renderDashboard();
+    // INICIA A CONEXÃO PADRÃO
+    window.mudarGrafico('aviator'); 
 
     // Ajuste inicial de colunas baseado em tela
     window.addEventListener('resize', () => {
