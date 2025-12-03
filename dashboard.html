@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>GoathBet Dashboard</title>
-    <link rel="icon" type="image/png" href="https://i.postimg.cc/yYzNXKqx/Picsart-25-10-27-10-15-31-195.png">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap" rel="stylesheet">
 
 <script>
@@ -47,6 +46,40 @@
 
         .header{display:flex;justify-content:space-between;align-items:flex-start;}
         .header-left-content{display:flex;flex-direction:column;align-items:flex-start;}
+
+        /* --- ESTILOS DOS BOTÕES DE SELEÇÃO DE GRÁFICO --- */
+        .game-selector {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+            margin-bottom: 8px;
+        }
+
+        .game-btn {
+            background-color: #2e2e2e;
+            color: #aaa;
+            border: 1px solid #444;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .game-btn:hover {
+            background-color: #3e3e3e;
+            color: white;
+        }
+
+        /* Botão Ativo */
+        .game-btn.active {
+            background-color: #d63384; /* Rosa do tema */
+            color: white;
+            border-color: #d63384;
+            box-shadow: 0 0 8px rgba(214, 51, 132, 0.4);
+        }
+        /* ------------------------------------------------ */
 
         /* CARD SLIM 100x – RADAR VERMELHO CENTRAL */
         .alerta-100x-card{
@@ -125,6 +158,12 @@
             <div class="header">
                 <div class="header-left-content">
                     <h2>Dashboard</h2>
+                    
+                    <div class="game-selector">
+                        <button id="btn-game-1" class="game-btn active" onclick="window.mudarGrafico('aviator')">AVIATOR 1</button>
+                        <button id="btn-game-2" class="game-btn" onclick="window.mudarGrafico('aviator2')">AVIATOR 2</button>
+                    </div>
+
                     <button id="logout-button" class="logout-button" onclick="window.logout()">Sair</button>
                 </div>
                 <input type="date" id="date-filter" class="date-filter-input" onchange="renderDashboard()"/>
@@ -134,7 +173,6 @@
                 </div>
             </div>
 
-            <!-- CARD SLIM 100x -->
             <div id="alerta-100x-card" class="alerta-100x-card" title="Clique para ver o último 100x+"
                  onclick="openSlidebar('alert-100x-slidebar')">
                 <div class="alerta-100x-content">
@@ -142,7 +180,6 @@
                     <span class="info-icon">i</span>
                 </div>
 
-                <!-- RADAR VERMELHO CENTRAL -->
                 <div class="alerta-100x-radar">
                     <div class="radar-circle"></div>
                     <div class="radar-circle"></div>
@@ -155,7 +192,6 @@
                 <p id="historico-texto"></p>
             </div>
 
-            <!-- CARDS PRINCIPAIS -->
             <div class="stats-cards">
                 <div class="card" id="prob-10x-card" onclick="openSlidebar('prob-10x-slidebar')">
                     <div class="card-label">Probabilidade 10x</div>
@@ -176,7 +212,6 @@
                 </div>
             </div>
 
-            <!-- Gatilhos & Condições -->
             <div class="strong-entry-container">
                 <div class="entry-card trigger-card-button" id="trigger-card-pink" onclick="openSlidebar('pink-triggers-slidebar')">
                     Gatilhos de Rosa
@@ -199,7 +234,6 @@
                 </div>
             </div>
 
-            <!-- Filtros -->
             <div class="filters-section">
                 <div class="color-filter">
                     <div class="filter-label">Filtrar Cores:</div>
@@ -227,7 +261,6 @@
                 </div>
             </div>
 
-            <!-- Médias -->
             <div class="averages-section">
                 <div class="card">
                     <div class="card-label">Média azul</div>
@@ -252,7 +285,6 @@
         </div>
     </div>
 
-    <!-- Slidebars -->
     <div id="prob-10x-slidebar" class="slidebar">
         <button class="slidebar-close" onclick="closeSlidebar('prob-10x-slidebar')">×</button>
         <div class="slidebar-title">Probabilidade 10x</div>
@@ -307,18 +339,15 @@
         </div>
     </div>
 
-    <!-- SLIDEBAR 100x – TEXTOS CORRIGIDOS -->
     <div id="alert-100x-slidebar" class="slidebar">
         <button class="slidebar-close" onclick="closeSlidebar('alert-100x-slidebar')">×</button>
         <div class="slidebar-title">Informações 100x</div>
         <div class="slidebar-content">
 
-            <!-- ÚLTIMA VELA ≥100x -->
             <div class="info-card" id="alert-100x-last">
                 Última rosa 100x: Nenhuma
             </div>
 
-            <!-- TEMPO SEM 100x -->
             <div class="info-card" id="tempo-100x-card" style="margin-top:12px; background:#2c3e50; color:#fff;">
                 <strong>tempo sem 100x:</strong> <span id="tempo-100x-value">-- minutos</span>
             </div>
@@ -332,7 +361,6 @@
 <div class="info-card" id="alert-100x-next6">--</div>
 <div class="info-card" id="alert-100x-next7">--</div>
 
-            <!-- ÚLTIMO INTERVALO -->
             <h4 style="margin-top:16px;">Último intervalo entre 100x</h4>
             <div class="info-card" id="interval-100x-info">
                 Último intervalo: -- minutos
@@ -342,7 +370,6 @@
 
     <script type="module" src="script.js"></script>
 
-    <!-- Anti-DevTools -->
     <script>
       (function antiDevTools(){
         const redirectURL="/";
@@ -358,5 +385,4 @@
       })();
     </script>
 </body>
-
 </html>
