@@ -4,7 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Aviator Smart Signals</title>
-  <link rel="icon" type="image/png" href="https://i.postimg.cc/yYzNXKqx/Picsart-25-10-27-10-15-31-195.png">
 
 <script>
     const API_BASE = "https://keysdash.espanhaserrita.workers.dev/";
@@ -42,6 +41,59 @@
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 
   <script defer src="botscript.js"></script>
+
+  <style>
+    /* ESTILOS DOS BOTÕES DE TROCA DE GRÁFICO */
+    .game-selector {
+        display: flex;
+        gap: 10px;
+        margin-left: 20px; /* Espaço da logo */
+        align-items: center;
+    }
+
+    .game-btn {
+        background-color: #2e2e2e;
+        color: #aaa;
+        border: 1px solid #444;
+        padding: 6px 14px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+    }
+
+    .game-btn:hover {
+        background-color: #3e3e3e;
+        color: white;
+    }
+
+    /* Botão Ativo */
+    .game-btn.active {
+        background-color: #d63384; /* Rosa do tema */
+        color: white;
+        border-color: #d63384;
+        box-shadow: 0 0 8px rgba(214, 51, 132, 0.4);
+    }
+
+    /* Ajuste para mobile */
+    @media (max-width: 600px) {
+        .header-left {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .game-selector {
+            margin-left: 0;
+            margin-top: 10px;
+            width: 100%;
+        }
+        .game-btn {
+            flex: 1;
+            text-align: center;
+        }
+    }
+  </style>
 </head>
 <body>
 <header>
@@ -53,6 +105,11 @@
     <div class="brand">
       <img src="https://i.postimg.cc/yYzNXKqx/Picsart-25-10-27-10-15-31-195.png" alt="Logo" class="logo-img">
       <h1>Aviator Smart Signals</h1>
+    </div>
+
+    <div class="game-selector">
+        <button id="btn-game-1" class="game-btn active" onclick="window.mudarGrafico('aviator')">AVIATOR 1</button>
+        <button id="btn-game-2" class="game-btn" onclick="window.mudarGrafico('aviator2')">AVIATOR 2</button>
     </div>
   </div>
   <div class="status-badge" id="liveStatus">Conectando ao Firebase…</div>
@@ -82,7 +139,7 @@
     </div>
     
     <section class="card stats-card-parent">
-      <div class="stats-header">Estatísticas desde que você entrou:</div>
+      <div class="stats-header">Estatísticas</div>
       
       <div class="stats-kpi-grid">
         <div class="kpi-box" id="engineStatus-kpi">
@@ -90,18 +147,18 @@
           <div class="big" id="engineStatus">Inicializando…</div>
         </div>
         <div class="kpi-box" id="predStatus-kpi">
-          <div class="label">Predominância:</div>
+          <div class="label">Predominância</div>
           <div class="big" id="predStatus">—</div>
         </div>
         <div class="kpi-box" id="blueRun-kpi">
-          <div class="label">Azuis Seguidas:</div>
+          <div class="label">Azuis Seguidas</div>
           <div class="big" id="blueRun">0</div>
         </div>
       </div>
 
       <div class="stats-kpi-grid">
         <div class="kpi-box">
-          <div class="label">Acertos Consecutivos</div>
+          <div class="label">Acertos Consec.</div>
           <div class="big" id="streak">0</div>
           <button class="btn-more" id="streakMoreBtn">detalhes</button>
         </div>
