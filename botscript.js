@@ -87,7 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderHistory(list){
     const historyGrid = document.getElementById("history");
-    historyGrid.innerHTML="";
+    if(historyGrid) historyGrid.innerHTML="";
     const last15 = list.slice(-24).reverse();
     last15.forEach(r=>{
       const box=document.createElement("div"); 
@@ -97,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const dot=document.createElement("div"); dot.className= r.color==="blue"?"dot-blue":(r.color==="purple"?"dot-purple":"dot-pink");
       const c=document.createElement("div"); c.className="c"; c.textContent=r.color;
       top.appendChild(val); top.appendChild(dot); box.appendChild(top); box.appendChild(c);
-      historyGrid.appendChild(box);
+      if(historyGrid) historyGrid.appendChild(box);
     });
   }
 
@@ -586,7 +586,7 @@ document.addEventListener("DOMContentLoaded", () => {
     engineStatus.textContent = window.seguidinhaOn ? "SEGUIDINHA ON" : (waitingForNewCorrections > 0 ? "bloqueado (3+ azuis)" : "operando");
   }
 
-  // ===================== Firebase =======================
+  // ===================== Firebase Helper =======================
   function toArrayFromHistory(raw){
     const rows = [];
     const vals = Object.values(raw || {});
@@ -605,23 +605,85 @@ document.addEventListener("DOMContentLoaded", () => {
     return rows;
   }
 
-  (function init(){
-    try{
-      const app = firebase.initializeApp(firebaseConfig);
-      liveStatus.textContent = "Conectado";
-      liveStatus.style.background="rgba(34,197,94,.15)"; liveStatus.style.color="#b9f5c7"; liveStatus.style.borderColor="rgba(34,197,94,.35)";
-      const dbRef = app.database().ref("history/");
-      dbRef.on('value',(snapshot)=>{
-        const data = snapshot.val();
-        const arr = toArrayFromHistory(data);
-        if(!arr.length){ engineStatus.textContent="sem dados"; return; }
-        onNewCandle(arr);
-      },(error)=>{
-        liveStatus.textContent = "Erro: "+error.message;
-        liveStatus.style.background="rgba(239,68,68,.15)"; liveStatus.style.color="#ffd1d1";
-        setTimeout(init, 5000); // Reconectar
-      });
+  // ===================== LÓGICA DE TROCA DE GRÁFICO (MODIFICADO) =======================
+  
+  let currentDbRef = null; // Armazena a referência ativa
 
+  window.mudarGrafico = function(gameType) {
+    const btn1 = document.getElementById('btn-game-1');
+    const btn2 = document.getElementById('btn-game-2');
+
+    // Atualiza botões
+    if(btn1 && btn2) {
+        if(gameType === 'aviator') {
+            btn1.classList.add('active');
+            btn2.classList.remove('active');
+            connectToFirebase("history/");
+        } else {
+            btn1.classList.remove('active');
+            btn2.classList.add('active');
+            connectToFirebase("aviator2/");
+        }
+    }
+    
+    // Limpa estado do bot ao trocar de mesa (segurança)
+    clearPending();
+    window.seguidinhaOn = false;
+    pendingTwoBlueBlock = false;
+    safeFeed("info", `Trocando para ${gameType === 'aviator' ? 'Aviator 1' : 'Aviator 2'}...`);
+  }
+
+  function connectToFirebase(path) {
+    // 1. Desconecta do anterior
+    if(currentDbRef) {
+        currentDbRef.off();
+    }
+
+    // 2. UI Loading
+    if(historyGrid) historyGrid.innerHTML = '<div style="color:#aaa; padding:20px;">Carregando gráfico...</div>';
+    liveStatus.textContent = "Conectando " + path + "...";
+
+    // 3. Nova Conexão
+    try {
+        // Usa a instância global 'firebase' (script compat)
+        if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        
+        const dbRef = firebase.database().ref(path);
+        currentDbRef = dbRef; // Guarda para desconectar depois
+
+        dbRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            const arr = toArrayFromHistory(data);
+            
+            liveStatus.textContent = "Conectado: " + path;
+            liveStatus.style.background="rgba(34,197,94,.15)"; 
+            liveStatus.style.color="#b9f5c7";
+
+            if(!arr.length){ 
+                engineStatus.textContent="sem dados"; 
+                if(historyGrid) historyGrid.innerHTML="<div style='padding:10px'>Sem dados recebidos.</div>";
+                return; 
+            }
+            onNewCandle(arr);
+
+        }, (error) => {
+            liveStatus.textContent = "Erro: "+error.message;
+            liveStatus.style.background="rgba(239,68,68,.15)"; 
+            liveStatus.style.color="#ffd1d1";
+            console.error(error);
+        });
+
+    } catch(e) {
+        console.error("Erro Firebase:", e);
+    }
+  }
+
+  // Inicialização
+  try {
+      const app = firebase.initializeApp(firebaseConfig);
+      // Inicia com Aviator 1
+      window.mudarGrafico('aviator');
+      
       // Reset periódico
       setInterval(() => {
         if (waitingForNewCorrections > 0 || !pending && engineStatus.textContent.includes("bloqueado")) {
@@ -634,12 +696,10 @@ document.addEventListener("DOMContentLoaded", () => {
           engineStatus.textContent = "operando";
         }
       }, 1800000); // 30 min
-    }catch(e){
-      liveStatus.textContent="Falha ao iniciar Firebase";
-      liveStatus.style.background="rgba(239,68,68,.15)"; liveStatus.style.color="#ffd1d1";
+
+  } catch(e){
       console.error(e);
-    }
-  })();
+  }
 
   // ===================== BLOQUEIO DEVTOOLS =======================
   (function() {
