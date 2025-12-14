@@ -97,7 +97,7 @@
     .msg.error { color:#ff4d4d; }
     .msg.success { color:#00ff99; }
 
-    /* --- Novos Estilos para Checkbox e Termos --- */
+    /* --- Estilos para Checkbox e Termos/Política --- */
     .terms-wrapper {
         margin-top: 20px;
         text-align: left;
@@ -121,6 +121,7 @@
         color: #ff4d4d;
         text-decoration: underline;
         cursor: pointer;
+        margin: 0 2px;
     }
 
     .terms-wrapper a:hover {
@@ -169,11 +170,13 @@
         text-decoration: none;
     }
 
-    /* Formatação do Texto dos Termos */
-    .terms-text h3 { color: #ff4d4d; border-bottom: 1px solid #444; padding-bottom: 10px; margin-top: 20px;}
-    .terms-text p { line-height: 1.6; margin-bottom: 15px; text-align: justify; }
-    .terms-text ul { margin-bottom: 15px; }
-    .terms-text li { margin-bottom: 5px; }
+    /* Formatação do Texto dos Termos/Política */
+    .content-text h2 { text-align: center; color: #fff; }
+    .content-text h3 { color: #ff4d4d; border-bottom: 1px solid #444; padding-bottom: 10px; margin-top: 20px;}
+    .content-text h4 { color: #ff9999; margin-top: 15px; margin-bottom: 5px; }
+    .content-text p { line-height: 1.6; margin-bottom: 15px; text-align: justify; }
+    .content-text ul { margin-bottom: 15px; }
+    .content-text li { margin-bottom: 5px; }
     
     /* Scrollbar customizada para o modal */
     .modal-content::-webkit-scrollbar { width: 10px; }
@@ -198,7 +201,7 @@
     <div class="terms-wrapper">
         <input type="checkbox" id="termsCheck">
         <label for="termsCheck">
-            Declaro que li, compreendi e concordo com os <a id="openTerms">Termos de Uso</a>.
+            Declaro que li e aceito os <a id="openTerms">Termos de Uso</a> e a <a id="openPrivacy">Política de Privacidade</a>.
         </label>
     </div>
 
@@ -207,8 +210,8 @@
 
   <div id="termsModal" class="modal">
     <div class="modal-content">
-      <span class="close">&times;</span>
-      <div class="terms-text">
+      <span class="close terms-close">&times;</span>
+      <div class="content-text">
         <h2 style="text-align: center; color: #fff;">TERMOS DE USO, AVISO LEGAL E LIMITAÇÕES DO SERVIÇO</h2>
         
         <h3>1. Aceitação dos Termos</h3>
@@ -217,71 +220,71 @@
         <h3>2. Natureza da Ferramenta</h3>
         <p>A ferramenta disponibiliza recursos digitais de apoio à análise, incluindo, mas não se limitando a:</p>
         <ul>
-            <li>Gráficos</li>
-            <li>Dados estatísticos</li>
-            <li>Padrões históricos</li>
-            <li>Probabilidades</li>
-            <li>Filtros visuais</li>
-            <li>Bot automatizado</li>
-            <li>Planilha de gerenciamento de banca</li>
+            <li>gráficos</li>
+            <li>dados estatísticos</li>
+            <li>padrões históricos</li>
+            <li>probabilidades</li>
+            <li>filtros visuais</li>
+            <li>bot automatizado</li>
+            <li>planilha de gerenciamento de banca</li>
         </ul>
         <p>A ferramenta não constitui promessa de resultado, não garante lucros, nem fornece indicação direta de apostas vencedoras, conforme o art. 30 do CDC.</p>
 
         <h3>3. Isenção de Garantia de Resultados</h3>
         <p>O usuário reconhece que:</p>
         <ul>
-            <li>Apostas envolvem risco financeiro</li>
-            <li>Resultados passados não garantem resultados futuros</li>
-            <li>Toda decisão tomada é de sua inteira responsabilidade</li>
+            <li>apostas envolvem risco financeiro</li>
+            <li>resultados passados não garantem resultados futuros</li>
+            <li>toda decisão tomada é de sua inteira responsabilidade</li>
         </ul>
         <p>Nos termos do art. 14, §4º do CDC, o fornecedor não se responsabiliza por decisões tomadas exclusivamente pelo consumidor com base em ferramentas de apoio.</p>
 
         <h3>4. Relação com o Jogo Aviator e a Spribe</h3>
         <p>A ferramenta não possui qualquer vínculo, parceria ou contrato com a empresa Spribe, desenvolvedora e detentora do jogo Aviator, nem com a plataforma onde o jogo é disponibilizado. O usuário declara estar ciente de que a Spribe e/ou a plataforma que disponibiliza o jogo podem, a qualquer momento e sem aviso prévio:</p>
         <ul>
-            <li>Alterar regras do jogo</li>
-            <li>Modificar, atrasar ou ocultar multiplicadores</li>
-            <li>Limitar ou bloquear o acesso a informações</li>
-            <li>Implementar mecanismos que impeçam análises externas</li>
-            <li>Suspender ou encerrar funcionalidades do jogo</li>
+            <li>alterar regras do jogo</li>
+            <li>modificar, atrasar ou ocultar multiplicadores</li>
+            <li>limitar ou bloquear o acesso a informações</li>
+            <li>implementar mecanismos que impeçam análises externas</li>
+            <li>suspender ou encerrar funcionalidades do jogo</li>
         </ul>
         <p>Tais situações caracterizam fato de terceiro, conforme o art. 14, §3º, inciso II do CDC, não sendo de responsabilidade da ferramenta.</p>
 
         <h3>5. Bot Automatizado</h3>
         <p>O bot automatizado:</p>
         <ul>
-            <li>Utiliza padrões estatísticos e históricos</li>
-            <li>Não é permanente</li>
-            <li>Pode sofrer interrupções, falhas, alterações ou ser descontinuado a qualquer momento</li>
+            <li>utiliza padrões estatísticos e históricos</li>
+            <li>não é permanente</li>
+            <li>pode sofrer interrupções, falhas, alterações ou ser descontinuado a qualquer momento</li>
         </ul>
         <p>O usuário reconhece que o funcionamento do bot depende de fatores técnicos e externos, não constituindo obrigação contínua, em observância ao princípio da boa-fé objetiva (art. 422 do Código Civil).</p>
 
         <h3>6. Indisponibilidade da Ferramenta</h3>
         <p>A ferramenta pode apresentar indisponibilidade temporária ou definitiva por motivos como:</p>
         <ul>
-            <li>Manutenção</li>
-            <li>Falhas técnicas</li>
-            <li>Atualizações</li>
-            <li>Instabilidades de servidores</li>
-            <li>Decisões de terceiros</li>
-            <li>Alterações no jogo ou na plataforma que o disponibiliza</li>
+            <li>manutenção</li>
+            <li>falhas técnicas</li>
+            <li>atualizações</li>
+            <li>instabilidades de servidores</li>
+            <li>decisões de terceiros</li>
+            <li>alterações no jogo ou na plataforma que o disponibiliza</li>
         </ul>
         <p>Nos termos do art. 393 do Código Civil, casos fortuitos ou de força maior isentam o fornecedor de responsabilidade quando não houver culpa direta.</p>
 
         <h3>7. Acesso Após o Pagamento</h3>
         <p>Após a confirmação do pagamento, o usuário recebe acesso à ferramenta enquanto ela estiver operacional e disponível. O usuário declara ciência de que:</p>
         <ul>
-            <li>Não há garantia de funcionamento contínuo ou eterno</li>
-            <li>A ferramenta pode ser alterada ou descontinuada por inviabilidade técnica, econômica ou por fatores externos</li>
+            <li>não há garantia de funcionamento contínuo ou eterno</li>
+            <li>a ferramenta pode ser alterada ou descontinuada por inviabilidade técnica, econômica ou por fatores externos</li>
         </ul>
         <p>Tal informação atende ao dever de transparência previsto no art. 6º, inciso III do CDC.</p>
 
         <h3>8. Reembolsos e Direito de Arrependimento</h3>
         <p>Nos termos do art. 49 do CDC, o consumidor possui direito de arrependimento em compras realizadas fora do estabelecimento comercial. Entretanto, o usuário declara estar ciente de que:</p>
         <ul>
-            <li>Trata-se de serviço digital</li>
-            <li>O acesso é liberado imediatamente após a confirmação do pagamento</li>
-            <li>A prestação do serviço se inicia de forma imediata</li>
+            <li>trata-se de serviço digital</li>
+            <li>o acesso é liberado imediatamente após a confirmação do pagamento</li>
+            <li>a prestação do serviço se inicia de forma imediata</li>
         </ul>
         <p>Dessa forma, após a ativação do acesso, não haverá reembolso financeiro, salvo nos casos expressamente previstos em lei, como falha total e definitiva na entrega do serviço.</p>
 
@@ -291,18 +294,18 @@
         <h3>10. Uso Indevido</h3>
         <p>É expressamente proibido:</p>
         <ul>
-            <li>Compartilhar, revender ou ceder acesso</li>
-            <li>Utilizar a ferramenta de forma abusiva ou fraudulenta</li>
+            <li>compartilhar, revender ou ceder acesso</li>
+            <li>utilizar a ferramenta de forma abusiva ou fraudulenta</li>
         </ul>
         <p>O descumprimento poderá resultar em bloqueio imediato do acesso, nos termos do art. 187 do Código Civil, sem prejuízo de outras medidas cabíveis.</p>
 
         <h3>11. Responsabilidade do Usuário</h3>
         <p>O usuário declara que:</p>
         <ul>
-            <li>Possui plena capacidade civil</li>
-            <li>Compreende os riscos envolvidos</li>
-            <li>É responsável por suas decisões financeiras</li>
-            <li>Utilizará a ferramenta de forma consciente</li>
+            <li>possui plena capacidade civil</li>
+            <li>compreende os riscos envolvidos</li>
+            <li>é responsável por suas decisões financeiras</li>
+            <li>utilizará a ferramenta de forma consciente</li>
         </ul>
 
         <h3>12. Alterações dos Termos</h3>
@@ -312,7 +315,130 @@
         <p>Fica eleito o foro da legislação brasileira para dirimir quaisquer controvérsias decorrentes destes Termos de Uso.</p>
         
         <br>
-        <button id="acceptBtnModal" class="login-button" style="background: #333; margin-top: 10px;">Li e Concordo</button>
+        <button id="acceptTermsModal" class="login-button" style="background: #333; margin-top: 10px;">Li e Concordo</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="privacyModal" class="modal">
+    <div class="modal-content">
+      <span class="close privacy-close">&times;</span>
+      <div class="content-text">
+        <h2 style="text-align: center; color: #fff;">POLÍTICA DE PRIVACIDADE</h2>
+        
+        <h3>1. Compromisso com a Privacidade</h3>
+        <p>Esta Política de Privacidade tem como objetivo informar, de forma clara e transparente, como os dados são tratados durante a utilização desta ferramenta. Ao acessar, adquirir ou utilizar a ferramenta, o usuário declara que leu e concorda com esta Política de Privacidade.</p>
+
+       <h3>2. Dados Tratados</h3>
+<p>
+A ferramenta trata apenas dados estritamente necessários para validação de pagamento,
+comunicação básica, autenticação e segurança, não realizando coleta excessiva ou
+desnecessária.
+</p>
+
+<h4>2.1 Dados relacionados aos pagamentos via Pix</h4>
+<p>
+Para fins de conferência e validação do pagamento, podem ser visualizadas as seguintes
+informações constantes no comprovante enviado pelo próprio usuário:
+</p>
+
+<ul>
+    <li>Nome exibido no comprovante Pix</li>
+    <li>Em caso de pagamento realizado por conta pessoa jurídica, o nome exibido será o da empresa</li>
+    <li>Instituição financeira utilizada no pagamento</li>
+    <li>CPF parcialmente oculto, quando presente no comprovante</li>
+</ul>
+
+<p>Essas informações são utilizadas prioritariamente para a confirmação do pagamento e
+podem, quando aplicável, ser tratadas para fins de autenticação e controle de acesso,
+caso a ferramenta venha a adotar mecanismos de login vinculados a esses dados.</p>
+
+
+       <h4>2.2 Dados de contato</h4>
+<p>Número de WhatsApp e endereço de e-mail.</p>
+
+<p>Esses dados são utilizados para finalidades pontuais e necessárias ao funcionamento da ferramenta, podendo incluir:</p>
+
+<ul>
+    <li>envio de informações relacionadas ao acesso</li>
+    <li>esclarecimentos sobre o funcionamento da ferramenta, quando necessário</li>
+    <li>autenticação e controle de acesso, caso a ferramenta venha a utilizar esses dados como forma de login</li>
+</ul>
+
+<p>A ferramenta não utiliza esses dados para fins comerciais, marketing ou publicidade.</p>
+
+        <h4>2.3 Dados técnicos e de segurança</h4>
+        <p>Podem ser tratados dados técnicos necessários para a segurança e controle de acesso, incluindo:</p>
+        <ul>
+            <li>Endereço IP</li>
+            <li>Data e horário de acesso</li>
+            <li>Dados de sessão e autenticação</li>
+        </ul>
+        <p>Esses dados são utilizados para:</p>
+        <ul>
+            <li>controle e validação de acesso</li>
+            <li>prevenção de uso indevido ou compartilhamento de chaves</li>
+            <li>segurança da ferramenta</li>
+        </ul>
+
+        <h3>3. Finalidade do Tratamento dos Dados</h3>
+        <p>Os dados tratados têm como finalidade exclusiva:</p>
+        <ul>
+            <li>validação e confirmação de pagamento</li>
+            <li>liberação e controle de acesso</li>
+            <li>prevenção de fraudes e uso indevido</li>
+            <li>segurança da ferramenta</li>
+            <li>comunicação básica com o usuário</li>
+        </ul>
+        <p>O tratamento observa os princípios da finalidade, necessidade e minimização, conforme a Lei Geral de Proteção de Dados – LGPD (Lei nº 13.709/2018).</p>
+
+        <h3>4. Armazenamento dos Dados</h3>
+        <p>Dados de pagamento são utilizados apenas para conferência e não são armazenados permanentemente. Dados técnicos podem ser mantidos temporariamente para fins de segurança e controle de acesso. Dados de contato são utilizados apenas enquanto necessários para comunicação pontual.</p>
+
+        <h3>5. Compartilhamento de Dados</h3>
+        <p>A ferramenta não compartilha, vende ou cede dados pessoais a terceiros. Os dados tratados são utilizados exclusivamente de forma interna, para:</p>
+        <ul>
+            <li>funcionamento técnico básico</li>
+            <li>segurança da ferramenta</li>
+            <li>validação de acesso</li>
+        </ul>
+        <p>O acesso aos dados poderá ocorrer somente em caso de obrigação legal ou ordem judicial, conforme a legislação vigente.</p>
+
+        <h3>6. Cookies e Tecnologias Semelhantes</h3>
+        <p>A ferramenta pode utilizar cookies ou tecnologias semelhantes exclusivamente para:</p>
+        <ul>
+            <li>manter sessões ativas</li>
+            <li>garantir a segurança do acesso</li>
+        </ul>
+        <p>O bloqueio dessas tecnologias pode impactar o funcionamento da ferramenta.</p>
+
+        <h3>7. Segurança da Informação</h3>
+        <p>São adotadas medidas técnicas razoáveis para proteger os dados contra:</p>
+        <ul>
+            <li>acesso não autorizado</li>
+            <li>uso indevido</li>
+            <li>vazamento</li>
+            <li>perda de informações</li>
+        </ul>
+        <p>O usuário reconhece que nenhum sistema é completamente imune a falhas.</p>
+
+        <h3>8. Retenção dos Dados</h3>
+        <p>Os dados são mantidos apenas pelo tempo necessário para:</p>
+        <ul>
+            <li>operação da ferramenta</li>
+            <li>segurança do sistema</li>
+            <li>prevenção de abusos</li>
+        </ul>
+        <p>Após esse período, os dados poderão ser excluídos ou anonimizados.</p>
+
+        <h3>9. Alterações desta Política</h3>
+        <p>Esta Política de Privacidade pode ser alterada a qualquer momento para adequações técnicas, operacionais ou legais. A continuidade do uso da ferramenta após alterações implica aceitação da versão vigente.</p>
+
+        <h3>10. Disposições Finais</h3>
+        <p>Esta Política de Privacidade é regida pela legislação brasileira, especialmente pela Lei Geral de Proteção de Dados (Lei nº 13.709/2018).</p>
+
+        <br>
+        <button class="login-button privacy-close" style="background: #333; margin-top: 10px;">Fechar</button>
       </div>
     </div>
   </div>
@@ -334,31 +460,56 @@
       setInterval(() => console.log(element), 1000);
     })();
 
-    // --- Lógica do Modal e Termos ---
-    const modal = document.getElementById("termsModal");
-    const btnOpen = document.getElementById("openTerms");
-    const spanClose = document.getElementsByClassName("close")[0];
-    const btnAcceptModal = document.getElementById("acceptBtnModal");
+    // --- Lógica do Modal de Termos de Uso ---
+    const termsModal = document.getElementById("termsModal");
+    const btnOpenTerms = document.getElementById("openTerms");
+    const termsCloseBtn = document.getElementsByClassName("terms-close");
+    const btnAcceptTermsModal = document.getElementById("acceptTermsModal");
     const termsCheckbox = document.getElementById("termsCheck");
 
-    btnOpen.onclick = function() {
-        modal.style.display = "block";
+    btnOpenTerms.onclick = function(e) {
+        e.preventDefault(); // Evita o comportamento padrão do link
+        termsModal.style.display = "block";
     }
 
-    spanClose.onclick = function() {
-        modal.style.display = "none";
-    }
-
-    btnAcceptModal.onclick = function() {
-        termsCheckbox.checked = true;
-        modal.style.display = "none";
-    }
-
-    window.onclick = function(event) {
-        if (event.target == modal) {
-            modal.style.display = "none";
+    for (let i = 0; i < termsCloseBtn.length; i++) {
+        termsCloseBtn[i].onclick = function() {
+            termsModal.style.display = "none";
         }
     }
+
+    // Ao clicar em 'Li e Concordo' no modal de Termos, marca o checkbox e fecha o modal
+    btnAcceptTermsModal.onclick = function() {
+        termsCheckbox.checked = true;
+        termsModal.style.display = "none";
+    }
+
+    // --- Lógica do Modal de Política de Privacidade ---
+    const privacyModal = document.getElementById("privacyModal");
+    const btnOpenPrivacy = document.getElementById("openPrivacy");
+    const privacyCloseBtn = document.getElementsByClassName("privacy-close");
+
+    btnOpenPrivacy.onclick = function(e) {
+        e.preventDefault(); // Evita o comportamento padrão do link
+        privacyModal.style.display = "block";
+    }
+
+    for (let i = 0; i < privacyCloseBtn.length; i++) {
+        privacyCloseBtn[i].onclick = function() {
+            privacyModal.style.display = "none";
+        }
+    }
+    
+    // Fechar modais ao clicar fora
+    window.onclick = function(event) {
+        if (event.target == termsModal) {
+            termsModal.style.display = "none";
+        }
+        if (event.target == privacyModal) {
+            privacyModal.style.display = "none";
+        }
+    }
+
 
     // --- Função de Mensagem ---
     function showMsg(text, type) {
@@ -384,10 +535,24 @@
 
       // 2. Validação Obrigatória dos Termos
       if (!isAccepted) {
-        showMsg("⚠️ Você precisa concordar com os Termos de Uso para continuar.", "error");
+        showMsg("⚠️ Você precisa concordar com os Termos de Uso e a Política de Privacidade para continuar.", "error");
         // Efeito visual para chamar atenção ao checkbox
-        document.querySelector('.terms-wrapper').style.animation = "shake 0.5s";
-        setTimeout(() => document.querySelector('.terms-wrapper').style.animation = "", 500);
+        const termsWrapper = document.querySelector('.terms-wrapper');
+        // Adiciona animação de erro (shake) CSS se ainda não estiver lá
+        if (!document.getElementById("shakeStyle")) {
+            const styleSheet = document.createElement("style");
+            styleSheet.id = "shakeStyle";
+            styleSheet.innerText = `@keyframes shake {
+                0% { transform: translateX(0); }
+                25% { transform: translateX(-5px); }
+                50% { transform: translateX(5px); }
+                75% { transform: translateX(-5px); }
+                100% { transform: translateX(0); }
+            }`;
+            document.head.appendChild(styleSheet);
+        }
+        termsWrapper.style.animation = "shake 0.5s";
+        setTimeout(() => termsWrapper.style.animation = "", 500);
         return;
       }
 
@@ -452,19 +617,6 @@
       div.style.animationName = Math.random() < 0.5 ? 'move' : 'move-reverse';
       bg.appendChild(div);
     }
-
-    // Adiciona animação de erro (shake) CSS dinamicamente
-    const styleSheet = document.createElement("style");
-    styleSheet.innerText = `
-        @keyframes shake {
-            0% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            50% { transform: translateX(5px); }
-            75% { transform: translateX(-5px); }
-            100% { transform: translateX(0); }
-        }
-    `;
-    document.head.appendChild(styleSheet);
   </script>
 </body>
 </html>
