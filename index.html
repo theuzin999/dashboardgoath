@@ -7,6 +7,7 @@
   <link rel="icon" type="image/png" href="https://i.postimg.cc/yYzNXKqx/Picsart-25-10-27-10-15-31-195.png">
   
   <style>
+    /* --- CSS Original Base --- */
     body {
       margin: 0;
       padding: 0;
@@ -56,6 +57,7 @@
       z-index: 2;
       width: 350px;
       border: 1px solid rgba(255,0,0,0.5);
+      position: relative;
     }
 
     .login-container h2 { color:#f0f0f0; margin:0 0 30px; }
@@ -94,6 +96,91 @@
     .msg { margin-top:15px; font-size:14px; display:none; }
     .msg.error { color:#ff4d4d; }
     .msg.success { color:#00ff99; }
+
+    /* --- Novos Estilos para Checkbox e Termos --- */
+    .terms-wrapper {
+        margin-top: 20px;
+        text-align: left;
+        font-size: 0.9em;
+        color: #ccc;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+    }
+
+    .terms-wrapper input[type="checkbox"] {
+        margin-right: 10px;
+        margin-top: 3px;
+        accent-color: #ff0000;
+        cursor: pointer;
+        width: 16px;
+        height: 16px;
+    }
+
+    .terms-wrapper a {
+        color: #ff4d4d;
+        text-decoration: underline;
+        cursor: pointer;
+    }
+
+    .terms-wrapper a:hover {
+        color: #ff9999;
+    }
+
+    /* --- Estilos do Modal (Pop-up) --- */
+    .modal {
+        display: none; 
+        position: fixed; 
+        z-index: 9999; 
+        left: 0;
+        top: 0;
+        width: 100%; 
+        height: 100%; 
+        overflow: auto; 
+        background-color: rgba(0,0,0,0.9); 
+        backdrop-filter: blur(5px);
+    }
+
+    .modal-content {
+        background-color: #1a1a1a;
+        margin: 5% auto; 
+        padding: 30px;
+        border: 1px solid #ff0000;
+        border-radius: 10px;
+        width: 80%;
+        max-width: 800px;
+        color: #ddd;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 0 50px rgba(255, 0, 0, 0.2);
+    }
+
+    .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .close:hover,
+    .close:focus {
+        color: #ff0000;
+        text-decoration: none;
+    }
+
+    /* Formatação do Texto dos Termos */
+    .terms-text h3 { color: #ff4d4d; border-bottom: 1px solid #444; padding-bottom: 10px; margin-top: 20px;}
+    .terms-text p { line-height: 1.6; margin-bottom: 15px; text-align: justify; }
+    .terms-text ul { margin-bottom: 15px; }
+    .terms-text li { margin-bottom: 5px; }
+    
+    /* Scrollbar customizada para o modal */
+    .modal-content::-webkit-scrollbar { width: 10px; }
+    .modal-content::-webkit-scrollbar-track { background: #1a1a1a; }
+    .modal-content::-webkit-scrollbar-thumb { background: #444; border-radius: 5px; }
+    .modal-content::-webkit-scrollbar-thumb:hover { background: #ff0000; }
+
   </style>
 </head>
 <body>
@@ -102,16 +189,138 @@
   <div class="login-container">
     <h2>LOGIN</h2>
     <img src="https://i.postimg.cc/yYzNXKqx/Picsart-25-10-27-10-15-31-195.png" alt="Logo" class="logo">
+    
     <input type="text" id="clientId" placeholder="ID do Cliente" class="input-field" autocomplete="username">
     <input type="password" id="keyInput" placeholder="Digite sua Key" class="input-field" autocomplete="current-password">
+    
     <button class="login-button" id="loginBtn">ENTRAR</button>
+    
+    <div class="terms-wrapper">
+        <input type="checkbox" id="termsCheck">
+        <label for="termsCheck">
+            Declaro que li, compreendi e concordo com os <a id="openTerms">Termos de Uso</a>.
+        </label>
+    </div>
+
     <div id="msg" class="msg"></div>
+  </div>
+
+  <div id="termsModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <div class="terms-text">
+        <h2 style="text-align: center; color: #fff;">TERMOS DE USO, AVISO LEGAL E LIMITAÇÕES DO SERVIÇO</h2>
+        
+        <h3>1. Aceitação dos Termos</h3>
+        <p>Ao efetuar o pagamento, acessar ou utilizar a ferramenta, o usuário declara que leu, compreendeu e concorda integralmente com estes Termos de Uso, nos termos do art. 46 do Código de Defesa do Consumidor (Lei nº 8.078/90). Caso não concorde com qualquer cláusula, o usuário não deve realizar o pagamento nem utilizar a ferramenta.</p>
+
+        <h3>2. Natureza da Ferramenta</h3>
+        <p>A ferramenta disponibiliza recursos digitais de apoio à análise, incluindo, mas não se limitando a:</p>
+        <ul>
+            <li>Gráficos</li>
+            <li>Dados estatísticos</li>
+            <li>Padrões históricos</li>
+            <li>Probabilidades</li>
+            <li>Filtros visuais</li>
+            <li>Bot automatizado</li>
+            <li>Planilha de gerenciamento de banca</li>
+        </ul>
+        <p>A ferramenta não constitui promessa de resultado, não garante lucros, nem fornece indicação direta de apostas vencedoras, conforme o art. 30 do CDC.</p>
+
+        <h3>3. Isenção de Garantia de Resultados</h3>
+        <p>O usuário reconhece que:</p>
+        <ul>
+            <li>Apostas envolvem risco financeiro</li>
+            <li>Resultados passados não garantem resultados futuros</li>
+            <li>Toda decisão tomada é de sua inteira responsabilidade</li>
+        </ul>
+        <p>Nos termos do art. 14, §4º do CDC, o fornecedor não se responsabiliza por decisões tomadas exclusivamente pelo consumidor com base em ferramentas de apoio.</p>
+
+        <h3>4. Relação com o Jogo Aviator e a Spribe</h3>
+        <p>A ferramenta não possui qualquer vínculo, parceria ou contrato com a empresa Spribe, desenvolvedora e detentora do jogo Aviator, nem com a plataforma onde o jogo é disponibilizado. O usuário declara estar ciente de que a Spribe e/ou a plataforma que disponibiliza o jogo podem, a qualquer momento e sem aviso prévio:</p>
+        <ul>
+            <li>Alterar regras do jogo</li>
+            <li>Modificar, atrasar ou ocultar multiplicadores</li>
+            <li>Limitar ou bloquear o acesso a informações</li>
+            <li>Implementar mecanismos que impeçam análises externas</li>
+            <li>Suspender ou encerrar funcionalidades do jogo</li>
+        </ul>
+        <p>Tais situações caracterizam fato de terceiro, conforme o art. 14, §3º, inciso II do CDC, não sendo de responsabilidade da ferramenta.</p>
+
+        <h3>5. Bot Automatizado</h3>
+        <p>O bot automatizado:</p>
+        <ul>
+            <li>Utiliza padrões estatísticos e históricos</li>
+            <li>Não é permanente</li>
+            <li>Pode sofrer interrupções, falhas, alterações ou ser descontinuado a qualquer momento</li>
+        </ul>
+        <p>O usuário reconhece que o funcionamento do bot depende de fatores técnicos e externos, não constituindo obrigação contínua, em observância ao princípio da boa-fé objetiva (art. 422 do Código Civil).</p>
+
+        <h3>6. Indisponibilidade da Ferramenta</h3>
+        <p>A ferramenta pode apresentar indisponibilidade temporária ou definitiva por motivos como:</p>
+        <ul>
+            <li>Manutenção</li>
+            <li>Falhas técnicas</li>
+            <li>Atualizações</li>
+            <li>Instabilidades de servidores</li>
+            <li>Decisões de terceiros</li>
+            <li>Alterações no jogo ou na plataforma que o disponibiliza</li>
+        </ul>
+        <p>Nos termos do art. 393 do Código Civil, casos fortuitos ou de força maior isentam o fornecedor de responsabilidade quando não houver culpa direta.</p>
+
+        <h3>7. Acesso Após o Pagamento</h3>
+        <p>Após a confirmação do pagamento, o usuário recebe acesso à ferramenta enquanto ela estiver operacional e disponível. O usuário declara ciência de que:</p>
+        <ul>
+            <li>Não há garantia de funcionamento contínuo ou eterno</li>
+            <li>A ferramenta pode ser alterada ou descontinuada por inviabilidade técnica, econômica ou por fatores externos</li>
+        </ul>
+        <p>Tal informação atende ao dever de transparência previsto no art. 6º, inciso III do CDC.</p>
+
+        <h3>8. Reembolsos e Direito de Arrependimento</h3>
+        <p>Nos termos do art. 49 do CDC, o consumidor possui direito de arrependimento em compras realizadas fora do estabelecimento comercial. Entretanto, o usuário declara estar ciente de que:</p>
+        <ul>
+            <li>Trata-se de serviço digital</li>
+            <li>O acesso é liberado imediatamente após a confirmação do pagamento</li>
+            <li>A prestação do serviço se inicia de forma imediata</li>
+        </ul>
+        <p>Dessa forma, após a ativação do acesso, não haverá reembolso financeiro, salvo nos casos expressamente previstos em lei, como falha total e definitiva na entrega do serviço.</p>
+
+        <h3>9. Pagamentos</h3>
+        <p>Os pagamentos realizados, inclusive via Pix, referem-se à licença de uso da ferramenta digital, sendo considerados consumados após a liberação do acesso.</p>
+
+        <h3>10. Uso Indevido</h3>
+        <p>É expressamente proibido:</p>
+        <ul>
+            <li>Compartilhar, revender ou ceder acesso</li>
+            <li>Utilizar a ferramenta de forma abusiva ou fraudulenta</li>
+        </ul>
+        <p>O descumprimento poderá resultar em bloqueio imediato do acesso, nos termos do art. 187 do Código Civil, sem prejuízo de outras medidas cabíveis.</p>
+
+        <h3>11. Responsabilidade do Usuário</h3>
+        <p>O usuário declara que:</p>
+        <ul>
+            <li>Possui plena capacidade civil</li>
+            <li>Compreende os riscos envolvidos</li>
+            <li>É responsável por suas decisões financeiras</li>
+            <li>Utilizará a ferramenta de forma consciente</li>
+        </ul>
+
+        <h3>12. Alterações dos Termos</h3>
+        <p>Os Termos de Uso poderão ser alterados a qualquer momento para adequações legais, técnicas ou operacionais. A continuidade do uso da ferramenta implica aceitação das alterações.</p>
+
+        <h3>13. Foro</h3>
+        <p>Fica eleito o foro da legislação brasileira para dirimir quaisquer controvérsias decorrentes destes Termos de Uso.</p>
+        
+        <br>
+        <button id="acceptBtnModal" class="login-button" style="background: #333; margin-top: 10px;">Li e Concordo</button>
+      </div>
+    </div>
   </div>
 
   <script>
     const API_BASE = "https://keysdash.espanhaserrita.workers.dev/";
 
-    
+    // --- Script Anti-DevTools ---
     (function antiDevTools() {
       const redirectURL = "/";
       document.addEventListener("keydown", e => {
@@ -125,7 +334,33 @@
       setInterval(() => console.log(element), 1000);
     })();
 
-    
+    // --- Lógica do Modal e Termos ---
+    const modal = document.getElementById("termsModal");
+    const btnOpen = document.getElementById("openTerms");
+    const spanClose = document.getElementsByClassName("close")[0];
+    const btnAcceptModal = document.getElementById("acceptBtnModal");
+    const termsCheckbox = document.getElementById("termsCheck");
+
+    btnOpen.onclick = function() {
+        modal.style.display = "block";
+    }
+
+    spanClose.onclick = function() {
+        modal.style.display = "none";
+    }
+
+    btnAcceptModal.onclick = function() {
+        termsCheckbox.checked = true;
+        modal.style.display = "none";
+    }
+
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+
+    // --- Função de Mensagem ---
     function showMsg(text, type) {
       const msg = document.getElementById("msg");
       msg.style.display = "block";
@@ -133,22 +368,40 @@
       msg.textContent = text;
     }
 
-    
+    // --- Login com Validação de Termos ---
     document.getElementById("loginBtn").addEventListener("click", async (e) => {
       e.preventDefault();
+      
       const clientId = document.getElementById("clientId").value.trim();
       const key = document.getElementById("keyInput").value.trim();
+      const isAccepted = document.getElementById("termsCheck").checked;
 
+      // 1. Validação dos Campos
       if (!clientId || !key) {
         showMsg("⚠️ Preencha todos os campos.", "error");
         return;
       }
 
+      // 2. Validação Obrigatória dos Termos
+      if (!isAccepted) {
+        showMsg("⚠️ Você precisa concordar com os Termos de Uso para continuar.", "error");
+        // Efeito visual para chamar atenção ao checkbox
+        document.querySelector('.terms-wrapper').style.animation = "shake 0.5s";
+        setTimeout(() => document.querySelector('.terms-wrapper').style.animation = "", 500);
+        return;
+      }
+
       try {
+        // Envio dos dados incluindo o aceite dos termos
         const res = await fetch(API_BASE + "login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ clientId, key }),
+          body: JSON.stringify({ 
+              clientId, 
+              key,
+              termsAccepted: true,
+              acceptedAt: new Date().toISOString() // Data e hora do aceite
+          }),
         });
         const data = await res.json().catch(() => ({}));
 
@@ -157,14 +410,14 @@
           return;
         }
 
-        
+        // Armazena sessão
         sessionStorage.setItem("sessionId", data.token);
         document.cookie = `sessionId=${data.token}; path=/; max-age=3600; SameSite=Lax; Secure`;
 
-        
+        // Delay visual
         await new Promise(r => setTimeout(r, 400));
 
-        
+        // Verificação final
         const verify = await fetch(API_BASE + "verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -185,7 +438,7 @@
       }
     });
 
-    
+    // --- Background Animation ---
     const bg = document.querySelector('.background');
     for (let i = 0; i < 15; i++) {
       const div = document.createElement('div');
@@ -199,6 +452,19 @@
       div.style.animationName = Math.random() < 0.5 ? 'move' : 'move-reverse';
       bg.appendChild(div);
     }
+
+    // Adiciona animação de erro (shake) CSS dinamicamente
+    const styleSheet = document.createElement("style");
+    styleSheet.innerText = `
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+    `;
+    document.head.appendChild(styleSheet);
   </script>
 </body>
 </html>
